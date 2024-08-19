@@ -1,78 +1,33 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
+	"bytes"
 	"log"
-	"time"
+	"os/exec"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-/*
-This example assumes an existing understanding of commands and messages. If you
-haven't already read our tutorials on the basics of Bubble Tea and working
-with commands, we recommend reading those first.
-
-Find them at:
-https://github.com/charmbracelet/bubbletea/tree/master/tutorials/commands
-https://github.com/charmbracelet/bubbletea/tree/master/tutorials/basics
-*/
-
-// sessionState is used to track which model is focused
-type sessionState uint
-
-const (
-	defaultTime              = time.Minute
-	timerView   sessionState = iota
-	spinnerView
-)
-
-var (
-	// Available spinners
-	spinners = []spinner.Spinner{
-		spinner.Line,
-		spinner.Dot,
-		spinner.MiniDot,
-		spinner.Jump,
-		spinner.Pulse,
-		spinner.Points,
-		spinner.Globe,
-		spinner.Moon,
-		spinner.Monkey,
-	}
-	modelStyle = lipgloss.NewStyle().
-			Width(15).
-			Height(5).
-			Align(lipgloss.Center, lipgloss.Center).
-			BorderStyle(lipgloss.HiddenBorder())
-	focusedModelStyle = lipgloss.NewStyle().
-				Width(15).
-				Height(5).
-				Align(lipgloss.Center, lipgloss.Center).
-				BorderStyle(lipgloss.NormalBorder()).
-				BorderForeground(lipgloss.Color("69"))
-	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-)
-
 type mainModel struct {
-	state      sessionState
+	files      []string
+	cursor     int
 	fileTree   tea.Model
 	diffViewer tea.Model
-	index      int
+	width      int
+	height     int
 }
 
 func newModel() mainModel {
-	m := mainModel{state: timerView}
+	m := mainModel{}
 	m.fileTree = initialFileTreeModel()
 	m.diffViewer = initialDiffModel()
 	return m
 }
 
 func (m mainModel) Init() tea.Cmd {
-	// start the timer and spinner on program start
-	return tea.Batch(m.fileTree.Init(), m.diffViewer.Init())
+	return tea.Batch(tea.EnterAltScreen, m.fileTree.Init(), m.diffViewer.Init())
 }
 
 func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -83,53 +38,72 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "tab":
-			if m.state == timerView {
-				m.state = spinnerView
-			} else {
-				m.state = timerView
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePath(m.files[m.cursor])
+				cmds = append(cmds, cmd)
+			}
+		case "down", "j":
+			if m.cursor < len(m.files)-1 {
+				m.cursor++
+				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePath(m.files[m.cursor])
+				cmds = append(cmds, cmd)
 			}
 		}
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+
+	case fileTreeMsg:
+		m.files = msg.files
+		m.fileTree = m.fileTree.(ftModel).SetFiles(m.files)
+		m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePath(m.files[0])
+		cmds = append(cmds, cmd)
 	}
 
-	switch m.state {
-	// update whichever model is focused
-	case spinnerView:
-		m.diffViewer, cmd = m.diffViewer.Update(msg)
-		cmds = append(cmds, cmd)
-	default:
-		m.fileTree, cmd = m.fileTree.Update(msg)
-		cmds = append(cmds, cmd)
-	}
+	m.fileTree = m.fileTree.(ftModel).SetCursor(m.cursor)
+
+	m.diffViewer, cmd = m.diffViewer.Update(msg)
+	cmds = append(cmds, cmd)
+	m.fileTree, cmd = m.fileTree.Update(msg)
+	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
 }
 
+const fileTreeWidth = 25
+
 func (m mainModel) View() string {
-	var s string
-	model := m.currentFocusedModel()
-	if m.state == timerView {
-		s += lipgloss.JoinHorizontal(lipgloss.Top, focusedModelStyle.Render(fmt.Sprintf("%4s", m.fileTree.View())), modelStyle.Render(m.diffViewer.View()))
-	} else {
-		s += lipgloss.JoinHorizontal(lipgloss.Top, modelStyle.Render(fmt.Sprintf("%4s", m.fileTree.View())), focusedModelStyle.Render(m.diffViewer.View()))
-	}
-	s += helpStyle.Render(fmt.Sprintf("\ntab: focus next • n: new %s • q: exit\n", model))
-	return s
+	ft := lipgloss.NewStyle().
+		Width(fileTreeWidth).
+		Height(m.height).
+		Border(lipgloss.NormalBorder(), false, true, false, false).
+		BorderForeground(lipgloss.Color("8")).
+		Padding(0, 1).
+		Render(m.fileTree.View())
+	dv := lipgloss.NewStyle().MaxHeight(m.height).Width(m.width - fileTreeWidth).Render(m.diffViewer.View())
+	return lipgloss.JoinHorizontal(lipgloss.Top, ft, dv)
 }
 
-func (m mainModel) currentFocusedModel() string {
-	if m.state == timerView {
-		return "timer"
+func fetchFileTree() tea.Msg {
+	c := exec.Command("git", "diff", "--name-only", "HEAD")
+	stdout, err := c.Output()
+	if err != nil {
+		return errMsg{err: err}
 	}
-	return "spinner"
+	scanner := bufio.NewScanner(bytes.NewReader(stdout))
+	files := make([]string, 0)
+	for scanner.Scan() {
+		line := scanner.Text()
+		files = append(files, line)
+	}
+	return fileTreeMsg{files: files}
 }
 
-func (m *mainModel) Next() {
-	if m.index == len(spinners)-1 {
-		m.index = 0
-	} else {
-		m.index++
-	}
+type fileTreeMsg struct {
+	files []string
 }
 
 func main() {
