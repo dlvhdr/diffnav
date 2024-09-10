@@ -2,16 +2,20 @@ package main
 
 import (
 	"bufio"
-	"bytes"
+	"fmt"
+	"io"
 	"log"
-	"os/exec"
+	"os"
+	"strings"
 
+	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type mainModel struct {
-	files      []string
+	input      string
+	files      []*gitdiff.File
 	cursor     int
 	fileTree   tea.Model
 	diffViewer tea.Model
@@ -19,15 +23,15 @@ type mainModel struct {
 	height     int
 }
 
-func newModel() mainModel {
-	m := mainModel{}
+func newModel(input string) mainModel {
+	m := mainModel{input: input}
 	m.fileTree = initialFileTreeModel()
 	m.diffViewer = initialDiffModel()
 	return m
 }
 
 func (m mainModel) Init() tea.Cmd {
-	return tea.Batch(tea.EnterAltScreen, m.fileTree.Init(), m.diffViewer.Init())
+	return tea.Batch(tea.EnterAltScreen, m.fetchFileTree, m.diffViewer.Init())
 }
 
 func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -41,13 +45,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
-				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePath(m.files[m.cursor])
+				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[m.cursor])
 				cmds = append(cmds, cmd)
 			}
 		case "down", "j":
 			if m.cursor < len(m.files)-1 {
 				m.cursor++
-				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePath(m.files[m.cursor])
+				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[m.cursor])
 				cmds = append(cmds, cmd)
 			}
 		}
@@ -58,9 +62,16 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case fileTreeMsg:
 		m.files = msg.files
-		m.fileTree = m.fileTree.(ftModel).SetFiles(m.files)
-		m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePath(m.files[0])
+		paths := make([]string, len(m.files))
+		for i, f := range m.files {
+			paths[i] = f.NewName
+		}
+		m.fileTree = m.fileTree.(ftModel).SetFiles(paths)
+		m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[0])
 		cmds = append(cmds, cmd)
+
+	case errMsg:
+		log.Fatal(msg.err)
 	}
 
 	m.fileTree = m.fileTree.(ftModel).SetCursor(m.cursor)
@@ -87,27 +98,48 @@ func (m mainModel) View() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, ft, dv)
 }
 
-func fetchFileTree() tea.Msg {
-	c := exec.Command("git", "diff", "--name-only", "HEAD")
-	stdout, err := c.Output()
+func (m mainModel) fetchFileTree() tea.Msg {
+	files, _, err := gitdiff.Parse(strings.NewReader(m.input + "\n"))
 	if err != nil {
 		return errMsg{err: err}
 	}
-	scanner := bufio.NewScanner(bytes.NewReader(stdout))
-	files := make([]string, 0)
-	for scanner.Scan() {
-		line := scanner.Text()
-		files = append(files, line)
-	}
+
 	return fileTreeMsg{files: files}
 }
 
 type fileTreeMsg struct {
-	files []string
+	files []*gitdiff.File
 }
 
 func main() {
-	p := tea.NewProgram(newModel())
+	stat, err := os.Stdin.Stat()
+	if err != nil {
+		panic(err)
+	}
+
+	if stat.Mode()&os.ModeNamedPipe == 0 && stat.Size() == 0 {
+		fmt.Println("Try piping in some text.")
+		os.Exit(1)
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	var b strings.Builder
+
+	for {
+		r, _, err := reader.ReadRune()
+		if err != nil && err == io.EOF {
+			break
+		}
+		_, err = b.WriteRune(r)
+		if err != nil {
+			fmt.Println("Error getting input:", err)
+			os.Exit(1)
+		}
+	}
+
+	logger, _ := tea.LogToFile("debug.log", "debug")
+	defer logger.Close()
+	p := tea.NewProgram(newModel(strings.TrimSpace(b.String())))
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)

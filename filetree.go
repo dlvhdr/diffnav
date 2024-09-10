@@ -31,7 +31,7 @@ func initialFileTreeModel() ftModel {
 }
 
 func (m ftModel) Init() tea.Cmd {
-	return fetchFileTree
+	return nil
 }
 
 func (m ftModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -48,7 +48,7 @@ func (m ftModel) File() string {
 func (m ftModel) View() string {
 	enumeratorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingRight(1)
 	itemStyle := lipgloss.NewStyle().PaddingRight(1)
-	rootStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
+	rootStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true).MaxWidth(fileTreeWidth)
 
 	s := ""
 	root, err := os.Getwd()
@@ -74,6 +74,8 @@ func (m ftModel) View() string {
 		// } else {
 		//   t.Child(file)
 		// }
+
+		// test
 
 		if m.cursor == i {
 			t = t.Child(lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Render(file))

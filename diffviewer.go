@@ -3,9 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"strings"
 
+	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -13,7 +16,7 @@ type diffModel struct {
 	buffer *bytes.Buffer
 	width  int
 	height int
-	path   string
+	file   *gitdiff.File
 	text   string
 }
 
@@ -28,16 +31,19 @@ func (m diffModel) Init() tea.Cmd {
 }
 
 func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case diffContentMsg:
 		m.text = msg.text
 	case tea.WindowSizeMsg:
 		m.width = msg.Width - fileTreeWidth
 		m.height = msg.Height
+		log.Printf("width: %d, height: %d", m.width, m.height)
+		cmd = diff(m.file, m.width)
 
 	}
 
-	return m, nil
+	return m, cmd
 }
 
 func (m diffModel) View() string {
@@ -47,24 +53,27 @@ func (m diffModel) View() string {
 	return m.text
 }
 
-func (m diffModel) SetFilePath(path string) (diffModel, tea.Cmd) {
+func (m diffModel) SetFilePatch(file *gitdiff.File) (diffModel, tea.Cmd) {
 	m.buffer = new(bytes.Buffer)
-	m.path = path
-	return m, diff(m.path, m.width)
+	m.file = file
+	return m, diff(m.file, m.width)
 }
 
-func diff(path string, width int) tea.Cmd {
+func diff(file *gitdiff.File, width int) tea.Cmd {
+	if width == 0 || file == nil {
+		return nil
+	}
 	return func() tea.Msg {
-		var outb bytes.Buffer
-		gitc := exec.Command("git", "diff", path)
-		deltac := exec.Command("delta", "--side-by-side", "--paging=never", fmt.Sprintf("-w=%d", width))
+		deltac := exec.Command("delta", "--side-by-side", "--paging=never", `--minus-style='red bold ul "#FF000036"'`, fmt.Sprintf("-w=%d", width))
 		deltac.Env = os.Environ()
-		deltac.Stdin, _ = gitc.StdoutPipe()
-		deltac.Stdout = &outb
-		_ = deltac.Start()
-		_ = gitc.Run()
-		_ = deltac.Wait()
-		return diffContentMsg{text: string(outb.String())}
+		deltac.Stdin = strings.NewReader(file.String() + "\n")
+		out, err := deltac.Output()
+
+		if err != nil {
+			return errMsg{err}
+		}
+
+		return diffContentMsg{text: string(out)}
 	}
 }
 
