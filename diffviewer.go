@@ -32,8 +32,20 @@ func (m diffModel) Init() tea.Cmd {
 }
 
 func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
+	cmds := make([]tea.Cmd, 0)
 	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "down", "j":
+			break
+		case "up", "k":
+			break
+		default:
+			vp, vpCmd := m.vp.Update(msg)
+			cmds = append(cmds, vpCmd)
+			m.vp = vp
+		}
+
 	case diffContentMsg:
 		m.vp.SetContent(msg.text)
 	case tea.WindowSizeMsg:
@@ -42,13 +54,10 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.vp.Width = m.width
 		m.vp.Height = m.height
 		log.Printf("width: %d, height: %d", m.width, m.height)
-		cmd = diff(m.file, m.width)
-
-	case tea.MouseMsg:
-		m.vp, cmd = m.vp.Update(msg)
+		cmds = append(cmds, diff(m.file, m.width))
 	}
 
-	return m, cmd
+	return m, tea.Batch(cmds...)
 }
 
 func (m diffModel) View() string {
