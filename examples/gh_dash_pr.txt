@@ -1,0 +1,407 @@
+diff --git a/ui/components/reposection/commands.go b/ui/components/reposection/commands.go
+index 94de9e91..46218ae3 100644
+--- a/ui/components/reposection/commands.go
++++ b/ui/components/reposection/commands.go
+@@ -7,6 +7,7 @@ import (
+ 
+ 	gitm "github.com/aymanbagabas/git-module"
+ 	tea "github.com/charmbracelet/bubbletea"
++	"github.com/charmbracelet/log"
+ 
+ 	"github.com/dlvhdr/gh-dash/v4/data"
+ 	"github.com/dlvhdr/gh-dash/v4/git"
+@@ -76,24 +77,49 @@ func (m *Model) fastForward() (tea.Cmd, error) {
+ 	}), nil
+ }
+ 
+-func (m *Model) push() (tea.Cmd, error) {
++type pushOptions struct {
++	force bool
++}
++
++func (m *Model) push(opts pushOptions) (tea.Cmd, error) {
+ 	b := m.getCurrBranch()
+ 
+ 	taskId := fmt.Sprintf("push_%s_%d", b.Data.Name, time.Now().Unix())
++	withForceText := func() string {
++		if opts.force {
++			return " with force"
++		}
++		return ""
++	}
+ 	task := context.Task{
+ 		Id:           taskId,
+-		StartText:    fmt.Sprintf("Pushing branch %s", b.Data.Name),
+-		FinishedText: fmt.Sprintf("Branch %s has been pushed", b.Data.Name),
++		StartText:    fmt.Sprintf("Pushing branch %s%s", b.Data.Name, withForceText()),
++		FinishedText: fmt.Sprintf("Branch %s has been pushed%s", b.Data.Name, withForceText()),
+ 		State:        context.TaskStart,
+ 		Error:        nil,
+ 	}
+ 	startCmd := m.Ctx.StartTask(task)
+ 	return tea.Batch(startCmd, func() tea.Msg {
+ 		var err error
++		args := []string{}
++		if opts.force {
++			args = append(args, "--force")
++		}
+ 		if len(b.Data.Remotes) == 0 {
+-			err = gitm.Push(*m.Ctx.RepoPath, "origin", b.Data.Name, gitm.PushOptions{CommandOptions: gitm.CommandOptions{Args: []string{"--set-upstream"}}})
++			args = append(args, "--set-upstream")
++			err = gitm.Push(
++				*m.Ctx.RepoPath,
++				"origin",
++				b.Data.Name,
++				gitm.PushOptions{CommandOptions: gitm.CommandOptions{Args: args}},
++			)
+ 		} else {
+-			err = gitm.Push(*m.Ctx.RepoPath, b.Data.Remotes[0], b.Data.Name)
++			err = gitm.Push(
++				*m.Ctx.RepoPath,
++				b.Data.Remotes[0],
++				b.Data.Name,
++				gitm.PushOptions{CommandOptions: gitm.CommandOptions{Args: args}},
++			)
+ 		}
+ 		if err != nil {
+ 			return constants.TaskFinishedMsg{TaskId: taskId, Err: err}
+@@ -248,6 +274,49 @@ func (m *Model) fetchPRsCmd() tea.Cmd {
+ 	})
+ }
+ 
++func (m *Model) fetchPRCmd(branch string) []tea.Cmd {
++	prsTaskId := fmt.Sprintf("fetching_pr_for_branch_%s_%d", branch, time.Now().Unix())
++	task := context.Task{
++		Id:           prsTaskId,
++		StartText:    fmt.Sprintf("Fetching PR for branch %s", branch),
++		FinishedText: "PR fetched",
++		State:        context.TaskStart,
++		Error:        nil,
++	}
++	startCmd := m.Ctx.StartTask(task)
++	return []tea.Cmd{startCmd, func() tea.Msg {
++		res, err := data.FetchPullRequests(fmt.Sprintf("author:@me repo:%s head:%s", git.GetRepoShortName(*m.Ctx.RepoUrl), branch), 1, nil)
++		log.Debug("Fetching PRs", "res", res)
++		if err != nil {
++			return constants.TaskFinishedMsg{
++				SectionId:   0,
++				SectionType: SectionType,
++				TaskId:      prsTaskId,
++				Err:         err,
++			}
++		}
++
++		if len(res.Prs) != 1 {
++			return constants.TaskFinishedMsg{
++				SectionId:   0,
++				SectionType: SectionType,
++				TaskId:      prsTaskId,
++				Err:         fmt.Errorf("expected 1 PR, got %d", len(res.Prs)),
++			}
++		}
++
++		return constants.TaskFinishedMsg{
++			SectionId:   0,
++			SectionType: SectionType,
++			TaskId:      prsTaskId,
++			Msg: tasks.UpdateBranchMsg{
++				Name:  branch,
++				NewPr: &res.Prs[0],
++			},
++		}
++	}}
++}
++
+ type RefreshBranchesMsg struct {
+ 	id   int
+ 	time time.Time
+diff --git a/ui/components/reposection/reposection.go b/ui/components/reposection/reposection.go
+index f0cc97b1..bfeabeae 100644
+--- a/ui/components/reposection/reposection.go
++++ b/ui/components/reposection/reposection.go
+@@ -104,11 +104,14 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
+ 			case msg.Type == tea.KeyEnter:
+ 				input := m.PromptConfirmationBox.Value()
+ 				action := m.GetPromptConfirmationAction()
++				branch := m.getCurrBranch().Data.Name
++				sid := tasks.SectionIdentifer{Id: m.Id, Type: SectionType}
+ 				if action == "new" {
+ 					cmd = m.newBranch(input)
++				} else if action == "create_pr" {
++					cmd = tasks.CreatePR(m.Ctx, sid, branch, input)
+ 				} else {
+-					pr := findPRForRef(m.Prs, m.getCurrBranch().Data.Name)
+-					sid := tasks.SectionIdentifer{Id: m.Id, Type: SectionType}
++					pr := findPRForRef(m.Prs, branch)
+ 					if input == "Y" || input == "y" {
+ 						switch action {
+ 						case "delete":
+@@ -142,7 +145,12 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
+ 			}
+ 
+ 		case key.Matches(msg, keys.BranchKeys.Push):
+-			cmd, err = m.push()
++			cmd, err = m.push(pushOptions{force: false})
++			if err != nil {
++				m.Ctx.Error = err
++			}
++		case key.Matches(msg, keys.BranchKeys.ForcePush):
++			cmd, err = m.push(pushOptions{force: true})
+ 			if err != nil {
+ 				m.Ctx.Error = err
+ 			}
+@@ -154,6 +162,14 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
+ 
+ 		}
+ 
++	case tasks.UpdateBranchMsg:
++		if msg.IsCreated != nil && *msg.IsCreated {
++			cmds = append(cmds, m.fetchPRCmd(msg.Name)...)
++		}
++		if msg.NewPr != nil {
++			m.Prs = append(m.Prs, *msg.NewPr)
++		}
++
+ 	case repoMsg:
+ 		m.repo = msg.repo
+ 		m.Table.SetIsLoading(false)
+@@ -193,7 +209,6 @@ func (m *Model) Update(msg tea.Msg) (section.Section, tea.Cmd) {
+ 
+ 	m.Table.SetRows(m.BuildRows())
+ 	table, tableCmd := m.Table.Update(msg)
+-	cmds = append(cmds, tableCmd)
+ 	m.Table = table
+ 	cmds = append(cmds, tableCmd)
+ 
+diff --git a/ui/components/section/section.go b/ui/components/section/section.go
+index 1fd22131..c601fd67 100644
+--- a/ui/components/section/section.go
++++ b/ui/components/section/section.go
+@@ -355,6 +355,8 @@ func (m *BaseModel) GetPromptConfirmation() string {
+ 			prompt = "Are you sure you want to delete this branch? (Y/n) "
+ 		case m.PromptConfirmationAction == "new" && m.Ctx.View == config.RepoView:
+ 			prompt = "Enter branch name: "
++		case m.PromptConfirmationAction == "create_pr" && m.Ctx.View == config.RepoView:
++			prompt = "Enter PR title: "
+ 		}
+ 
+ 		m.PromptConfirmationBox.SetPrompt(prompt)
+diff --git a/ui/components/tasks/pr.go b/ui/components/tasks/pr.go
+index 0f75cb60..cff8f477 100644
+--- a/ui/components/tasks/pr.go
++++ b/ui/components/tasks/pr.go
+@@ -3,8 +3,10 @@ package tasks
+ import (
+ 	"fmt"
+ 	"os/exec"
++	"strings"
+ 
+ 	tea "github.com/charmbracelet/bubbletea"
++	"github.com/charmbracelet/log"
+ 
+ 	"github.com/dlvhdr/gh-dash/v4/data"
+ 	"github.com/dlvhdr/gh-dash/v4/ui/constants"
+@@ -27,6 +29,12 @@ type UpdatePRMsg struct {
+ 	RemovedAssignees *data.Assignees
+ }
+ 
++type UpdateBranchMsg struct {
++	Name      string
++	IsCreated *bool
++	NewPr     *data.PullRequestData
++}
++
+ func buildTaskId(prefix string, prNumber int) string {
+ 	return fmt.Sprintf("%s_%d", prefix, prNumber)
+ }
+@@ -37,7 +45,7 @@ type GitHubTask struct {
+ 	Section      SectionIdentifer
+ 	StartText    string
+ 	FinishedText string
+-	Msg          func(c *exec.Cmd, err error) UpdatePRMsg
++	Msg          func(c *exec.Cmd, err error) tea.Msg
+ }
+ 
+ func fireTask(ctx *context.ProgramContext, task GitHubTask) tea.Cmd {
+@@ -51,6 +59,7 @@ func fireTask(ctx *context.ProgramContext, task GitHubTask) tea.Cmd {
+ 
+ 	startCmd := ctx.StartTask(start)
+ 	return tea.Batch(startCmd, func() tea.Msg {
++		log.Debug("Running task", "cmd", "gh "+strings.Join(task.Args, " "))
+ 		c := exec.Command("gh", task.Args...)
+ 
+ 		err := c.Run()
+@@ -78,7 +87,7 @@ func OpenBranchPR(ctx *context.ProgramContext, section SectionIdentifer, branch
+ 		Section:      section,
+ 		StartText:    fmt.Sprintf("Opening PR for branch %s", branch),
+ 		FinishedText: fmt.Sprintf("PR for branch %s has been opened", branch),
+-		Msg: func(c *exec.Cmd, err error) UpdatePRMsg {
++		Msg: func(c *exec.Cmd, err error) tea.Msg {
+ 			return UpdatePRMsg{}
+ 		},
+ 	})
+@@ -98,7 +107,7 @@ func ReopenPR(ctx *context.ProgramContext, section SectionIdentifer, pr data.Row
+ 		Section:      section,
+ 		StartText:    fmt.Sprintf("Reopening PR #%d", prNumber),
+ 		FinishedText: fmt.Sprintf("PR #%d has been reopened", prNumber),
+-		Msg: func(c *exec.Cmd, err error) UpdatePRMsg {
++		Msg: func(c *exec.Cmd, err error) tea.Msg {
+ 			return UpdatePRMsg{
+ 				PrNumber: prNumber,
+ 				IsClosed: utils.BoolPtr(false),
+@@ -121,7 +130,7 @@ func ClosePR(ctx *context.ProgramContext, section SectionIdentifer, pr data.RowD
+ 		Section:      section,
+ 		StartText:    fmt.Sprintf("Closing PR #%d", prNumber),
+ 		FinishedText: fmt.Sprintf("PR #%d has been closed", prNumber),
+-		Msg: func(c *exec.Cmd, err error) UpdatePRMsg {
++		Msg: func(c *exec.Cmd, err error) tea.Msg {
+ 			return UpdatePRMsg{
+ 				PrNumber: prNumber,
+ 				IsClosed: utils.BoolPtr(true),
+@@ -144,7 +153,7 @@ func PRReady(ctx *context.ProgramContext, section SectionIdentifer, pr data.RowD
+ 		Section:      section,
+ 		StartText:    fmt.Sprintf("Marking PR #%d as ready for review", prNumber),
+ 		FinishedText: fmt.Sprintf("PR #%d has been marked as ready for review", prNumber),
+-		Msg: func(c *exec.Cmd, err error) UpdatePRMsg {
++		Msg: func(c *exec.Cmd, err error) tea.Msg {
+ 			return UpdatePRMsg{
+ 				PrNumber:       prNumber,
+ 				ReadyForReview: utils.BoolPtr(true),
+@@ -192,3 +201,40 @@ func MergePR(ctx *context.ProgramContext, section SectionIdentifer, pr data.RowD
+ 		}
+ 	}))
+ }
++
++func CreatePR(ctx *context.ProgramContext, section SectionIdentifer, branchName string, title string) tea.Cmd {
++	c := exec.Command(
++		"gh",
++		"pr",
++		"create",
++		"--title",
++		title,
++		"-R",
++		*ctx.RepoUrl,
++	)
++
++	taskId := fmt.Sprintf("create_pr_%s", title)
++	task := context.Task{
++		Id:           taskId,
++		StartText:    fmt.Sprintf(`Creating PR "%s"`, title),
++		FinishedText: fmt.Sprintf(`PR "%s" has been created`, title),
++		State:        context.TaskStart,
++		Error:        nil,
++	}
++	startCmd := ctx.StartTask(task)
++
++	return tea.Batch(startCmd, tea.ExecProcess(c, func(err error) tea.Msg {
++		isCreated := false
++		if err == nil && c.ProcessState.ExitCode() == 0 {
++			isCreated = true
++		}
++
++		return constants.TaskFinishedMsg{
++			SectionId:   section.Id,
++			SectionType: section.Type,
++			TaskId:      taskId,
++			Err:         nil,
++			Msg:         UpdateBranchMsg{Name: branchName, IsCreated: &isCreated},
++		}
++	}))
++}
+diff --git a/ui/keys/branchKeys.go b/ui/keys/branchKeys.go
+index bfe244a3..4d313bd0 100644
+--- a/ui/keys/branchKeys.go
++++ b/ui/keys/branchKeys.go
+@@ -12,8 +12,10 @@ import (
+ type BranchKeyMap struct {
+ 	Checkout    key.Binding
+ 	New         key.Binding
++	CreatePr    key.Binding
+ 	FastForward key.Binding
+ 	Push        key.Binding
++	ForcePush   key.Binding
+ 	Delete      key.Binding
+ 	ViewPRs     key.Binding
+ }
+@@ -27,6 +29,10 @@ var BranchKeys = BranchKeyMap{
+ 		key.WithKeys("n"),
+ 		key.WithHelp("n", "new"),
+ 	),
++	CreatePr: key.NewBinding(
++		key.WithKeys("O"),
++		key.WithHelp("O", "create PR"),
++	),
+ 	FastForward: key.NewBinding(
+ 		key.WithKeys("f"),
+ 		key.WithHelp("f", "fast-forward"),
+@@ -35,6 +41,10 @@ var BranchKeys = BranchKeyMap{
+ 		key.WithKeys("P"),
+ 		key.WithHelp("P", "push"),
+ 	),
++	ForcePush: key.NewBinding(
++		key.WithKeys("F"),
++		key.WithHelp("F", "force-push"),
++	),
+ 	Delete: key.NewBinding(
+ 		key.WithKeys("d", "backspace"),
+ 		key.WithHelp("d/backspace", "delete"),
+@@ -50,7 +60,9 @@ func BranchFullHelp() []key.Binding {
+ 		BranchKeys.Checkout,
+ 		BranchKeys.FastForward,
+ 		BranchKeys.Push,
++		BranchKeys.ForcePush,
+ 		BranchKeys.New,
++		BranchKeys.CreatePr,
+ 		BranchKeys.Delete,
+ 		BranchKeys.ViewPRs,
+ 	}
+@@ -69,10 +81,14 @@ func rebindBranchKeys(keys []config.Keybinding) error {
+ 		switch branchKey.Builtin {
+ 		case "new":
+ 			key = &BranchKeys.New
++		case "createPr":
++			key = &BranchKeys.CreatePr
+ 		case "delete":
+ 			key = &BranchKeys.Delete
+ 		case "push":
+ 			key = &BranchKeys.Push
++		case "forcePush":
++			key = &BranchKeys.ForcePush
+ 		case "fastForward":
+ 			key = &BranchKeys.FastForward
+ 		case "checkout":
+diff --git a/ui/ui.go b/ui/ui.go
+index 1448aa9a..7ac2832b 100644
+--- a/ui/ui.go
++++ b/ui/ui.go
+@@ -305,6 +305,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+ 				}
+ 				return m, cmd
+ 
++			case key.Matches(msg, keys.BranchKeys.CreatePr):
++				if currSection != nil {
++					currSection.SetPromptConfirmationAction("create_pr")
++					cmd = currSection.SetIsPromptConfirmationShown(true)
++				}
++				return m, cmd
++
+ 			case key.Matches(msg, keys.BranchKeys.ViewPRs):
+ 				m.ctx.View = m.switchSelectedView()
+ 				m.syncMainContentWidth()
+@@ -495,11 +502,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+ 			now := time.Now()
+ 			task.FinishedTime = &now
+ 			m.tasks[msg.TaskId] = task
+-			cmd = tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
++			clear := tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+ 				return constants.ClearTaskMsg{TaskId: msg.TaskId}
+ 			})
++			cmds = append(cmds, clear)
++
++			scmd := m.updateSection(msg.SectionId, msg.SectionType, msg.Msg)
++			cmds = append(cmds, scmd)
+ 
+-			m.updateSection(msg.SectionId, msg.SectionType, msg.Msg)
+ 			m.syncSidebar()
+ 		}
+ 

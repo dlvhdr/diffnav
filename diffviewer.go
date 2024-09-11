@@ -9,20 +9,21 @@ import (
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type diffModel struct {
+	vp     viewport.Model
 	buffer *bytes.Buffer
 	width  int
 	height int
 	file   *gitdiff.File
-	text   string
 }
 
 func initialDiffModel() diffModel {
 	return diffModel{
-		text: "",
+		vp: viewport.Model{},
 	}
 }
 
@@ -34,13 +35,17 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case diffContentMsg:
-		m.text = msg.text
+		m.vp.SetContent(msg.text)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width - fileTreeWidth
 		m.height = msg.Height
+		m.vp.Width = m.width
+		m.vp.Height = m.height
 		log.Printf("width: %d, height: %d", m.width, m.height)
 		cmd = diff(m.file, m.width)
 
+	case tea.MouseMsg:
+		m.vp, cmd = m.vp.Update(msg)
 	}
 
 	return m, cmd
@@ -50,7 +55,7 @@ func (m diffModel) View() string {
 	if m.buffer == nil {
 		return "Loading..."
 	}
-	return m.text
+	return m.vp.View()
 }
 
 func (m diffModel) SetFilePatch(file *gitdiff.File) (diffModel, tea.Cmd) {
@@ -64,7 +69,7 @@ func diff(file *gitdiff.File, width int) tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg {
-		deltac := exec.Command("delta", "--side-by-side", "--paging=never", `--minus-style='red bold ul "#FF000036"'`, fmt.Sprintf("-w=%d", width))
+		deltac := exec.Command("delta", "--side-by-side", "--paging=never", "--config=cfg/delta.conf", fmt.Sprintf("-w=%d", width))
 		deltac.Env = os.Environ()
 		deltac.Stdin = strings.NewReader(file.String() + "\n")
 		out, err := deltac.Output()

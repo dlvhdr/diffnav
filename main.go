@@ -56,6 +56,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case tea.MouseMsg:
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -99,10 +101,8 @@ func (m mainModel) View() string {
 }
 
 func (m mainModel) fetchFileTree() tea.Msg {
-	files, _, err := gitdiff.Parse(strings.NewReader(m.input + "\n"))
-	if err != nil {
-		return errMsg{err: err}
-	}
+	// TODO: handle error
+	files, _, _ := gitdiff.Parse(strings.NewReader(m.input + "\n"))
 
 	return fileTreeMsg{files: files}
 }
@@ -139,7 +139,7 @@ func main() {
 
 	logger, _ := tea.LogToFile("debug.log", "debug")
 	defer logger.Close()
-	p := tea.NewProgram(newModel(strings.TrimSpace(b.String())))
+	p := tea.NewProgram(newModel(strings.TrimSpace(b.String())), tea.WithMouseAllMotion())
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
