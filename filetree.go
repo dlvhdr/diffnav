@@ -48,7 +48,7 @@ func (m ftModel) File() string {
 func (m ftModel) View() string {
 	enumeratorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingRight(1)
 	itemStyle := lipgloss.NewStyle().PaddingRight(1)
-	rootStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true).MaxWidth(fileTreeWidth)
+	rootStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true).MaxWidth(openFileTreeWidth)
 
 	s := ""
 	root, err := os.Getwd()

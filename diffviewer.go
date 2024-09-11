@@ -48,8 +48,8 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case diffContentMsg:
 		m.vp.SetContent(msg.text)
-	case tea.WindowSizeMsg:
-		m.width = msg.Width - fileTreeWidth
+	case dimensionsMsg:
+		m.width = msg.Width
 		m.height = msg.Height
 		m.vp.Width = m.width
 		m.vp.Height = m.height

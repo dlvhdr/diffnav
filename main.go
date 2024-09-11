@@ -14,17 +14,18 @@ import (
 )
 
 type mainModel struct {
-	input      string
-	files      []*gitdiff.File
-	cursor     int
-	fileTree   tea.Model
-	diffViewer tea.Model
-	width      int
-	height     int
+	input             string
+	files             []*gitdiff.File
+	cursor            int
+	fileTree          tea.Model
+	diffViewer        tea.Model
+	width             int
+	height            int
+	isShowingFileTree bool
 }
 
 func newModel(input string) mainModel {
-	m := mainModel{input: input}
+	m := mainModel{input: input, isShowingFileTree: true}
 	m.fileTree = initialFileTreeModel()
 	m.diffViewer = initialDiffModel()
 	return m
@@ -42,6 +43,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "e":
+			m.isShowingFileTree = !m.isShowingFileTree
+			df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height})
+			m.diffViewer = df
+			return m, dfCmd
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
@@ -61,6 +67,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height})
+		m.diffViewer = df
+		cmds = append(cmds, dfCmd)
 
 	case fileTreeMsg:
 		m.files = msg.files
@@ -86,18 +95,35 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-const fileTreeWidth = 25
+const openFileTreeWidth = 32
 
 func (m mainModel) View() string {
-	ft := lipgloss.NewStyle().
-		Width(fileTreeWidth).
-		Height(m.height).
-		Border(lipgloss.NormalBorder(), false, true, false, false).
-		BorderForeground(lipgloss.Color("8")).
-		Padding(0, 1).
-		Render(m.fileTree.View())
-	dv := lipgloss.NewStyle().MaxHeight(m.height).Width(m.width - fileTreeWidth).Render(m.diffViewer.View())
+	ft := ""
+	ftWidth := m.getFileTreeWidth()
+	if m.isShowingFileTree {
+		ft = lipgloss.NewStyle().
+			Width(openFileTreeWidth).
+			Height(m.height).
+			Border(lipgloss.NormalBorder(), false, true, false, false).
+			BorderForeground(lipgloss.Color("8")).
+			Padding(0, 1).
+			Render(m.fileTree.View())
+	}
+	dv := lipgloss.NewStyle().MaxHeight(m.height).Width(m.width - ftWidth).Render(m.diffViewer.View())
 	return lipgloss.JoinHorizontal(lipgloss.Top, ft, dv)
+}
+
+func (m mainModel) getFileTreeWidth() int {
+	if m.isShowingFileTree {
+		return openFileTreeWidth
+	}
+
+	return 0
+}
+
+type dimensionsMsg struct {
+	Width  int
+	Height int
 }
 
 func (m mainModel) fetchFileTree() tea.Msg {
