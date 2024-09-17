@@ -95,7 +95,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-const openFileTreeWidth = 32
+const openFileTreeWidth = 26
 
 func (m mainModel) View() string {
 	ft := ""
@@ -106,7 +106,6 @@ func (m mainModel) View() string {
 			Height(m.height).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(lipgloss.Color("8")).
-			Padding(0, 1).
 			Render(m.fileTree.View())
 	}
 	dv := lipgloss.NewStyle().MaxHeight(m.height).Width(m.width - ftWidth).Render(m.diffViewer.View())
