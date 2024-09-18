@@ -108,7 +108,7 @@ func (m ftModel) printWithoutRoot() string {
 		case *tree.Tree:
 			applyStyles(child, m.selectedFile)
 			s += child.String()
-		case *tree.Leaf:
+		case FileNode:
 			s += applyStyleToNode(child, m.selectedFile).Render(child.Value())
 		}
 		if i < children.Length()-1 {
@@ -122,8 +122,15 @@ func buildFullFileTree(files []string) *tree.Tree {
 	slices.SortFunc(files, func(a string, b string) int {
 		dira := filepath.Dir(a)
 		dirb := filepath.Dir(b)
-		if dira == dirb {
+		if dira != "." && dirb != "." && dira == dirb {
 			return strings.Compare(a, b)
+		}
+
+		if dira != "." && dirb == "." {
+			return -1
+		}
+		if dirb != "." && dira == "." {
+			return 1
 		}
 
 		if strings.HasPrefix(dira, dirb) {

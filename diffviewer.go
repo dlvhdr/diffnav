@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -53,7 +52,6 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.vp.Width = m.width
 		m.vp.Height = m.height
-		log.Printf("width: %d, height: %d", m.width, m.height)
 		cmds = append(cmds, diff(m.file, m.width))
 	}
 
