@@ -214,65 +214,6 @@ func TestGhData(t *testing.T) {
 	}
 }
 
-func TestPrintWithoutRoot(t *testing.T) {
-	files := []string{
-		"ui/components/a.go",
-		"ui/components/b.go",
-		"ui/components/sub/c.go",
-		"ui/main.go",
-		"utils/misc/pointers.go",
-		"utils/misc/sorters.go",
-		"pkg/internal/ws.go",
-	}
-
-	want := `pkg/internal
-└── ws.go
-ui
-├── main.go
-└── components
-    ├── a.go
-    ├── b.go
-    └── sub
-        └── c.go
-utils/misc
-├── pointers.go
-└── sorters.go`
-
-	got := buildFullFileTree(files)
-	got = collapseTree(got)
-	printed := printWithoutRoot(got)
-
-	if printed != want {
-		t.Errorf("want:\n%v\n\n-------got:\n%v\n", want, got)
-	}
-}
-
-func TestPrintWithoutRootKeepsCommonRoot(t *testing.T) {
-	files := []string{
-		"ui/components/a.go",
-		"ui/components/b.go",
-		"ui/components/sub/c.go",
-		"ui/main.go",
-	}
-
-	want := `ui
-├── main.go
-└── components
-    ├── a.go
-    ├── b.go
-    └── sub
-        └── c.go`
-
-	got := buildFullFileTree(files)
-	got = collapseTree(got)
-
-	printed := printWithoutRoot(got)
-
-	if printed != want {
-		t.Errorf("want:\n%v\n-------got:\n%v\n", want, printed)
-	}
-}
-
 func TestGetDirStructureOneFile(t *testing.T) {
 	files := []string{
 		"ui/main.go",

@@ -78,7 +78,7 @@ func diff(file *gitdiff.File, width int) tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg {
-		deltac := exec.Command("delta", "--side-by-side", "--paging=never", "--config=cfg/delta.conf", fmt.Sprintf("-w=%d", width))
+		deltac := exec.Command("delta", "--side-by-side", "--paging=never", fmt.Sprintf("-w=%d", width))
 		deltac.Env = os.Environ()
 		deltac.Stdin = strings.NewReader(file.String() + "\n")
 		out, err := deltac.Output()

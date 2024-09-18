@@ -73,6 +73,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case fileTreeMsg:
 		m.files = msg.files
+		if len(m.files) == 0 {
+			return m, tea.Quit
+		}
 		paths := make([]string, len(m.files))
 		for i, f := range m.files {
 			paths[i] = f.NewName
@@ -82,6 +85,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 	case errMsg:
+		fmt.Printf("Error: %v\n", msg.err)
 		log.Fatal(msg.err)
 	}
 
@@ -127,7 +131,10 @@ type dimensionsMsg struct {
 
 func (m mainModel) fetchFileTree() tea.Msg {
 	// TODO: handle error
-	files, _, _ := gitdiff.Parse(strings.NewReader(m.input + "\n"))
+	files, _, err := gitdiff.Parse(strings.NewReader(m.input + "\n"))
+	if err != nil {
+		return errMsg{err}
+	}
 
 	return fileTreeMsg{files: files}
 }
@@ -153,6 +160,7 @@ func main() {
 	for {
 		r, _, err := reader.ReadRune()
 		if err != nil && err == io.EOF {
+			fmt.Println("EOF")
 			break
 		}
 		_, err = b.WriteRune(r)
@@ -162,9 +170,19 @@ func main() {
 		}
 	}
 
+	fmt.Println("Running!")
+	// write b to file
+	file, err := os.Create("output.txt")
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		return
+	}
+	defer file.Close()
+	_, _ = file.WriteString(b.String())
+
 	logger, _ := tea.LogToFile("debug.log", "debug")
 	defer logger.Close()
-	p := tea.NewProgram(newModel(strings.TrimSpace(b.String())), tea.WithMouseAllMotion())
+	p := tea.NewProgram(newModel(b.String()), tea.WithMouseAllMotion())
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
