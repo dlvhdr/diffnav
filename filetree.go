@@ -123,7 +123,7 @@ func buildFullFileTree(files []string) *tree.Tree {
 		dira := filepath.Dir(a)
 		dirb := filepath.Dir(b)
 		if dira != "." && dirb != "." && dira == dirb {
-			return strings.Compare(a, b)
+			return strings.Compare(strings.ToLower(a), strings.ToLower(b))
 		}
 
 		if dira != "." && dirb == "." {
@@ -133,15 +133,17 @@ func buildFullFileTree(files []string) *tree.Tree {
 			return 1
 		}
 
-		if strings.HasPrefix(dira, dirb) {
-			return 1
+		if dira != "." && dirb != "." {
+			if strings.HasPrefix(dira, dirb) {
+				return -1
+			}
+
+			if strings.HasPrefix(dirb, dira) {
+				return 1
+			}
 		}
 
-		if strings.HasPrefix(dirb, dira) {
-			return -1
-		}
-
-		return strings.Compare(a, b)
+		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
 	})
 	t := tree.Root(".")
 	for _, file := range files {
