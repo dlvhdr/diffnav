@@ -160,7 +160,6 @@ func main() {
 	for {
 		r, _, err := reader.ReadRune()
 		if err != nil && err == io.EOF {
-			fmt.Println("EOF")
 			break
 		}
 		_, err = b.WriteRune(r)
@@ -169,16 +168,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
-	fmt.Println("Running!")
-	// write b to file
-	file, err := os.Create("output.txt")
-	if err != nil {
-		fmt.Println("Error creating file:", err)
-		return
-	}
-	defer file.Close()
-	_, _ = file.WriteString(b.String())
 
 	logger, _ := tea.LogToFile("debug.log", "debug")
 	defer logger.Close()
