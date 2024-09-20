@@ -2,19 +2,36 @@
 
 A git diff pager based on [delta](https://github.com/dandavison/delta) but with a file tree, à la GitHub.
 
+## Demo
+
 <img src="https://github.com/dlvhdr/diffnav/blob/74c3f341797ab121ce8edf785ef63e00075ce040/out.gif" />
 
 ## Installation
 
-// TODO
+```bash
+brew install git-delta # or any other package manager
+go install github.com/dlvhdr/diffnav
+```
+
+- [See here](https://dandavison.github.io/delta/installation.html) the full delta installations instructions.
+- _TBD: support for package managers_
 
 ## Usage
 
-- Pipe `git diff | diffnav`
-- Set up as git pager // TODO
-- Set up as gh pager // TODO
+### Pipe into diffnav
+
+- `git diff | diffnav`
+- `gh pr diff https://github.com/dlvhdr/gh-dash/pull/447 | diffnav`
+
+### Set up as global git diff pager
+
+```bash
+git config --global pager.diff diffnav
+```
 
 ### Keys
 
-- <kbd>j</kbd>/<kbd>k</kbd> to navigate the file tree
-- <kbd>Ctrl-d</kbd>/<kbd>Ctrl-u</kbd> to navigate the diff
+- <kbd>j</kbd>/<kbd>k</kbd> - navigate the file tree
+- <kbd>Ctrl-d</kbd>/<kbd>Ctrl-u</kbd> - navigate the diff
+- <kbd>e</kbd> - toggle the file tree
+- <kbd>q</kbd>/<kbd>Ctrl+c</kbd> - quit
