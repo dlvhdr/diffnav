@@ -10,7 +10,10 @@ import (
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
+
+const headerHeight = 3
 
 type diffModel struct {
 	vp     viewport.Model
@@ -51,7 +54,7 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.vp.Width = m.width
-		m.vp.Height = m.height
+		m.vp.Height = m.height - headerHeight
 		cmds = append(cmds, diff(m.file, m.width))
 	}
 
@@ -62,7 +65,42 @@ func (m diffModel) View() string {
 	if m.buffer == nil {
 		return "Loading..."
 	}
-	return m.vp.View()
+	return lipgloss.JoinVertical(lipgloss.Left, m.headerView(), m.vp.View())
+}
+
+func (m diffModel) headerView() string {
+	if m.file == nil {
+		return ""
+	}
+	name := m.file.NewName
+	if name == "" {
+		name = m.file.OldName
+	}
+	base := lipgloss.NewStyle().Background(lipgloss.Color("233"))
+
+	var added int64 = 0
+	var deleted int64 = 0
+	frags := m.file.TextFragments
+	for _, frag := range frags {
+		added += frag.LinesAdded
+		deleted += frag.LinesDeleted
+	}
+
+	top := lipgloss.JoinHorizontal(lipgloss.Top, base.Render(""), base.Render(" "), base.Bold(true).Render(name))
+	bottom := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		base.Foreground(lipgloss.Color("2")).Render(fmt.Sprintf("  +%d ", added)),
+		base.Foreground(lipgloss.Color("1")).Render(fmt.Sprintf("-%d", deleted)),
+	)
+
+	return base.
+		Width(m.width).
+		PaddingLeft(1).
+		Height(headerHeight - 1).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		BorderForeground(lipgloss.Color("8")).
+		Render(lipgloss.JoinVertical(lipgloss.Left, top, bottom))
 }
 
 func (m diffModel) SetFilePatch(file *gitdiff.File) (diffModel, tea.Cmd) {
