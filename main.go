@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
+	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -24,12 +25,22 @@ type mainModel struct {
 	width             int
 	height            int
 	isShowingFileTree bool
+	help              help.Model
 }
 
 func newModel(input string) mainModel {
 	m := mainModel{input: input, isShowingFileTree: true}
 	m.fileTree = initialFileTreeModel()
 	m.diffViewer = initialDiffModel()
+	m.help = help.New()
+	helpSt := lipgloss.NewStyle().Background(lipgloss.Color("233"))
+	m.help.Styles.ShortKey = helpSt
+	m.help.Styles.ShortDesc = helpSt
+	m.help.Styles.ShortSeparator = helpSt
+	m.help.Styles.FullKey = helpSt.Foreground(lipgloss.Color("254"))
+	m.help.Styles.FullDesc = helpSt
+	m.help.Styles.FullSeparator = helpSt
+	m.help.Styles.Ellipsis = helpSt
 	return m
 }
 
@@ -47,7 +58,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "e":
 			m.isShowingFileTree = !m.isShowingFileTree
-			df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height})
+			df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height - footerHeight})
 			m.diffViewer = df
 			return m, dfCmd
 		case "up", "k":
@@ -67,6 +78,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 
 	case tea.WindowSizeMsg:
+		m.help.Width = msg.Width
 		m.width = msg.Width
 		m.height = msg.Height
 		df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height})
@@ -112,13 +124,15 @@ func (m mainModel) View() string {
 	if m.isShowingFileTree {
 		ft = lipgloss.NewStyle().
 			Width(openFileTreeWidth).
-			Height(m.height).
+			Height(m.height-footerHeight).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(lipgloss.Color("8")).
 			Render(m.fileTree.View())
 	}
-	dv := lipgloss.NewStyle().MaxHeight(m.height).Width(m.width - ftWidth).Render(m.diffViewer.View())
-	return lipgloss.JoinHorizontal(lipgloss.Top, ft, dv)
+	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight).Width(m.width - ftWidth).Render(m.diffViewer.View())
+	content := lipgloss.JoinHorizontal(lipgloss.Top, ft, dv)
+	footer := m.footerView()
+	return lipgloss.JoinVertical(lipgloss.Left, content, footer)
 }
 
 func (m mainModel) getFileTreeWidth() int {
@@ -184,6 +198,17 @@ func sortFiles(files []*gitdiff.File) {
 
 		return strings.Compare(strings.ToLower(nameA), strings.ToLower(nameB))
 	})
+}
+
+const footerHeight = 1
+
+func (m mainModel) footerView() string {
+	return lipgloss.NewStyle().
+		Background(lipgloss.Color("233")).
+		Width(m.width).
+		Height(footerHeight).
+		Render(m.help.FullHelpView(getKeys()))
+
 }
 
 func main() {
