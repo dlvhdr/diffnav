@@ -33,7 +33,12 @@ go install github.com/dlvhdr/diffnav
 git config --global pager.diff diffnav
 ```
 
-### Keys
+## Configuration
+
+- Currently you can configure `diffnav` only through delta so [check out their docs](https://dandavison.github.io/delta/configuration.html).
+- If you want the exact configuration I'm using - [it can be found here]().
+
+## Keys
 
 - <kbd>j</kbd>/<kbd>k</kbd> - navigate the file tree
 - <kbd>Ctrl-d</kbd>/<kbd>Ctrl-u</kbd> - navigate the diff
