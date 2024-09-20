@@ -8,7 +8,6 @@ A git diff pager based on [delta](https://github.com/dandavison/delta) but with 
 
 <details>
   <summary>Demo</summary>
->
   <img src="https://github.com/dlvhdr/diffnav/blob/74c3f341797ab121ce8edf785ef63e00075ce040/out.gif" />
 </details>
 
