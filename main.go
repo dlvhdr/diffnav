@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type mainModel struct {
@@ -239,7 +240,9 @@ func main() {
 
 	logger, _ := tea.LogToFile("debug.log", "debug")
 	defer logger.Close()
-	p := tea.NewProgram(newModel(b.String()), tea.WithMouseAllMotion())
+
+	input := ansi.Strip(b.String())
+	p := tea.NewProgram(newModel(input), tea.WithMouseAllMotion())
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
