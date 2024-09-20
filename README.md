@@ -2,6 +2,10 @@
 
 A git diff pager based on [delta](https://github.com/dandavison/delta) but with a file tree, à la GitHub.
 
+<p align="center">
+  <img width="750" src="https://github.com/user-attachments/assets/1b04ff0d-3054-42b4-8a27-50f338d2aa26" />
+</p>
+
 ## Demo
 
 <img src="https://github.com/dlvhdr/diffnav/blob/74c3f341797ab121ce8edf785ef63e00075ce040/out.gif" />
