@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
@@ -79,6 +81,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		paths := make([]string, len(m.files))
 		for i, f := range m.files {
 			paths[i] = f.NewName
+			if paths[i] == "" {
+				paths[i] = f.OldName
+			}
 		}
 		m.fileTree = m.fileTree.(ftModel).SetFiles(paths)
 		m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[0])
@@ -135,12 +140,50 @@ func (m mainModel) fetchFileTree() tea.Msg {
 	if err != nil {
 		return errMsg{err}
 	}
+	sortFiles(files)
 
 	return fileTreeMsg{files: files}
 }
 
 type fileTreeMsg struct {
 	files []*gitdiff.File
+}
+
+func sortFiles(files []*gitdiff.File) {
+	slices.SortFunc(files, func(a *gitdiff.File, b *gitdiff.File) int {
+		getName := func(f *gitdiff.File) string {
+			if f.NewName != "" {
+				return f.NewName
+			}
+			return f.OldName
+		}
+		nameA := getName(a)
+		nameB := getName(b)
+		dira := filepath.Dir(nameA)
+		dirb := filepath.Dir(nameB)
+		if dira != "." && dirb != "." && dira == dirb {
+			return strings.Compare(strings.ToLower(nameA), strings.ToLower(nameB))
+		}
+
+		if dira != "." && dirb == "." {
+			return -1
+		}
+		if dirb != "." && dira == "." {
+			return 1
+		}
+
+		if dira != "." && dirb != "." {
+			if strings.HasPrefix(dira, dirb) {
+				return -1
+			}
+
+			if strings.HasPrefix(dirb, dira) {
+				return 1
+			}
+		}
+
+		return strings.Compare(strings.ToLower(nameA), strings.ToLower(nameB))
+	})
 }
 
 func main() {

@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -119,32 +118,6 @@ func (m ftModel) printWithoutRoot() string {
 }
 
 func buildFullFileTree(files []string) *tree.Tree {
-	slices.SortFunc(files, func(a string, b string) int {
-		dira := filepath.Dir(a)
-		dirb := filepath.Dir(b)
-		if dira != "." && dirb != "." && dira == dirb {
-			return strings.Compare(strings.ToLower(a), strings.ToLower(b))
-		}
-
-		if dira != "." && dirb == "." {
-			return -1
-		}
-		if dirb != "." && dira == "." {
-			return 1
-		}
-
-		if dira != "." && dirb != "." {
-			if strings.HasPrefix(dira, dirb) {
-				return -1
-			}
-
-			if strings.HasPrefix(dirb, dira) {
-				return 1
-			}
-		}
-
-		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
-	})
 	t := tree.Root(".")
 	for _, file := range files {
 		subTree := t
@@ -159,7 +132,10 @@ func buildFullFileTree(files []string) *tree.Tree {
 			for j := 0; j < subTree.Children().Length(); j++ {
 				child := subTree.Children().At(j)
 				if child.Value() == part {
-					subTree = child.(*tree.Tree)
+					switch child := child.(type) {
+					case *tree.Tree:
+						subTree = child
+					}
 					path = path + part + string(os.PathSeparator)
 					found = true
 					break
@@ -247,37 +223,6 @@ func truncateTree(t *tree.Tree, depth int) *tree.Tree {
 		}
 	}
 	return newT
-}
-
-func findLeaf(t *tree.Tree, file string) *tree.Leaf {
-	if t.Value() != "." {
-		return findLeafAux(t, file, t.Value())
-	}
-
-	return findLeafAux(t, file, "")
-}
-
-func findLeafAux(t *tree.Tree, file string, pathSoFar string) *tree.Leaf {
-	for j := 0; j < t.Children().Length(); j++ {
-		child := t.Children().At(j)
-		potentialPath := ""
-		if pathSoFar == "" {
-			potentialPath = child.Value()
-		} else {
-			potentialPath = pathSoFar + string(os.PathSeparator) + child.Value()
-		}
-
-		if strings.HasPrefix(file, potentialPath) {
-			switch child := child.(type) {
-			case *tree.Tree:
-				return findLeafAux(child, file, potentialPath)
-			case *tree.Leaf:
-				return child
-			}
-			break
-		}
-	}
-	return nil
 }
 
 func applyStyles(t *tree.Tree, selectedFile *string) {
