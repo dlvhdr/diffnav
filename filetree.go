@@ -87,7 +87,7 @@ func (m ftModel) View() string {
 		return ""
 	}
 
-	return lipgloss.NewStyle().Width(openFileTreeWidth).PaddingTop(1).MaxWidth(openFileTreeWidth).Render(m.printWithoutRoot())
+	return lipgloss.NewStyle().Width(openFileTreeWidth).MaxWidth(openFileTreeWidth).Render(m.printWithoutRoot())
 }
 
 type errMsg struct {

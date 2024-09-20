@@ -76,7 +76,7 @@ func (m diffModel) headerView() string {
 	if name == "" {
 		name = m.file.OldName
 	}
-	base := lipgloss.NewStyle().Background(lipgloss.Color("233"))
+	base := lipgloss.NewStyle()
 
 	var added int64 = 0
 	var deleted int64 = 0
