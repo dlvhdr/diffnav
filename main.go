@@ -4,19 +4,25 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/dlvhdr/diffnav/pkg/constants"
+	filetree "github.com/dlvhdr/diffnav/pkg/file_tree"
+	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
 type mainModel struct {
@@ -28,22 +34,41 @@ type mainModel struct {
 	width             int
 	height            int
 	isShowingFileTree bool
+	search            textinput.Model
 	help              help.Model
+	resultsVp         viewport.Model
+	resultsCursor     int
+	searching         bool
+	filtered          []string
 }
 
 func newModel(input string) mainModel {
 	m := mainModel{input: input, isShowingFileTree: true}
 	m.fileTree = initialFileTreeModel()
 	m.diffViewer = initialDiffModel()
+
 	m.help = help.New()
-	helpSt := lipgloss.NewStyle().Background(lipgloss.Color("233"))
+	helpSt := lipgloss.NewStyle()
+	m.help.ShortSeparator = " · "
 	m.help.Styles.ShortKey = helpSt
 	m.help.Styles.ShortDesc = helpSt
 	m.help.Styles.ShortSeparator = helpSt
-	m.help.Styles.FullKey = helpSt.Foreground(lipgloss.Color("254"))
-	m.help.Styles.FullDesc = helpSt
-	m.help.Styles.FullSeparator = helpSt
+	m.help.Styles.ShortKey = helpSt.Foreground(lipgloss.Color("254"))
+	m.help.Styles.ShortDesc = helpSt
+	m.help.Styles.ShortSeparator = helpSt
 	m.help.Styles.Ellipsis = helpSt
+
+	m.search = textinput.New()
+	m.search.ShowSuggestions = true
+	m.search.KeyMap.AcceptSuggestion = key.NewBinding(key.WithKeys("tab"))
+	m.search.Prompt = " "
+	m.search.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	m.search.Placeholder = "Filter files 🅃"
+	m.search.PlaceholderStyle = lipgloss.NewStyle().MaxWidth(lipgloss.Width(m.search.Placeholder)).Foreground(lipgloss.Color("8"))
+	m.search.Width = constants.OpenFileTreeWidth - 5
+
+	m.resultsVp = viewport.Model{}
+
 	return m
 }
 
@@ -54,23 +79,109 @@ func (m mainModel) Init() tea.Cmd {
 func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+
+	if m.search.Focused() {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "esc":
+				df, dfCmd := m.setDiffViewerDimensions()
+				cmds = append(cmds, dfCmd)
+				m.diffViewer = df
+				m.search.SetValue("")
+				m.search.Blur()
+				m.searching = false
+				break
+			case "ctrl+c":
+				return m, tea.Quit
+			case "enter":
+				m.searching = false
+				m.search.SetValue("")
+				m.search.Blur()
+				selected := m.filtered[m.resultsCursor]
+				df, dfCmd := m.setDiffViewerDimensions()
+				cmds = append(cmds, dfCmd)
+				m.diffViewer = df
+				for i, f := range m.files {
+					if filetree.GetFileName(f) == selected {
+						m.cursor = i
+						m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(f)
+						cmds = append(cmds, cmd)
+						break
+					}
+				}
+
+				return m, tea.Batch(cmds...)
+			case "ctrl+n", "down":
+				m.resultsCursor = min(len(m.files)-1, m.resultsCursor+1)
+				m.resultsVp.LineDown(1)
+			case "ctrl+p", "up":
+				m.resultsCursor = max(0, m.resultsCursor-1)
+				m.resultsVp.LineUp(1)
+			default:
+				m.resultsCursor = 0
+			}
+		}
+		s, sc := m.search.Update(msg)
+		cmds = append(cmds, sc)
+		m.search = s
+		filtered := make([]string, 0)
+		for _, f := range m.files {
+			if strings.Contains(strings.ToLower(filetree.GetFileName(f)), strings.ToLower(m.search.Value())) {
+				filtered = append(filtered, filetree.GetFileName(f))
+			}
+		}
+		m.filtered = filtered
+		m.resultsVp.SetContent(m.resultsView())
+
+		return m, tea.Batch(cmds...)
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.searching {
+			switch msg.String() {
+			case "ctrl+n":
+				if m.searching {
+					m.resultsCursor = min(len(m.files)-1, m.resultsCursor+1)
+					m.resultsVp.LineDown(1)
+				}
+			case "ctrl+p":
+				if m.searching {
+					m.resultsCursor = max(0, m.resultsCursor-1)
+					m.resultsVp.LineUp(1)
+				}
+			}
+		}
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "t":
+			m.searching = true
+			m.search.Width = m.sidebarWidth() - 5
+			m.search.SetValue("")
+			m.resultsCursor = 0
+			m.filtered = make([]string, 0)
+			m.resultsVp.SetContent(m.resultsView())
+			m.resultsVp.Height = m.height - footerHeight - headerHeight - searchHeight
+			m.resultsVp.Width = constants.SearchingFileTreeWidth
+			df, dfCmd := m.setDiffViewerDimensions()
+			cmds = append(cmds, dfCmd)
+			m.diffViewer = df
+			cmds = append(cmds, m.search.Focus())
+			return m, tea.Batch(cmds...)
 		case "e":
 			m.isShowingFileTree = !m.isShowingFileTree
-			df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height - footerHeight - headerHeight})
+			df, dfCmd := m.setDiffViewerDimensions()
 			m.diffViewer = df
 			return m, dfCmd
-		case "up", "k":
+		case "up", "k", "ctrl+p":
 			if m.cursor > 0 {
 				m.cursor--
 				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[m.cursor])
 				cmds = append(cmds, cmd)
 			}
-		case "down", "j":
+		case "down", "j", "ctrl+n":
 			if m.cursor < len(m.files)-1 {
 				m.cursor++
 				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[m.cursor])
@@ -78,16 +189,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case tea.MouseMsg:
-
 	case tea.WindowSizeMsg:
 		m.help.Width = msg.Width
 		m.width = msg.Width
 		m.height = msg.Height
-		df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height - footerHeight - headerHeight})
+		df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.sidebarWidth(), Height: m.height - footerHeight - headerHeight})
 		m.diffViewer = df
 		cmds = append(cmds, dfCmd)
-		ft, ftCmd := m.fileTree.(ftModel).Update(dimensionsMsg{Width: constants.OpenFileTreeWidth, Height: m.height - footerHeight - headerHeight})
+		ft, ftCmd := m.fileTree.(ftModel).Update(dimensionsMsg{Width: m.sidebarWidth(), Height: m.height - footerHeight - headerHeight - searchHeight})
 		m.fileTree = ft
 		cmds = append(cmds, ftCmd)
 
@@ -105,10 +214,16 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		log.Fatal(msg.err)
 	}
 
+	s, sCmd := m.search.Update(msg)
+	cmds = append(cmds, sCmd)
+	m.search = s
+	m.search.Width = m.sidebarWidth() - 5
+
 	m.fileTree = m.fileTree.(ftModel).SetCursor(m.cursor)
 
 	m.diffViewer, cmd = m.diffViewer.Update(msg)
 	cmds = append(cmds, cmd)
+
 	m.fileTree, cmd = m.fileTree.Update(msg)
 	cmds = append(cmds, cmd)
 
@@ -119,31 +234,38 @@ func (m mainModel) View() string {
 	header := lipgloss.NewStyle().Width(m.width).
 		Border(lipgloss.NormalBorder(), false, false, true, false).
 		BorderForeground(lipgloss.Color("8")).
-		Foreground(lipgloss.Color("2")).
-		Render("󰊢 diffnav")
+		Foreground(lipgloss.Color("6")).
+		Render("󰊢 🅳 🅸 🅵 🅵 🅽 🅰 🆅 ")
 	footer := m.footerView()
 
-	ft := ""
-	ftWidth := m.getFileTreeWidth()
+	sidebar := ""
 	if m.isShowingFileTree {
-		ft = lipgloss.NewStyle().
-			Width(constants.OpenFileTreeWidth).
-			Height(m.height-footerHeight-headerHeight).
-			Border(lipgloss.NormalBorder(), false, true, false, false).
+		search := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("8")).
-			Render(m.fileTree.View())
+			MaxHeight(3).
+			Width(m.sidebarWidth() - 2).
+			Render(m.search.View())
+
+		content := ""
+		width := m.sidebarWidth()
+		if m.searching {
+			content = m.resultsVp.View()
+		} else {
+			content = m.fileTree.View()
+		}
+
+		content = lipgloss.NewStyle().
+			Width(width).
+			Height(m.height - footerHeight - headerHeight).Render(lipgloss.JoinVertical(lipgloss.Left, search, content))
+
+		sidebar = lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), false, true, false, false).
+			BorderForeground(lipgloss.Color("8")).Render(content)
 	}
-	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight - headerHeight).Width(m.width - ftWidth).Render(m.diffViewer.View())
-	content := lipgloss.JoinHorizontal(lipgloss.Top, ft, dv)
+	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight - headerHeight).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
+	content := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, dv)
 	return lipgloss.JoinVertical(lipgloss.Left, header, content, footer)
-}
-
-func (m mainModel) getFileTreeWidth() int {
-	if m.isShowingFileTree {
-		return constants.OpenFileTreeWidth
-	}
-
-	return 0
 }
 
 type dimensionsMsg struct {
@@ -168,14 +290,8 @@ type fileTreeMsg struct {
 
 func sortFiles(files []*gitdiff.File) {
 	slices.SortFunc(files, func(a *gitdiff.File, b *gitdiff.File) int {
-		getName := func(f *gitdiff.File) string {
-			if f.NewName != "" {
-				return f.NewName
-			}
-			return f.OldName
-		}
-		nameA := getName(a)
-		nameB := getName(b)
+		nameA := filetree.GetFileName(a)
+		nameB := filetree.GetFileName(b)
 		dira := filepath.Dir(nameA)
 		dirb := filepath.Dir(nameB)
 		if dira != "." && dirb != "." && dira == dirb {
@@ -204,16 +320,18 @@ func sortFiles(files []*gitdiff.File) {
 }
 
 const (
-	footerHeight = 1
+	footerHeight = 2
 	headerHeight = 2
+	searchHeight = 10
 )
 
 func (m mainModel) footerView() string {
 	return lipgloss.NewStyle().
-		Background(lipgloss.Color("233")).
 		Width(m.width).
-		Height(footerHeight).
-		Render(m.help.FullHelpView(getKeys()))
+		Border(lipgloss.NormalBorder(), true, false, false, false).
+		BorderForeground(lipgloss.Color("8")).
+		Height(1).
+		Render(m.help.ShortHelpView(getKeys()))
 
 }
 
@@ -226,6 +344,18 @@ func main() {
 	if stat.Mode()&os.ModeNamedPipe == 0 && stat.Size() == 0 {
 		fmt.Println("Try piping in some text.")
 		os.Exit(1)
+	}
+
+	var fileErr error
+	logFile, fileErr := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if fileErr == nil {
+		log.SetOutput(logFile)
+		log.SetTimeFormat(time.Kitchen)
+		log.SetReportCaller(true)
+		log.SetLevel(log.DebugLevel)
+		defer logFile.Close()
+		log.SetOutput(logFile)
+		log.Debug("Starting diffnav, logging to debug.log")
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -254,4 +384,32 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func (m mainModel) resultsView() string {
+	sb := strings.Builder{}
+	for i, f := range m.filtered {
+		fName := utils.TruncateString(" "+f, constants.SearchingFileTreeWidth-2)
+		if i == m.resultsCursor {
+			sb.WriteString(lipgloss.NewStyle().Background(lipgloss.Color("#1b1b33")).Bold(true).Render(fName) + "\n")
+		} else {
+			sb.WriteString(fName + "\n")
+		}
+	}
+	return sb.String()
+}
+
+func (m mainModel) sidebarWidth() int {
+	if m.searching {
+		return constants.SearchingFileTreeWidth
+	} else if m.isShowingFileTree {
+		return constants.OpenFileTreeWidth
+	} else {
+		return 0
+	}
+}
+
+func (m mainModel) setDiffViewerDimensions() (tea.Model, tea.Cmd) {
+	df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.sidebarWidth(), Height: m.height - footerHeight - headerHeight})
+	return df, dfCmd
 }

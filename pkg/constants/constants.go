@@ -1,3 +1,6 @@
 package constants
 
-const OpenFileTreeWidth = 26
+const (
+	SearchingFileTreeWidth = 50
+	OpenFileTreeWidth      = 26
+)

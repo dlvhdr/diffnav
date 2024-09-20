@@ -8,6 +8,7 @@ type KeyMap struct {
 	CtrlD          key.Binding
 	CtrlU          key.Binding
 	ToggleFileTree key.Binding
+	Search         key.Binding
 	Quit           key.Binding
 }
 
@@ -32,12 +33,16 @@ var keys = &KeyMap{
 		key.WithKeys("e"),
 		key.WithHelp("e", "toggle file tree"),
 	),
+	Search: key.NewBinding(
+		key.WithKeys("t"),
+		key.WithHelp("t", "search files"),
+	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
 	),
 }
 
-func getKeys() [][]key.Binding {
-	return [][]key.Binding{{keys.Up}, {keys.Down}, {keys.CtrlD}, {keys.CtrlU}, {keys.ToggleFileTree}, {keys.Quit}}
+func getKeys() []key.Binding {
+	return []key.Binding{keys.Up, keys.Down, keys.CtrlD, keys.CtrlU, keys.ToggleFileTree, keys.Search, keys.Quit}
 }
