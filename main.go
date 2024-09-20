@@ -82,9 +82,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.help.Width = msg.Width
 		m.width = msg.Width
 		m.height = msg.Height
-		df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height})
-		m.diffViewer = df
+		df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height - footerHeight})
 		cmds = append(cmds, dfCmd)
+		m.diffViewer = df
+		ft, ftCmd := m.fileTree.(ftModel).Update(dimensionsMsg{Width: m.getFileTreeWidth(), Height: m.height - footerHeight})
+		m.fileTree = ft
+		cmds = append(cmds, ftCmd)
 
 	case fileTreeMsg:
 		m.files = msg.files

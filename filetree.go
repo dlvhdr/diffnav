@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/tree"
 )
 
 type ftModel struct {
+	vp           viewport.Model
 	files        []string
 	tree         *tree.Tree
 	selectedFile *string
@@ -21,7 +23,15 @@ func (m ftModel) SetFiles(files []string) ftModel {
 	t := buildFullFileTree(files)
 	collapsed := collapseTree(t)
 	m.tree = truncateTree(collapsed, 0)
+	m.vp.SetContent(m.viewFiles())
 	return m
+}
+
+func (m ftModel) viewFiles() string {
+	return lipgloss.NewStyle().
+		Width(openFileTreeWidth).
+		MaxWidth(openFileTreeWidth).
+		Render(m.printWithoutRoot())
 }
 
 type FileNode struct {
@@ -51,12 +61,17 @@ func (m ftModel) SetCursor(cursor int) ftModel {
 	}
 	m.selectedFile = &m.files[cursor]
 	applyStyles(m.tree, m.selectedFile)
+	m.vp.SetContent(m.viewFiles())
+	if m.vp.TotalLineCount() > m.vp.Height {
+		m.vp.SetYOffset(cursor)
+	}
 	return m
 }
 
 func initialFileTreeModel() ftModel {
 	return ftModel{
 		files: []string{},
+		vp:    viewport.New(0, 0),
 	}
 }
 
@@ -65,6 +80,11 @@ func (m ftModel) Init() tea.Cmd {
 }
 
 func (m ftModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case dimensionsMsg:
+		m.vp.Width = msg.Width
+		m.vp.Height = msg.Height
+	}
 	return m, nil
 }
 
@@ -83,11 +103,7 @@ var enumerator = func(children tree.Children, index int) string {
 }
 
 func (m ftModel) View() string {
-	if m.tree == nil {
-		return ""
-	}
-
-	return lipgloss.NewStyle().Width(openFileTreeWidth).MaxWidth(openFileTreeWidth).Render(m.printWithoutRoot())
+	return m.vp.View()
 }
 
 type errMsg struct {
