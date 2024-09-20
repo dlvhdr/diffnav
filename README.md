@@ -36,7 +36,7 @@ git config --global pager.diff diffnav
 ## Configuration
 
 - Currently you can configure `diffnav` only through delta so [check out their docs](https://dandavison.github.io/delta/configuration.html).
-- If you want the exact configuration I'm using - [it can be found here]().
+- If you want the exact configuration I'm using - [it can be found here](https://github.com/dlvhdr/diffnav/blob/main/cfg/delta.conf).
 
 ## Keys
 
