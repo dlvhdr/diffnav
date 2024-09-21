@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,9 +20,7 @@ type ftModel struct {
 func (m ftModel) SetFiles(files []*gitdiff.File) ftModel {
 	m.files = files
 	t := buildFullFileTree(files)
-	log.Printf("full: %v\n", t)
 	collapsed := collapseTree(t)
-	log.Printf("collapsed: %v\n", collapsed)
 	m.tree = truncateTree(collapsed, 0)
 	return m
 }
@@ -48,11 +45,7 @@ func (f FileNode) Value() string {
 		status += lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("")
 	}
 
-	depth := f.depth
-	if f.depth > 0 {
-		depth = depth - 1
-	}
-	depthWidth := depth * 2
+	depthWidth := f.depth * 2
 	iconsWidth := lipgloss.Width(icon) + lipgloss.Width(status)
 	nameMaxWidth := openFileTreeWidth - depthWidth - iconsWidth
 	base := filepath.Base(f.path())
@@ -66,8 +59,6 @@ func (f FileNode) Value() string {
 	if spacerWidth > 0 {
 		spacer = strings.Repeat(" ", spacerWidth)
 	}
-
-	log.Printf("name: %s, nameWidth: %d, nameMaxWidth: %d, iconsWidth: %d, depthWidth: %d, spacerWidth: %d\n", name, lipgloss.Width(name), nameMaxWidth, iconsWidth, depth*2, spacerWidth)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, icon, name, spacer, status)
 }
@@ -145,9 +136,12 @@ func (m ftModel) printWithoutRoot() string {
 		child := children.At(i)
 		switch child := child.(type) {
 		case *tree.Tree:
-			applyStyles(child, m.selectedFile)
-			s += child.String()
+			normalized := normalizeDepth(child, 0)
+			applyStyles(normalized, m.selectedFile)
+
+			s += normalized.String()
 		case FileNode:
+			child.depth = 0
 			s += applyStyleToNode(child, m.selectedFile).Render(child.Value())
 		}
 		if i < children.Length()-1 {
@@ -155,6 +149,23 @@ func (m ftModel) printWithoutRoot() string {
 		}
 	}
 	return s
+}
+
+func normalizeDepth(node *tree.Tree, depth int) *tree.Tree {
+	t := tree.Root(node.Value())
+	children := node.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		switch child := child.(type) {
+		case *tree.Tree:
+			sub := normalizeDepth(child, depth+1)
+			t.Child(sub)
+		case FileNode:
+			child.depth = depth + 1
+			t.Child(child)
+		}
+	}
+	return t
 }
 
 func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
@@ -247,9 +258,6 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 
 func truncateTree(t *tree.Tree, depth int) *tree.Tree {
 	d := depth
-	if d > 0 {
-		d = d - 1
-	}
 	newT := tree.Root(truncateValue(t.Value(), openFileTreeWidth-d*2))
 	children := t.Children()
 	for i := 0; i < children.Length(); i++ {
