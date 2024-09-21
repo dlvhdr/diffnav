@@ -91,14 +91,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.files) == 0 {
 			return m, tea.Quit
 		}
-		paths := make([]string, len(m.files))
-		for i, f := range m.files {
-			paths[i] = f.NewName
-			if paths[i] == "" {
-				paths[i] = f.OldName
-			}
-		}
-		m.fileTree = m.fileTree.(ftModel).SetFiles(paths)
+		m.fileTree = m.fileTree.(ftModel).SetFiles(m.files)
 		m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[0])
 		cmds = append(cmds, cmd)
 
