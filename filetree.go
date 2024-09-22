@@ -206,7 +206,7 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 	return newT
 }
 
-const dirIcon = " "
+const dirIcon = " "
 
 func truncateTree(t *tree.Tree, depth int) *tree.Tree {
 	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2-lipgloss.Width(dirIcon)))
