@@ -61,7 +61,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "e":
 			m.isShowingFileTree = !m.isShowingFileTree
-			df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height - footerHeight})
+			df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height - footerHeight - headerHeight})
 			m.diffViewer = df
 			return m, dfCmd
 		case "up", "k":
@@ -84,7 +84,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.help.Width = msg.Width
 		m.width = msg.Width
 		m.height = msg.Height
-		df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height})
+		df, dfCmd := m.diffViewer.(diffModel).Update(dimensionsMsg{Width: m.width - m.getFileTreeWidth(), Height: m.height - footerHeight - headerHeight})
 		m.diffViewer = df
 		cmds = append(cmds, dfCmd)
 
@@ -113,20 +113,26 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m mainModel) View() string {
+	header := lipgloss.NewStyle().Width(m.width).
+		Border(lipgloss.NormalBorder(), false, false, true, false).
+		BorderForeground(lipgloss.Color("8")).
+		Foreground(lipgloss.Color("2")).
+		Render("󰊢 diffnav")
+	footer := m.footerView()
+
 	ft := ""
 	ftWidth := m.getFileTreeWidth()
 	if m.isShowingFileTree {
 		ft = lipgloss.NewStyle().
 			Width(constants.OpenFileTreeWidth).
-			Height(m.height-footerHeight).
+			Height(m.height-footerHeight-headerHeight).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(lipgloss.Color("8")).
 			Render(m.fileTree.View())
 	}
-	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight).Width(m.width - ftWidth).Render(m.diffViewer.View())
+	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight - headerHeight).Width(m.width - ftWidth).Render(m.diffViewer.View())
 	content := lipgloss.JoinHorizontal(lipgloss.Top, ft, dv)
-	footer := m.footerView()
-	return lipgloss.JoinVertical(lipgloss.Left, content, footer)
+	return lipgloss.JoinVertical(lipgloss.Left, header, content, footer)
 }
 
 func (m mainModel) getFileTreeWidth() int {
@@ -194,7 +200,10 @@ func sortFiles(files []*gitdiff.File) {
 	})
 }
 
-const footerHeight = 1
+const (
+	footerHeight = 1
+	headerHeight = 2
+)
 
 func (m mainModel) footerView() string {
 	return lipgloss.NewStyle().

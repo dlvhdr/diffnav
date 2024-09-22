@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-const headerHeight = 3
+const dirrHeaderHeight = 3
 
 type diffModel struct {
 	vp     viewport.Model
@@ -54,7 +54,7 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.vp.Width = m.width
-		m.vp.Height = m.height - headerHeight
+		m.vp.Height = m.height - dirrHeaderHeight
 		cmds = append(cmds, diff(m.file, m.width))
 	}
 
@@ -96,7 +96,7 @@ func (m diffModel) headerView() string {
 	return base.
 		Width(m.width).
 		PaddingLeft(1).
-		Height(headerHeight - 1).
+		Height(dirrHeaderHeight - 1).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
 		BorderForeground(lipgloss.Color("8")).
