@@ -9,6 +9,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/tree"
+
+	"github.com/dlvhdr/diffnav/pkg/constants"
+	filetree "github.com/dlvhdr/diffnav/pkg/file_tree"
+	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
 type ftModel struct {
@@ -25,61 +29,11 @@ func (m ftModel) SetFiles(files []*gitdiff.File) ftModel {
 	return m
 }
 
-type FileNode struct {
-	file  *gitdiff.File
-	depth int
-}
-
-func (f FileNode) path() string {
-	return getFileName(f.file)
-}
-
-func (f FileNode) Value() string {
-	icon := " "
-	status := " "
-	if f.file.IsNew {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("")
-	} else if f.file.IsDelete {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("")
-	} else {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("")
-	}
-
-	depthWidth := f.depth * 2
-	iconsWidth := lipgloss.Width(icon) + lipgloss.Width(status)
-	nameMaxWidth := openFileTreeWidth - depthWidth - iconsWidth
-	base := filepath.Base(f.path())
-	name := truncateValue(base, nameMaxWidth)
-
-	spacerWidth := openFileTreeWidth - lipgloss.Width(name) - iconsWidth - depthWidth
-	if len(name) < len(base) {
-		spacerWidth = spacerWidth - 1
-	}
-	spacer := ""
-	if spacerWidth > 0 {
-		spacer = strings.Repeat(" ", spacerWidth)
-	}
-
-	return lipgloss.JoinHorizontal(lipgloss.Top, icon, name, spacer, status)
-}
-
-func (f FileNode) String() string {
-	return f.Value()
-}
-
-func (f FileNode) Children() tree.Children {
-	return tree.NodeChildren(nil)
-}
-
-func (f FileNode) Hidden() bool {
-	return false
-}
-
 func (m ftModel) SetCursor(cursor int) ftModel {
 	if len(m.files) == 0 {
 		return m
 	}
-	name := getFileName(m.files[cursor])
+	name := filetree.GetFileName(m.files[cursor])
 	m.selectedFile = &name
 	applyStyles(m.tree, m.selectedFile)
 	return m
@@ -118,7 +72,7 @@ func (m ftModel) View() string {
 		return ""
 	}
 
-	return lipgloss.NewStyle().Width(openFileTreeWidth).MaxWidth(openFileTreeWidth).Render(m.printWithoutRoot())
+	return lipgloss.NewStyle().Width(constants.OpenFileTreeWidth).MaxWidth(constants.OpenFileTreeWidth).Render(m.printWithoutRoot())
 }
 
 type errMsg struct {
@@ -126,7 +80,7 @@ type errMsg struct {
 }
 
 func (m ftModel) printWithoutRoot() string {
-	if m.tree.Value() != "." {
+	if m.tree.Value() != dirIcon+"." {
 		return m.tree.String()
 	}
 
@@ -140,8 +94,8 @@ func (m ftModel) printWithoutRoot() string {
 			applyStyles(normalized, m.selectedFile)
 
 			s += normalized.String()
-		case FileNode:
-			child.depth = 0
+		case filetree.FileNode:
+			child.Depth = 0
 			s += applyStyleToNode(child, m.selectedFile).Render(child.Value())
 		}
 		if i < children.Length()-1 {
@@ -160,8 +114,8 @@ func normalizeDepth(node *tree.Tree, depth int) *tree.Tree {
 		case *tree.Tree:
 			sub := normalizeDepth(child, depth+1)
 			t.Child(sub)
-		case FileNode:
-			child.depth = depth + 1
+		case filetree.FileNode:
+			child.Depth = depth + 1
 			t.Child(child)
 		}
 	}
@@ -173,7 +127,7 @@ func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
 	for _, file := range files {
 		subTree := t
 
-		name := getFileName(file)
+		name := filetree.GetFileName(file)
 		dir := filepath.Dir(name)
 		parts := strings.Split(dir, string(os.PathSeparator))
 		path := ""
@@ -204,7 +158,7 @@ func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
 		for i, part := range parts {
 			var c *tree.Tree
 			if i == len(parts)-1 {
-				subTree.Child(FileNode{file: file})
+				subTree.Child(filetree.FileNode{File: file})
 			} else {
 				c = tree.Root(part)
 				subTree.Child(c)
@@ -214,10 +168,6 @@ func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
 	}
 
 	return t
-}
-
-func truncateValue(value string, width int) string {
-	return TruncateString(value, width)
 }
 
 func collapseTree(t *tree.Tree) *tree.Tree {
@@ -256,17 +206,18 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 	return newT
 }
 
+const dirIcon = " "
+
 func truncateTree(t *tree.Tree, depth int) *tree.Tree {
-	d := depth
-	newT := tree.Root(truncateValue(t.Value(), openFileTreeWidth-d*2))
+	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2-lipgloss.Width(dirIcon)))
 	children := t.Children()
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
 		switch child := child.(type) {
 		case *tree.Tree:
 			newT.Child(truncateTree(child, depth+1))
-		case FileNode:
-			newT.Child(FileNode{file: child.file, depth: depth + 1})
+		case filetree.FileNode:
+			newT.Child(filetree.FileNode{File: child.File, Depth: depth + 1})
 		default:
 			newT.Child(child)
 		}
@@ -300,8 +251,8 @@ func applyStyleAux(children tree.Children, i int, selectedFile *string) lipgloss
 func applyStyleToNode(node tree.Node, selectedFile *string) lipgloss.Style {
 	st := lipgloss.NewStyle().MaxHeight(1)
 	switch n := node.(type) {
-	case FileNode:
-		if selectedFile != nil && n.path() == *selectedFile {
+	case filetree.FileNode:
+		if selectedFile != nil && n.Path() == *selectedFile {
 			return st.Background(lipgloss.Color("#1b1b33")).Bold(true)
 		}
 	case *tree.Tree:
@@ -310,11 +261,4 @@ func applyStyleToNode(node tree.Node, selectedFile *string) lipgloss.Style {
 		return st
 	}
 	return st
-}
-
-func getFileName(file *gitdiff.File) string {
-	if file.NewName != "" {
-		return file.NewName
-	}
-	return file.OldName
 }

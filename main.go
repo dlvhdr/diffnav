@@ -15,6 +15,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/dlvhdr/diffnav/pkg/constants"
 )
 
 type mainModel struct {
@@ -110,14 +112,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-const openFileTreeWidth = 26
-
 func (m mainModel) View() string {
 	ft := ""
 	ftWidth := m.getFileTreeWidth()
 	if m.isShowingFileTree {
 		ft = lipgloss.NewStyle().
-			Width(openFileTreeWidth).
+			Width(constants.OpenFileTreeWidth).
 			Height(m.height-footerHeight).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(lipgloss.Color("8")).
@@ -131,7 +131,7 @@ func (m mainModel) View() string {
 
 func (m mainModel) getFileTreeWidth() int {
 	if m.isShowingFileTree {
-		return openFileTreeWidth
+		return constants.OpenFileTreeWidth
 	}
 
 	return 0
