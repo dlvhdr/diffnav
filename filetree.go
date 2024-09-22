@@ -209,7 +209,7 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 const dirIcon = " "
 
 func truncateTree(t *tree.Tree, depth int) *tree.Tree {
-	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2-lipgloss.Width(dirIcon)))
+	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2))
 	children := t.Children()
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
