@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/tree"
@@ -18,6 +19,7 @@ import (
 type ftModel struct {
 	files        []*gitdiff.File
 	tree         *tree.Tree
+	vp           viewport.Model
 	selectedFile *string
 }
 
@@ -25,7 +27,8 @@ func (m ftModel) SetFiles(files []*gitdiff.File) ftModel {
 	m.files = files
 	t := buildFullFileTree(files)
 	collapsed := collapseTree(t)
-	m.tree = truncateTree(collapsed, 0)
+	m.tree, _ = truncateTree(collapsed, 0, 0, 0)
+	m.vp.SetContent(m.printWithoutRoot())
 	return m
 }
 
@@ -36,12 +39,37 @@ func (m ftModel) SetCursor(cursor int) ftModel {
 	name := filetree.GetFileName(m.files[cursor])
 	m.selectedFile = &name
 	applyStyles(m.tree, m.selectedFile)
+	m.scrollSelectedFileIntoView(m.tree)
+	m.vp.SetContent(m.printWithoutRoot())
 	return m
+}
+
+func (m *ftModel) scrollSelectedFileIntoView(t *tree.Tree) {
+	children := t.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		switch child := child.(type) {
+		case *tree.Tree:
+			m.scrollSelectedFileIntoView(child)
+		case filetree.FileNode:
+			if child.Path() == *m.selectedFile {
+				// offset is 1-based, so we need to subtract 1
+				// we subtract another another 2 because offset should show the node and it's parent
+				offset := child.YOffset - 3
+				// we also need to subtract 1 if the root is not shown
+				if m.tree.Value() == "." {
+					offset = child.YOffset - 1
+				}
+				m.vp.SetYOffset(offset)
+			}
+		}
+	}
 }
 
 func initialFileTreeModel() ftModel {
 	return ftModel{
 		files: []*gitdiff.File{},
+		vp:    viewport.Model{},
 	}
 }
 
@@ -50,6 +78,12 @@ func (m ftModel) Init() tea.Cmd {
 }
 
 func (m ftModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case dimensionsMsg:
+		m.vp.Width = msg.Width
+		m.vp.Height = msg.Height
+		m.vp, _ = m.vp.Update(msg)
+	}
 	return m, nil
 }
 
@@ -68,11 +102,7 @@ var enumerator = func(children tree.Children, index int) string {
 }
 
 func (m ftModel) View() string {
-	if m.tree == nil {
-		return ""
-	}
-
-	return lipgloss.NewStyle().Width(constants.OpenFileTreeWidth).MaxWidth(constants.OpenFileTreeWidth).Render(m.printWithoutRoot())
+	return m.vp.View()
 }
 
 type errMsg struct {
@@ -208,21 +238,27 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 
 const dirIcon = " "
 
-func truncateTree(t *tree.Tree, depth int) *tree.Tree {
+func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int) (*tree.Tree, int) {
 	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2))
+	numNodes++
 	children := t.Children()
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
+		numChildren++
 		switch child := child.(type) {
 		case *tree.Tree:
-			newT.Child(truncateTree(child, depth+1))
+			sub, subNum := truncateTree(child, depth+1, numNodes, 0)
+			numChildren += subNum
+			numNodes += subNum + 1
+			newT.Child(sub)
 		case filetree.FileNode:
-			newT.Child(filetree.FileNode{File: child.File, Depth: depth + 1})
+			numNodes++
+			newT.Child(filetree.FileNode{File: child.File, Depth: depth + 1, YOffset: numNodes})
 		default:
 			newT.Child(child)
 		}
 	}
-	return newT
+	return newT, numChildren
 }
 
 func applyStyles(t *tree.Tree, selectedFile *string) {

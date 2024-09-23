@@ -13,8 +13,9 @@ import (
 )
 
 type FileNode struct {
-	File  *gitdiff.File
-	Depth int
+	File    *gitdiff.File
+	Depth   int
+	YOffset int
 }
 
 func (f FileNode) Path() string {
