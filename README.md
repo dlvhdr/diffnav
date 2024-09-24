@@ -27,7 +27,7 @@ brew install dlvhdr/formulae/diffnav
 Go:
 
 ```sh
-go install github.com/dlvhdr/diffnav
+go install github.com/dlvhdr/diffnav@latest
 ```
 
 > [!NOTE]
