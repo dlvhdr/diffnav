@@ -40,51 +40,19 @@ changelog:
 
 brews:
   - name: diffnav
-
-    # NOTE: make sure the url_template, the token and given repo (github or
-    # gitlab) owner and name are from the same kind.
-    # We will probably unify this in the next major version like it is
-    # done with scoop.
-
-    # URL which is determined by the given Token (github, gitlab or gitea).
-    #
-    # Default depends on the client.
-    # Templates: allowed.
-    url_template: "https://github.com/dlvhdr/diffnav/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-
-    # Headers to include in the `url` stanza.
-    # This can be a more modern alternative to `download_strategy` in some
-    # cases.
-    url_headers:
-      - "Accept: application/octet-stream"
-      - 'Authorization: bearer #{ENV["HOMEBREW_GITHUB_API_TOKEN"]}'
-
-    download_strategy: CurlDownloadStrategy
-
-    custom_require: custom_download_strategy
-
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
-
-    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
-
-    # Directory inside the repository to put the formula.
-    directory: Formula
-
     homepage: "https://github.com/dlvhdr/diffnav"
-
     description: "A git diff pager based on delta but with a file tree, à la GitHub."
-
     license: "MIT"
-
-    # Packages your package depends on.
-    dependencies:
-      - name: git
-      - name: git-delta
-
-    # Repository to push the generated files to.
+    url_template: "https://github.com/dlvhdr/diffnav/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     repository:
       owner: dlvhdr
       name: homebrew-formulae
       branch: main
+    dependencies:
+      - name: git
+      - name: git-delta
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    directory: Formula
