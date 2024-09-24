@@ -44,6 +44,8 @@ func (m ftModel) SetCursor(cursor int) ftModel {
 	return m
 }
 
+const contextLines = 15
+
 func (m *ftModel) scrollSelectedFileIntoView(t *tree.Tree) {
 	children := t.Children()
 	for i := 0; i < children.Length(); i++ {
@@ -54,11 +56,10 @@ func (m *ftModel) scrollSelectedFileIntoView(t *tree.Tree) {
 		case filetree.FileNode:
 			if child.Path() == *m.selectedFile {
 				// offset is 1-based, so we need to subtract 1
-				// we subtract another another 2 because offset should show the node and it's parent
-				offset := child.YOffset - 3
+				offset := child.YOffset - 1 - contextLines
 				// we also need to subtract 1 if the root is not shown
 				if m.tree.Value() == "." {
-					offset = child.YOffset - 1
+					offset = offset - 1
 				}
 				m.vp.SetYOffset(offset)
 			}
