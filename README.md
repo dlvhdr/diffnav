@@ -18,13 +18,17 @@ A git diff pager based on [delta](https://github.com/dandavison/delta) but with 
 
 ## Installation
 
-```bash
-brew install git-delta # or any other package manager
-go install github.com/dlvhdr/diffnav
+Homebrew:
+
+```sh
+brew install dlvhdr/formulae/diffnav
 ```
 
-- [See here](https://dandavison.github.io/delta/installation.html) the full delta installations instructions.
-- _TBD: support for package managers_
+Go:
+
+```sh
+go install github.com/dlvhdr/diffnav
+```
 
 ## Usage
 
