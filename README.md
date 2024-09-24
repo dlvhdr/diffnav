@@ -30,6 +30,9 @@ Go:
 go install github.com/dlvhdr/diffnav
 ```
 
+> [!NOTE] To get the icons to render properly you should download and install a Nerd font from https://www.nerdfonts.com/. Then, select that font as your font for the terminal.
+> You can install these with brew as well: `brew install --cask font-<FONT NAME>-nerd-font`
+
 ## Usage
 
 ### Pipe into diffnav
