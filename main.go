@@ -243,8 +243,10 @@ func main() {
 		}
 	}
 
-	logger, _ := tea.LogToFile("debug.log", "debug")
-	defer logger.Close()
+	if os.Getenv("DEBUG") == "true" {
+		logger, _ := tea.LogToFile("debug.log", "debug")
+		defer logger.Close()
+	}
 
 	input := ansi.Strip(b.String())
 	p := tea.NewProgram(newModel(input), tea.WithMouseAllMotion())
