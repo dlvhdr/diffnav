@@ -235,7 +235,8 @@ func (m mainModel) View() string {
 		Border(lipgloss.NormalBorder(), false, false, true, false).
 		BorderForeground(lipgloss.Color("8")).
 		Foreground(lipgloss.Color("6")).
-		Render("󰊢 🅳 🅸 🅵 🅵 🅽 🅰 🆅 ")
+		Bold(true).
+		Render("DIFFNAV")
 	footer := m.footerView()
 
 	sidebar := ""
@@ -322,7 +323,7 @@ func sortFiles(files []*gitdiff.File) {
 const (
 	footerHeight = 2
 	headerHeight = 2
-	searchHeight = 10
+	searchHeight = 3
 )
 
 func (m mainModel) footerView() string {
