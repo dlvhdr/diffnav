@@ -3,7 +3,7 @@
 A git diff pager based on [delta](https://github.com/dandavison/delta) but with a file tree, à la GitHub.
 
 <p align="center">
-  <img width="750" src="https://github.com/user-attachments/assets/0a5bc0c9-9b74-4bca-8b8d-423bcf859e68" />
+  <img width="750" src="https://github.com/user-attachments/assets/3148be62-830a-484c-9256-2129ff10ca13" />
 </p>
 
 > [!CAUTION]
