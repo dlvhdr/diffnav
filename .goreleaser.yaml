@@ -41,7 +41,7 @@ changelog:
 brews:
   - name: diffnav
     homepage: "https://github.com/dlvhdr/diffnav"
-    description: "A git diff pager based on delta but with a file tree, à la GitHub."
+    description: "a git diff pager based on delta but with a file tree, à la GitHub"
     license: "MIT"
     url_template: "https://github.com/dlvhdr/diffnav/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     repository:
