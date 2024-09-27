@@ -55,24 +55,25 @@ git config --global pager.diff diffnav
 
 ## Keys
 
-| Key                | Description                     |
-|:-------------------|:--------------------------------|
-| <kbd>j</kbd>       | Next file                       |
-| <kbd>k</kbd>       | Previous file                   |
-| <kbd>Ctrl-d</kbd>  | Scroll the diff down            |
-| <kbd>Ctrl-u</kbd>  | Scroll the diff up              |
-| <kbd>e</kbd>       | Toggle the file tree            |
-| <kbd>q</kbd>       | Quit                            |
+| Key               | Description          |
+| :---------------- | :------------------- |
+| <kbd>j</kbd>      | Next file            |
+| <kbd>k</kbd>      | Previous file        |
+| <kbd>Ctrl-d</kbd> | Scroll the diff down |
+| <kbd>Ctrl-u</kbd> | Scroll the diff up   |
+| <kbd>e</kbd>      | Toggle the file tree |
+| <kbd>t</kbd>      | Search/go-to file    |
+| <kbd>q</kbd>      | Quit                 |
 
 ## Under the hood
 
 `diffnav` uses:
 
-* [Bubble Tea](https://github.com/charmbracelet/bubbletea) for the TUI
-* [`delta`](https://github.com/dandavison/delta) for viewing the diffed file
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) for the TUI
+- [`delta`](https://github.com/dandavison/delta) for viewing the diffed file
 
 Screenshots use:
 
-* [kitty](https://sw.kovidgoyal.net/kitty/) for the terminal
-* [tokyonight](https://github.com/folke/tokyonight.nvim) for the color scheme
-* [CommitMono](https://www.nerdfonts.com/font-downloads) for the font
+- [kitty](https://sw.kovidgoyal.net/kitty/) for the terminal
+- [tokyonight](https://github.com/folke/tokyonight.nvim) for the color scheme
+- [CommitMono](https://www.nerdfonts.com/font-downloads) for the font
