@@ -382,7 +382,7 @@ func main() {
 	input := ansi.Strip(b.String())
 	if strings.TrimSpace(input) == "" {
 		fmt.Println("No input provided, exiting")
-		return
+		os.Exit(1)
 	}
 	p := tea.NewProgram(newModel(input), tea.WithMouseAllMotion())
 
