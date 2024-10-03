@@ -1,4 +1,4 @@
-package filetree
+package filenode
 
 import (
 	"path/filepath"
