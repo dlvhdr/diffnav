@@ -347,16 +347,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	var fileErr error
-	logFile, fileErr := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if fileErr == nil {
-		log.SetOutput(logFile)
-		log.SetTimeFormat(time.Kitchen)
-		log.SetReportCaller(true)
-		log.SetLevel(log.DebugLevel)
-		defer logFile.Close()
-		log.SetOutput(logFile)
-		log.Debug("Starting diffnav, logging to debug.log")
+	if os.Getenv("DEBUG") == "true" {
+        	var fileErr error
+        	logFile, fileErr := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+    		defer logFile.Close()
+
+		logger, _ := tea.LogToFile("debug.log", "debug")
+		defer logger.Close()
+
+        	if fileErr == nil {
+        		log.SetOutput(logFile)
+        		log.SetTimeFormat(time.Kitchen)
+        		log.SetReportCaller(true)
+        		log.SetLevel(log.DebugLevel)
+        		log.SetOutput(logFile)
+        		log.Debug("Starting diffnav, logging to debug.log")
+        	}
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -372,11 +378,6 @@ func main() {
 			fmt.Println("Error getting input:", err)
 			os.Exit(1)
 		}
-	}
-
-	if os.Getenv("DEBUG") == "true" {
-		logger, _ := tea.LogToFile("debug.log", "debug")
-		defer logger.Close()
 	}
 
 	input := ansi.Strip(b.String())
