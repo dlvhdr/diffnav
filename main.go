@@ -63,7 +63,7 @@ func newModel(input string) mainModel {
 	m.search.KeyMap.AcceptSuggestion = key.NewBinding(key.WithKeys("tab"))
 	m.search.Prompt = " "
 	m.search.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	m.search.Placeholder = "Filter files 🅃"
+	m.search.Placeholder = "Filter files"
 	m.search.PlaceholderStyle = lipgloss.NewStyle().MaxWidth(lipgloss.Width(m.search.Placeholder)).Foreground(lipgloss.Color("8"))
 	m.search.Width = constants.OpenFileTreeWidth - 5
 
@@ -139,24 +139,10 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.searching {
-			switch msg.String() {
-			case "ctrl+n":
-				if m.searching {
-					m.resultsCursor = min(len(m.files)-1, m.resultsCursor+1)
-					m.resultsVp.LineDown(1)
-				}
-			case "ctrl+p":
-				if m.searching {
-					m.resultsCursor = max(0, m.resultsCursor-1)
-					m.resultsVp.LineUp(1)
-				}
-			}
-		}
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "t":
+		case "/":
 			m.searching = true
 			m.search.Width = m.sidebarWidth() - 5
 			m.search.SetValue("")
@@ -170,18 +156,18 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.diffViewer = df
 			cmds = append(cmds, m.search.Focus())
 			return m, tea.Batch(cmds...)
-		case "e":
+		case "t":
 			m.isShowingFileTree = !m.isShowingFileTree
 			df, dfCmd := m.setDiffViewerDimensions()
 			m.diffViewer = df
 			return m, dfCmd
-		case "up", "k", "ctrl+p":
+		case "up", "K", "ctrl+p":
 			if m.cursor > 0 {
 				m.cursor--
 				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[m.cursor])
 				cmds = append(cmds, cmd)
 			}
-		case "down", "j", "ctrl+n":
+		case "down", "J", "ctrl+n":
 			if m.cursor < len(m.files)-1 {
 				m.cursor++
 				m.diffViewer, cmd = m.diffViewer.(diffModel).SetFilePatch(m.files[m.cursor])
@@ -343,8 +329,8 @@ func main() {
 	}
 
 	if stat.Mode()&os.ModeNamedPipe == 0 && stat.Size() == 0 {
-		fmt.Println("Try piping in some text.")
-		os.Exit(1)
+		fmt.Println("No diff")
+		os.Exit(0)
 	}
 
 	if os.Getenv("DEBUG") == "true" {
