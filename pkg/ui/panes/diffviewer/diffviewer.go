@@ -1,4 +1,4 @@
-package main
+package diffviewer
 
 import (
 	"bytes"
@@ -11,29 +11,30 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/dlvhdr/diffnav/pkg/ui/common"
 )
 
 const dirHeaderHeight = 3
 
-type diffModel struct {
+type Model struct {
+	common.Common
 	vp     viewport.Model
 	buffer *bytes.Buffer
-	width  int
-	height int
 	file   *gitdiff.File
 }
 
-func initialDiffModel() diffModel {
-	return diffModel{
+func New() Model {
+	return Model{
 		vp: viewport.Model{},
 	}
 }
 
-func (m diffModel) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -50,25 +51,27 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case diffContentMsg:
 		m.vp.SetContent(msg.text)
-	case dimensionsMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		m.vp.Width = m.width
-		m.vp.Height = m.height - dirHeaderHeight
-		cmds = append(cmds, diff(m.file, m.width))
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
-func (m diffModel) View() string {
+func (m Model) View() string {
 	if m.buffer == nil {
 		return "Loading..."
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, m.headerView(), m.vp.View())
 }
 
-func (m diffModel) headerView() string {
+func (m *Model) SetSize(width, height int) tea.Cmd {
+	m.Width = width
+	m.Height = height
+	m.vp.Width = m.Width
+	m.vp.Height = m.Height - dirHeaderHeight
+	return diff(m.file, m.Width)
+}
+
+func (m Model) headerView() string {
 	if m.file == nil {
 		return ""
 	}
@@ -94,7 +97,7 @@ func (m diffModel) headerView() string {
 	)
 
 	return base.
-		Width(m.width).
+		Width(m.Width).
 		PaddingLeft(1).
 		Height(dirHeaderHeight - 1).
 		BorderStyle(lipgloss.NormalBorder()).
@@ -103,10 +106,10 @@ func (m diffModel) headerView() string {
 		Render(lipgloss.JoinVertical(lipgloss.Left, top, bottom))
 }
 
-func (m diffModel) SetFilePatch(file *gitdiff.File) (diffModel, tea.Cmd) {
+func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	m.buffer = new(bytes.Buffer)
 	m.file = file
-	return m, diff(m.file, m.width)
+	return m, diff(m.file, m.Width)
 }
 
 func diff(file *gitdiff.File, width int) tea.Cmd {
@@ -125,7 +128,7 @@ func diff(file *gitdiff.File, width int) tea.Cmd {
 		out, err := deltac.Output()
 
 		if err != nil {
-			return errMsg{err}
+			return common.ErrMsg{Err: err}
 		}
 
 		return diffContentMsg{text: string(out)}
