@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
@@ -257,6 +255,10 @@ func (m mainModel) View() string {
 	)
 }
 
+type fileTreeMsg struct {
+	files []*gitdiff.File
+}
+
 func (m mainModel) fetchFileTree() tea.Msg {
 	// TODO: handle error
 	files, _, err := gitdiff.Parse(strings.NewReader(m.input + "\n"))
@@ -266,41 +268,6 @@ func (m mainModel) fetchFileTree() tea.Msg {
 	sortFiles(files)
 
 	return fileTreeMsg{files: files}
-}
-
-type fileTreeMsg struct {
-	files []*gitdiff.File
-}
-
-func sortFiles(files []*gitdiff.File) {
-	slices.SortFunc(files, func(a *gitdiff.File, b *gitdiff.File) int {
-		nameA := filenode.GetFileName(a)
-		nameB := filenode.GetFileName(b)
-		dira := filepath.Dir(nameA)
-		dirb := filepath.Dir(nameB)
-		if dira != "." && dirb != "." && dira == dirb {
-			return strings.Compare(strings.ToLower(nameA), strings.ToLower(nameB))
-		}
-
-		if dira != "." && dirb == "." {
-			return -1
-		}
-		if dirb != "." && dira == "." {
-			return 1
-		}
-
-		if dira != "." && dirb != "." {
-			if strings.HasPrefix(dira, dirb) {
-				return -1
-			}
-
-			if strings.HasPrefix(dirb, dira) {
-				return 1
-			}
-		}
-
-		return strings.Compare(strings.ToLower(nameA), strings.ToLower(nameB))
-	})
 }
 
 func (m mainModel) footerView() string {
@@ -334,11 +301,6 @@ func (m mainModel) sidebarWidth() int {
 	} else {
 		return 0
 	}
-}
-
-func (m mainModel) setDiffViewerDimensions() tea.Cmd {
-	dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
-	return dfCmd
 }
 
 func (m *mainModel) stopSearch() {
