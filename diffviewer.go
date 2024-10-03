@@ -37,17 +37,9 @@ func (m diffModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "down", "j":
-			break
-		case "up", "k":
-			break
-		default:
-			vp, vpCmd := m.vp.Update(msg)
-			cmds = append(cmds, vpCmd)
-			m.vp = vp
-		}
-
+        	vp, vpCmd := m.vp.Update(msg)
+        	cmds = append(cmds, vpCmd)
+        	m.vp = vp
 	case diffContentMsg:
 		m.vp.SetContent(msg.text)
 	case dimensionsMsg:

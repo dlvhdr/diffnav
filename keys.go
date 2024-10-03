@@ -14,28 +14,28 @@ type KeyMap struct {
 
 var keys = &KeyMap{
 	Up: key.NewBinding(
-		key.WithKeys("up", "k"),
-		key.WithHelp("↑/k", "prev file"),
+		key.WithKeys("up", "K"),
+		key.WithHelp("↑/K", "prev file"),
 	),
 	Down: key.NewBinding(
-		key.WithKeys("down", "j"),
-		key.WithHelp("↓/j", "next file"),
+		key.WithKeys("down", "J"),
+		key.WithHelp("↓/J", "next file"),
 	),
 	CtrlD: key.NewBinding(
 		key.WithKeys("ctrl+d"),
-		key.WithHelp("ctrl+d", "diff down"),
+		key.WithHelp("j/ctrl+d", "diff down"),
 	),
 	CtrlU: key.NewBinding(
 		key.WithKeys("ctrl+u"),
-		key.WithHelp("ctrl+u", "diff up"),
+		key.WithHelp("k/ctrl+u", "diff up"),
 	),
 	ToggleFileTree: key.NewBinding(
-		key.WithKeys("e"),
-		key.WithHelp("e", "toggle file tree"),
+		key.WithKeys("t"),
+		key.WithHelp("t", "toggle file tree"),
 	),
 	Search: key.NewBinding(
-		key.WithKeys("t"),
-		key.WithHelp("t", "search files"),
+		key.WithKeys("/"),
+		key.WithHelp("/", "search files"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
