@@ -107,14 +107,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, dfCmd)
 			case "up", "k", "ctrl+p":
 				if m.cursor > 0 {
-					m.cursor--
-					m.diffViewer, cmd = m.diffViewer.SetFilePatch(m.files[m.cursor])
+					cmd = m.setCursor(m.cursor - 1)
 					cmds = append(cmds, cmd)
 				}
 			case "down", "j", "ctrl+n":
 				if m.cursor < len(m.files)-1 {
-					m.cursor++
-					m.diffViewer, cmd = m.diffViewer.SetFilePatch(m.files[m.cursor])
+					cmd = m.setCursor(m.cursor + 1)
 					cmds = append(cmds, cmd)
 				}
 			}
@@ -134,7 +132,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 			m.fileTree = m.fileTree.SetFiles(m.files)
-			m.diffViewer, cmd = m.diffViewer.SetFilePatch(m.files[0])
+			cmd = m.setCursor(0)
 			cmds = append(cmds, cmd)
 
 		case common.ErrMsg:
@@ -146,8 +144,6 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m, sCmds = m.searchUpdate(msg)
 		cmds = append(cmds, sCmds...)
 	}
-
-	m.fileTree = m.fileTree.SetCursor(m.cursor)
 
 	m.diffViewer, cmd = m.diffViewer.Update(msg)
 	cmds = append(cmds, cmd)
@@ -308,4 +304,12 @@ func (m *mainModel) stopSearch() {
 	m.search.SetValue("")
 	m.search.Blur()
 	m.search.Width = m.sidebarWidth() - 5
+}
+
+func (m *mainModel) setCursor(cursor int) tea.Cmd {
+	var cmd tea.Cmd
+	m.cursor = cursor
+	m.diffViewer, cmd = m.diffViewer.SetFilePatch(m.files[m.cursor])
+	m.fileTree = m.fileTree.SetCursor(m.cursor)
+	return cmd
 }

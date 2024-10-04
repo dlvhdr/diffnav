@@ -48,6 +48,7 @@ const contextLines = 15
 
 func (m *Model) scrollSelectedFileIntoView(t *tree.Tree) {
 	children := t.Children()
+	found := false
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
 		switch child := child.(type) {
@@ -62,7 +63,12 @@ func (m *Model) scrollSelectedFileIntoView(t *tree.Tree) {
 					offset = offset - 1
 				}
 				m.vp.SetYOffset(offset)
+				found = true
+				break
 			}
+		}
+		if found {
+			break
 		}
 	}
 }
