@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 
 	"github.com/dlvhdr/diffnav/pkg/ui"
 )
@@ -22,20 +23,34 @@ func main() {
 	}
 
 	if stat.Mode()&os.ModeNamedPipe == 0 && stat.Size() == 0 {
-		fmt.Println("Try piping in some text.")
-		os.Exit(1)
+		fmt.Println("No diff, exiting")
+		os.Exit(0)
 	}
 
-	var fileErr error
-	logFile, fileErr := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if fileErr == nil {
-		log.SetOutput(logFile)
-		log.SetTimeFormat(time.Kitchen)
-		log.SetReportCaller(true)
-		log.SetLevel(log.DebugLevel)
+	if os.Getenv("DEBUG") == "true" {
+		var fileErr error
+		logFile, fileErr := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if fileErr != nil {
+			fmt.Println("Error opening debug.log:", fileErr)
+			os.Exit(1)
+		}
 		defer logFile.Close()
-		log.SetOutput(logFile)
-		log.Debug("Starting diffnav, logging to debug.log")
+
+		if fileErr == nil {
+			log.SetOutput(logFile)
+			log.SetTimeFormat(time.Kitchen)
+			log.SetReportCaller(true)
+			log.SetLevel(log.DebugLevel)
+
+			log.SetOutput(logFile)
+			log.SetColorProfile(termenv.TrueColor)
+			wd, err := os.Getwd()
+			if err != nil {
+				fmt.Println("Error getting current working dir", err)
+				os.Exit(1)
+			}
+			log.Debug("🚀 Starting diffnav", "logFile", wd+string(os.PathSeparator)+logFile.Name())
+		}
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -53,15 +68,10 @@ func main() {
 		}
 	}
 
-	if os.Getenv("DEBUG") == "true" {
-		logger, _ := tea.LogToFile("debug.log", "debug")
-		defer logger.Close()
-	}
-
 	input := ansi.Strip(b.String())
 	if strings.TrimSpace(input) == "" {
 		fmt.Println("No input provided, exiting")
-		os.Exit(1)
+		os.Exit(0)
 	}
 	p := tea.NewProgram(ui.New(input), tea.WithMouseAllMotion())
 
