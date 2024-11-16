@@ -1,7 +1,7 @@
 package common
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // Common is a struct that contains the width and height of a component.

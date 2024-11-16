@@ -1,19 +1,20 @@
 package ui
 
-import "github.com/charmbracelet/bubbles/key"
+import "charm.land/bubbles/v2/key"
 
 type KeyMap struct {
-	Up             key.Binding
-	Down           key.Binding
-	CtrlD          key.Binding
-	CtrlU          key.Binding
-	ToggleFileTree key.Binding
-	Search         key.Binding
-	Quit           key.Binding
-	Copy           key.Binding
-	TogglePanel    key.Binding
-	OpenInEditor   key.Binding
-	ToggleDiffView key.Binding
+	Up              key.Binding
+	Down            key.Binding
+	CtrlD           key.Binding
+	CtrlU           key.Binding
+	ToggleFileTree  key.Binding
+	Search          key.Binding
+	Quit            key.Binding
+	Copy            key.Binding
+	SwitchPanel     key.Binding
+	OpenInEditor    key.Binding
+	ToggleDiffView  key.Binding
+	ToggleIconStyle key.Binding
 }
 
 var keys = &KeyMap{
@@ -49,7 +50,7 @@ var keys = &KeyMap{
 		key.WithKeys("y"),
 		key.WithHelp("y", "copy file path"),
 	),
-	TogglePanel: key.NewBinding(
+	SwitchPanel: key.NewBinding(
 		key.WithKeys("tab"),
 		key.WithHelp("TAB", "switch panel"),
 	),
@@ -61,11 +62,15 @@ var keys = &KeyMap{
 		key.WithKeys("s"),
 		key.WithHelp("s", "toggle side-by-side"),
 	),
+	ToggleIconStyle: key.NewBinding(
+		key.WithKeys("i"),
+		key.WithHelp("i", "toggle ToggleIconStyle"),
+	),
 }
 
 func getKeys() []key.Binding {
 	return []key.Binding{
-		keys.TogglePanel,
+		keys.SwitchPanel,
 		keys.Up,
 		keys.Down,
 		keys.CtrlD,
@@ -75,6 +80,7 @@ func getKeys() []key.Binding {
 		keys.Copy,
 		keys.OpenInEditor,
 		keys.ToggleDiffView,
+		keys.ToggleIconStyle,
 		keys.Quit,
 	}
 }

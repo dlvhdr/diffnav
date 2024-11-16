@@ -1,0 +1,22 @@
+diff --git a/some-long-file-name-that-cannot-get-longer.go b/some-long-file-name-that-cannot-get-longer.go
+index 7eb0f0a..8cf1723 100644
+--- a/some-long-file-name-that-cannot-get-longer.go
++++ b/some-long-file-name-that-cannot-get-longer.go
+@@ -31,7 +31,7 @@ func initialFileTreeModel() ftModel {
+ }
+ 
+ func (m ftModel) Init() tea.Cmd {
+-	return fetchFileTree
++	return nil
+ }
+ 
+ func (m ftModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+@@ -75,6 +75,8 @@ func (m ftModel) View() string {
+ 		//   t.Child(file)
+ 		// }
+ 
++		// test
++
+ 		if m.cursor == i {
+ 			t = t.Child(lipgloss.NewStyle().Foreground(lipgloss.Color("99")).Render(file))
+ 		} else {

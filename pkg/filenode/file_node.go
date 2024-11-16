@@ -1,13 +1,13 @@
 package filenode
 
 import (
+	"image/color"
 	"path/filepath"
 
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/tree"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/tree"
 
-	"github.com/dlvhdr/diffnav/pkg/constants"
 	"github.com/dlvhdr/diffnav/pkg/icons"
 	"github.com/dlvhdr/diffnav/pkg/utils"
 )
@@ -32,57 +32,55 @@ type FileNode struct {
 	PanelWidth     int
 }
 
-func (f FileNode) Path() string {
+func (f *FileNode) Path() string {
 	return GetFileName(f.File)
 }
 
-func (f FileNode) Value() string {
+func (f *FileNode) Value() string {
 	name := filepath.Base(f.Path())
 
 	// full has a special layout: [status icon] [filename] [file-type icon]
 	if f.IconStyle == IconsNerdFull {
-		return f.renderFullLayout(name)
+		return utils.RemoveReset(f.renderFullLayout(name))
 	}
 
 	// All other styles: [icon] [filename] with optional coloring
-	return f.renderStandardLayout(name)
+	return utils.RemoveReset(f.renderStandardLayout(name))
 }
 
 // renderStandardLayout renders: [icon colored] [filename]
 // Used by status, simple, filetype, unicode, ascii.
-func (f FileNode) renderStandardLayout(name string) string {
-	icon := f.getIcon()
-	depthWidth := f.Depth * 2
+func (f *FileNode) renderStandardLayout(name string) string {
+	icon := f.getIcon() + " "
 	iconWidth := lipgloss.Width(icon) + 1
-	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconWidth
+	nameMaxWidth := f.PanelWidth - f.Depth - iconWidth
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 	coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
 
 	if f.Selected {
 		bgStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(f.StatusColor()).
-			Background(lipgloss.Color("#3a3a3a"))
+			Foreground(f.StatusColor())
 		if f.PanelWidth > 0 {
-			availableWidth := f.PanelWidth - iconWidth - (f.Depth * 2)
+			availableWidth := f.PanelWidth - iconWidth - f.Depth
 			if availableWidth > 0 {
 				bgStyle = bgStyle.Width(availableWidth)
 			}
 		}
-		return coloredIcon + " " + bgStyle.Render(truncatedName)
+		return coloredIcon + bgStyle.Render(truncatedName)
 	}
 
 	if f.ColorFileNames {
 		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(truncatedName)
-		return coloredIcon + " " + styledName
+		return coloredIcon + styledName
 	}
 
-	return coloredIcon + " " + truncatedName
+	return coloredIcon + truncatedName
 }
 
 // renderFullLayout renders: [status icon colored] [file-type icon colored] [filename]
 // All icons colored by git status.
-func (f FileNode) renderFullLayout(name string) string {
+func (f *FileNode) renderFullLayout(name string) string {
 	statusIcon := f.getStatusIcon()
 	fileIcon := icons.GetIcon(name, false)
 	style := lipgloss.NewStyle().Foreground(f.StatusColor())
@@ -90,13 +88,13 @@ func (f FileNode) renderFullLayout(name string) string {
 	iconsPrefix := style.Render(statusIcon) + " " + style.Render(fileIcon) + " "
 	iconsWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
 
-	nameMaxWidth := constants.OpenFileTreeWidth - (f.Depth * 2) - iconsWidth
+	nameMaxWidth := f.PanelWidth - f.Depth - iconsWidth
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 
 	if f.Selected {
-		bgStyle := style.Bold(true).Background(lipgloss.Color("#3a3a3a"))
+		bgStyle := style.Bold(true)
 		if f.PanelWidth > 0 {
-			if w := f.PanelWidth - iconsWidth - (f.Depth * 2); w > 0 {
+			if w := f.PanelWidth - iconsWidth - f.Depth; w > 0 {
 				bgStyle = bgStyle.Width(w)
 			}
 		}
@@ -106,11 +104,11 @@ func (f FileNode) renderFullLayout(name string) string {
 	if f.ColorFileNames {
 		return iconsPrefix + style.Render(truncatedName)
 	}
-	return iconsPrefix + truncatedName
+	return iconsPrefix + lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Render(truncatedName)
 }
 
 // getIcon returns the left icon based on the icon style.
-func (f FileNode) getIcon() string {
+func (f *FileNode) getIcon() string {
 	name := filepath.Base(f.Path())
 	switch f.IconStyle {
 	case IconsNerdStatus:
@@ -143,7 +141,7 @@ func (f FileNode) getIcon() string {
 
 // getStatusIcon returns the git status indicator icon (used by full layout).
 // Uses the same boxed icons as status style.
-func (f FileNode) getStatusIcon() string {
+func (f *FileNode) getStatusIcon() string {
 	if f.File.IsNew {
 		return "\uf457" //
 	} else if f.File.IsDelete {
@@ -153,7 +151,7 @@ func (f FileNode) getStatusIcon() string {
 }
 
 // StatusColor returns the color for this file based on its git status.
-func (f FileNode) StatusColor() lipgloss.Color {
+func (f *FileNode) StatusColor() color.Color {
 	if f.File.IsNew {
 		return lipgloss.Color("2") // green
 	} else if f.File.IsDelete {
@@ -162,21 +160,21 @@ func (f FileNode) StatusColor() lipgloss.Color {
 	return lipgloss.Color("3") // yellow/orange
 }
 
-func (f FileNode) String() string {
+func (f *FileNode) String() string {
 	return f.Value()
 }
 
-func (f FileNode) Children() tree.Children {
+func (f *FileNode) Children() tree.Children {
 	return tree.NodeChildren(nil)
 }
 
-func (f FileNode) Hidden() bool {
+func (f *FileNode) Hidden() bool {
 	return false
 }
 
-func (f FileNode) SetHidden(bool) {}
+func (f *FileNode) SetHidden(bool) {}
 
-func (f FileNode) SetValue(any) {}
+func (f *FileNode) SetValue(any) {}
 
 func GetFileName(file *gitdiff.File) string {
 	if file.NewName != "" {

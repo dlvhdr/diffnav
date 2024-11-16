@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/x/ansi"
-	zone "github.com/lrstanley/bubblezone"
+	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/muesli/termenv"
 
 	"github.com/dlvhdr/diffnav/pkg/config"
@@ -41,7 +41,7 @@ func main() {
 
 	if os.Getenv("DEBUG") == "true" {
 		var fileErr error
-		logFile, fileErr := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		logFile, fileErr := os.OpenFile("debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
 		if fileErr != nil {
 			fmt.Println("Error opening debug.log:", fileErr)
 			os.Exit(1)
@@ -61,7 +61,8 @@ func main() {
 				fmt.Println("Error getting current working dir", err)
 				os.Exit(1)
 			}
-			log.Debug("🚀 Starting diffnav", "logFile", wd+string(os.PathSeparator)+logFile.Name())
+			log.Debug("🚀 Starting diffnav", "logFile",
+				wd+string(os.PathSeparator)+logFile.Name())
 		}
 	}
 
@@ -94,7 +95,11 @@ func main() {
 		cfg.UI.SideBySide = true
 	}
 
-	p := tea.NewProgram(ui.New(input, cfg), tea.WithMouseAllMotion())
+	ttyIn, _, err := tea.OpenTTY()
+	if err != nil {
+		log.Fatal(err)
+	}
+	p := tea.NewProgram(ui.New(input, cfg), tea.WithInput(ttyIn))
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)

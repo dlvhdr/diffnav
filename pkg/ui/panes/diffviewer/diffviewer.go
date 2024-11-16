@@ -7,13 +7,14 @@ import (
 	"os/exec"
 	"strings"
 
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
+	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
 const dirHeaderHeight = 3
@@ -56,8 +57,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		// Truncate lines to viewport width to prevent ANSI escape overflow.
 		lines := strings.Split(msg.text, "\n")
 		for i, line := range lines {
-			if lipgloss.Width(line) > m.vp.Width && m.vp.Width > 0 {
-				lines[i] = ansi.Truncate(line, m.vp.Width, "")
+			if lipgloss.Width(line) > m.vp.Width() && m.vp.Width() > 0 {
+				lines[i] = ansi.Truncate(line, m.vp.Width(), "")
 			}
 		}
 		m.vp.SetContent(strings.Join(lines, "\n"))
@@ -76,8 +77,8 @@ func (m Model) View() string {
 func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.Width = width
 	m.Height = height
-	m.vp.Width = m.Width
-	m.vp.Height = m.Height - dirHeaderHeight
+	m.vp.SetWidth(m.Width)
+	m.vp.SetHeight(m.Height - dirHeaderHeight)
 	return diff(m.file, m.Width, m.sideBySide)
 }
 
@@ -89,7 +90,11 @@ func (m Model) headerView() string {
 	if name == "" {
 		name = m.file.OldName
 	}
+
 	base := lipgloss.NewStyle()
+	prefix := base.Render("") + base.Render(" ")
+	name = utils.TruncateString(name, m.Width-lipgloss.Width(prefix))
+	top := prefix + base.Bold(true).Render(name)
 
 	var added int64 = 0
 	var deleted int64 = 0
@@ -99,7 +104,6 @@ func (m Model) headerView() string {
 		deleted += frag.LinesDeleted
 	}
 
-	top := lipgloss.JoinHorizontal(lipgloss.Top, base.Render(""), base.Render(" "), base.Bold(true).Render(name))
 	bottom := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		base.Foreground(lipgloss.Color("2")).Render(fmt.Sprintf("  +%d ", added)),
@@ -108,7 +112,6 @@ func (m Model) headerView() string {
 
 	return base.
 		Width(m.Width).
-		PaddingLeft(1).
 		Height(dirHeaderHeight - 1).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
@@ -132,22 +135,14 @@ func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	return diff(m.file, m.Width, m.sideBySide)
 }
 
-func (m *Model) LineUp(n int) {
-	m.vp.LineUp(n)
-}
-
-func (m *Model) LineDown(n int) {
-	m.vp.LineDown(n)
-}
-
 // ScrollUp scrolls the viewport up by the given number of lines.
 func (m *Model) ScrollUp(lines int) {
-	m.vp.LineUp(lines)
+	m.vp.ScrollUp(lines)
 }
 
 // ScrollDown scrolls the viewport down by the given number of lines.
 func (m *Model) ScrollDown(lines int) {
-	m.vp.LineDown(lines)
+	m.vp.ScrollDown(lines)
 }
 
 func diff(file *gitdiff.File, width int, sideBySidePreference bool) tea.Cmd {
@@ -169,7 +164,6 @@ func diff(file *gitdiff.File, width int, sideBySidePreference bool) tea.Cmd {
 		deltac.Env = os.Environ()
 		deltac.Stdin = strings.NewReader(file.String() + "\n")
 		out, err := deltac.Output()
-
 		if err != nil {
 			return common.ErrMsg{Err: err}
 		}
