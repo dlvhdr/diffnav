@@ -107,11 +107,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, dfCmd)
 			case "up", "k", "ctrl+p":
 				if m.cursor > 0 {
+					m.diffViewer.GoToTop()
 					cmd = m.setCursor(m.cursor - 1)
 					cmds = append(cmds, cmd)
 				}
 			case "down", "j", "ctrl+n":
 				if m.cursor < len(m.files)-1 {
+					m.diffViewer.GoToTop()
 					cmd = m.setCursor(m.cursor + 1)
 					cmds = append(cmds, cmd)
 				}

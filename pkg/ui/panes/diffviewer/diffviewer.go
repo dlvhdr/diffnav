@@ -112,6 +112,10 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	return m, diff(m.file, m.Width)
 }
 
+func (m *Model) GoToTop() {
+	m.vp.GotoTop()
+}
+
 func diff(file *gitdiff.File, width int) tea.Cmd {
 	if width == 0 || file == nil {
 		return nil
