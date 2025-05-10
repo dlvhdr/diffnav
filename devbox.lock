@@ -147,6 +147,54 @@
           "store_path": "/nix/store/2w4s5abaqwm45wkkwwf15yyw5dcrqs7m-gopls-0.18.1"
         }
       }
+    },
+    "svu@latest": {
+      "last_modified": "2025-04-17T05:47:26Z",
+      "resolved": "github:NixOS/nixpkgs/ebe4301cbd8f81c4f8d3244b3632338bbeb6d49c#svu",
+      "source": "devbox-search",
+      "version": "3.2.3",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/djfi0c8vvpsfssadwls6y55zyhkif58c-svu-3.2.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/djfi0c8vvpsfssadwls6y55zyhkif58c-svu-3.2.3"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/2jy02ldq76r8r3slbcc1cb1dbxahraxr-svu-3.2.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/2jy02ldq76r8r3slbcc1cb1dbxahraxr-svu-3.2.3"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/jx3ilvqwkcjmfh9kccyx1rbm06lgfa00-svu-3.2.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/jx3ilvqwkcjmfh9kccyx1rbm06lgfa00-svu-3.2.3"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/vmdd4wxfbgp9xiv6icyzsxi36f4i31j8-svu-3.2.3",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/vmdd4wxfbgp9xiv6icyzsxi36f4i31j8-svu-3.2.3"
+        }
+      }
     }
   }
 }
