@@ -443,8 +443,13 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				m.draggingSidebar = true
 				return m, nil
 			}
-			// Click in file tree
+			// Click in sidebar area
 			if m.isShowingFileTree && msg.X < sidebarWidth {
+				// Check if click is in search box area
+				if msg.Y >= headerHeight && msg.Y < headerHeight+searchHeight {
+					return m.handleSearchBoxClick()
+				}
+				// Click in file tree
 				return m.handleFileTreeClick(msg)
 			}
 		}
@@ -464,6 +469,24 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m mainModel) handleSearchBoxClick() (tea.Model, tea.Cmd) {
+	if m.searching {
+		return m, nil
+	}
+	m.searching = true
+	m.search.Width = m.sidebarWidth() - 5
+	m.search.SetValue("")
+	m.resultsCursor = 0
+	m.filtered = make([]string, 0)
+
+	m.resultsVp.Width = constants.SearchingFileTreeWidth
+	m.resultsVp.Height = m.height - footerHeight - headerHeight - searchHeight
+	m.resultsVp.SetContent(m.resultsView())
+
+	dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
+	return m, tea.Batch(dfCmd, m.search.Focus())
 }
 
 func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
