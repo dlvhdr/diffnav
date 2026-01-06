@@ -542,8 +542,12 @@ func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	// Find file index by path.
 	for i, f := range m.files {
 		if filenode.GetFileName(f) == filePath {
+			m.cursor = i
 			m.diffViewer.GoToTop()
-			cmd := m.setCursor(i)
+			var cmd tea.Cmd
+			m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
+			// Use SetCursorNoScroll to avoid jumping the file tree view.
+			m.fileTree = m.fileTree.SetCursorNoScroll(i)
 			return m, cmd
 		}
 	}

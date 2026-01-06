@@ -46,6 +46,19 @@ func (m Model) SetCursor(cursor int) Model {
 	return m
 }
 
+// SetCursorNoScroll updates the selected file without scrolling the viewport.
+// Use this when the user clicks on a file they can already see.
+func (m Model) SetCursorNoScroll(cursor int) Model {
+	if len(m.files) == 0 {
+		return m
+	}
+	name := filenode.GetFileName(m.files[cursor])
+	m.selectedFile = &name
+	applyStyles(m.tree, m.selectedFile)
+	m.vp.SetContent(m.printWithoutRoot())
+	return m
+}
+
 func (m Model) CopyFilePath(cursor int) tea.Cmd {
 	if len(m.files) == 0 {
 		return nil
