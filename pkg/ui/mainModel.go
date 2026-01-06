@@ -180,30 +180,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, sCmds...)
 	}
 
-	// Only pass navigation keys to the active panel to prevent cross-panel scrolling.
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "down", "j", "k", "ctrl+p", "ctrl+n", "ctrl+d", "ctrl+u", "g", "G":
-			if m.activePanel == DiffViewerPanel {
-				m.diffViewer, cmd = m.diffViewer.Update(msg)
-				cmds = append(cmds, cmd)
-			} else {
-				m.fileTree, cmd = m.fileTree.Update(msg)
-				cmds = append(cmds, cmd)
-			}
-		default:
-			m.diffViewer, cmd = m.diffViewer.Update(msg)
-			cmds = append(cmds, cmd)
-			m.fileTree, cmd = m.fileTree.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-	default:
-		m.diffViewer, cmd = m.diffViewer.Update(msg)
-		cmds = append(cmds, cmd)
-		m.fileTree, cmd = m.fileTree.Update(msg)
-		cmds = append(cmds, cmd)
-	}
+	m.diffViewer, cmd = m.diffViewer.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.fileTree, cmd = m.fileTree.Update(msg)
+	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
 }
