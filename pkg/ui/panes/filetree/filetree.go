@@ -101,6 +101,14 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	// Ignore navigation keys - they're handled by mainModel for file selection.
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "down", "j", "k", "ctrl+p", "ctrl+n":
+			return m, nil
+		}
+	}
 	m.vp, _ = m.vp.Update(msg)
 	return m, nil
 }

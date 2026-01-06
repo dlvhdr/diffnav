@@ -180,11 +180,22 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, sCmds...)
 	}
 
-	m.diffViewer, cmd = m.diffViewer.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.fileTree, cmd = m.fileTree.Update(msg)
-	cmds = append(cmds, cmd)
+	// Route messages: key messages go only to active panel, other messages go to both.
+	switch msg.(type) {
+	case tea.KeyMsg:
+		if m.activePanel == DiffViewerPanel {
+			m.diffViewer, cmd = m.diffViewer.Update(msg)
+			cmds = append(cmds, cmd)
+		} else {
+			m.fileTree, cmd = m.fileTree.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	default:
+		m.diffViewer, cmd = m.diffViewer.Update(msg)
+		cmds = append(cmds, cmd)
+		m.fileTree, cmd = m.fileTree.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 
 	return m, tea.Batch(cmds...)
 }
