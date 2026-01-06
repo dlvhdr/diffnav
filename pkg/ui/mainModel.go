@@ -449,7 +449,10 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				if msg.Y >= headerHeight && msg.Y < headerHeight+searchHeight {
 					return m.handleSearchBoxClick()
 				}
-				// Click in file tree
+				// Click in results list (when searching) or file tree
+				if m.searching {
+					return m.handleSearchResultClick(msg)
+				}
 				return m.handleFileTreeClick(msg)
 			}
 		}
@@ -469,6 +472,35 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m mainModel) handleSearchResultClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// Calculate which result was clicked
+	clickedIndex := msg.Y - headerHeight - searchHeight + m.resultsVp.YOffset
+	if clickedIndex < 0 || clickedIndex >= len(m.filtered) {
+		return m, nil
+	}
+
+	// Select the clicked result
+	selected := m.filtered[clickedIndex]
+	m.stopSearch()
+
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+	dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
+	cmds = append(cmds, dfCmd)
+
+	for i, f := range m.files {
+		if filenode.GetFileName(f) == selected {
+			m.cursor = i
+			m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
+			m.fileTree = m.fileTree.SetCursor(i)
+			cmds = append(cmds, cmd)
+			break
+		}
+	}
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m mainModel) handleSearchBoxClick() (tea.Model, tea.Cmd) {
