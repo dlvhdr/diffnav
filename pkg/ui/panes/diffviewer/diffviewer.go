@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
 )
@@ -50,11 +51,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case diffContentMsg:
-		// Truncate lines to viewport width to prevent overflow.
+		// Truncate lines to viewport width to prevent ANSI escape overflow.
 		lines := strings.Split(msg.text, "\n")
 		for i, line := range lines {
 			if lipgloss.Width(line) > m.vp.Width && m.vp.Width > 0 {
-				lines[i] = truncateWithAnsi(line, m.vp.Width)
+				lines[i] = ansi.Truncate(line, m.vp.Width, "")
 			}
 		}
 		m.vp.SetContent(strings.Join(lines, "\n"))
@@ -152,39 +153,4 @@ func diff(file *gitdiff.File, width int) tea.Cmd {
 
 type diffContentMsg struct {
 	text string
-}
-
-// truncateWithAnsi truncates a string with ANSI codes to maxWidth visible characters.
-func truncateWithAnsi(s string, maxWidth int) string {
-	if maxWidth <= 0 {
-		return ""
-	}
-	var result strings.Builder
-	width := 0
-	inEscape := false
-
-	for _, r := range s {
-		if r == '\x1b' {
-			inEscape = true
-			result.WriteRune(r)
-			continue
-		}
-		if inEscape {
-			result.WriteRune(r)
-			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
-				inEscape = false
-			}
-			continue
-		}
-		// Check if adding this rune would exceed width.
-		runeWidth := lipgloss.Width(string(r))
-		if width+runeWidth > maxWidth {
-			break
-		}
-		width += runeWidth
-		result.WriteRune(r)
-	}
-	// Add ANSI reset to prevent color bleeding.
-	result.WriteString("\x1b[0m")
-	return result.String()
 }
