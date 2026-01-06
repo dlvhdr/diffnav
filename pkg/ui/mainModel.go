@@ -117,12 +117,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-m.footerHeight()-m.headerHeight())
 				cmds = append(cmds, dfCmd)
-			case "left", "h":
+			case "tab":
 				if m.isShowingFileTree {
-					m.activePanel = FileTreePanel
+					if m.activePanel == FileTreePanel {
+						m.activePanel = DiffViewerPanel
+					} else {
+						m.activePanel = FileTreePanel
+					}
 				}
-			case "right", "l":
-				m.activePanel = DiffViewerPanel
 			case "up", "k", "ctrl+p":
 				if m.activePanel == FileTreePanel {
 					if m.cursor > 0 {
