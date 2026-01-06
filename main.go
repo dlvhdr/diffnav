@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/x/ansi"
+	zone "github.com/lrstanley/bubblezone"
 	"github.com/muesli/termenv"
 
 	"github.com/dlvhdr/diffnav/pkg/config"
@@ -18,6 +19,8 @@ import (
 )
 
 func main() {
+	zone.NewGlobal()
+
 	stat, err := os.Stdin.Stat()
 	if err != nil {
 		panic(err)

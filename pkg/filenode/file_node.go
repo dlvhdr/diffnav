@@ -63,6 +63,10 @@ func (f FileNode) Hidden() bool {
 	return false
 }
 
+func (f FileNode) SetHidden(bool) {}
+
+func (f FileNode) SetValue(any) {}
+
 func GetFileName(file *gitdiff.File) string {
 	if file.NewName != "" {
 		return file.NewName
