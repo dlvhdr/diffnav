@@ -35,22 +35,24 @@ const (
 )
 
 type mainModel struct {
-	input             string
-	files             []*gitdiff.File
-	cursor            int
-	fileTree          filetree.Model
-	diffViewer        diffviewer.Model
-	width             int
-	height            int
-	isShowingFileTree bool
-	activePanel       Panel
-	search            textinput.Model
-	help              help.Model
-	resultsVp         viewport.Model
-	resultsCursor     int
-	searching         bool
-	filtered          []string
-	config            config.Config
+	input              string
+	files              []*gitdiff.File
+	cursor             int
+	fileTree           filetree.Model
+	diffViewer         diffviewer.Model
+	width              int
+	height             int
+	isShowingFileTree  bool
+	activePanel        Panel
+	search             textinput.Model
+	help               help.Model
+	resultsVp          viewport.Model
+	resultsCursor      int
+	searching          bool
+	filtered           []string
+	config             config.Config
+	draggingSidebar    bool
+	customSidebarWidth int
 }
 
 func New(input string, cfg config.Config) mainModel {
@@ -169,6 +171,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.fileTree = m.fileTree.SetFiles(m.files)
 			cmd = m.setCursor(0)
 			cmds = append(cmds, cmd)
+
+		case tea.MouseMsg:
+			return m.handleMouse(msg)
 
 		case common.ErrMsg:
 			fmt.Printf("Error: %v\n", msg.Err)
@@ -381,10 +386,12 @@ func (m mainModel) sidebarWidth() int {
 	if m.searching {
 		return m.config.UI.SearchTreeWidth
 	} else if m.isShowingFileTree {
+		if m.customSidebarWidth > 0 {
+			return m.customSidebarWidth
+		}
 		return m.config.UI.FileTreeWidth
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func (m mainModel) headerHeight() int {
@@ -414,4 +421,113 @@ func (m *mainModel) setCursor(cursor int) tea.Cmd {
 	m.diffViewer, cmd = m.diffViewer.SetFilePatch(m.files[m.cursor])
 	m.fileTree = m.fileTree.SetCursor(m.cursor)
 	return cmd
+}
+
+func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// Calculate boundaries
+	sidebarWidth := m.sidebarWidth()
+	contentStartY := headerHeight
+	contentEndY := m.height - footerHeight
+
+	// Check if in content area (not header/footer)
+	if msg.Y < contentStartY || msg.Y >= contentEndY {
+		return m, nil
+	}
+
+	// Handle based on action and position
+	switch msg.Action {
+	case tea.MouseActionPress:
+		if msg.Button == tea.MouseButtonLeft {
+			// Check for resize border (within 2px of sidebar edge)
+			if m.isShowingFileTree && abs(msg.X-sidebarWidth) <= 2 {
+				m.draggingSidebar = true
+				return m, nil
+			}
+			// Click in file tree
+			if m.isShowingFileTree && msg.X < sidebarWidth {
+				return m.handleFileTreeClick(msg)
+			}
+		}
+
+	case tea.MouseActionRelease:
+		m.draggingSidebar = false
+
+	case tea.MouseActionMotion:
+		if m.draggingSidebar {
+			return m.handleSidebarDrag(msg)
+		}
+	}
+
+	// Handle scroll wheel
+	if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
+		return m.handleScroll(msg)
+	}
+
+	return m, nil
+}
+
+func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// Calculate clicked Y relative to tree content (accounting for viewport scroll)
+	clickedY := msg.Y - headerHeight - searchHeight + m.fileTree.GetYOffset()
+
+	// Find file at this Y position using tree traversal
+	filePath := m.fileTree.GetFileAtY(clickedY)
+	if filePath == "" {
+		return m, nil
+	}
+
+	// Find file index by path
+	for i, f := range m.files {
+		if filenode.GetFileName(f) == filePath {
+			m.diffViewer.GoToTop()
+			cmd := m.setCursor(i)
+			return m, cmd
+		}
+	}
+	return m, nil
+}
+
+func (m mainModel) handleScroll(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	sidebarWidth := m.sidebarWidth()
+	lines := 3
+
+	if m.isShowingFileTree && msg.X < sidebarWidth {
+		// Scroll file tree
+		if msg.Button == tea.MouseButtonWheelUp {
+			m.fileTree.ScrollUp(lines)
+		} else if msg.Button == tea.MouseButtonWheelDown {
+			m.fileTree.ScrollDown(lines)
+		}
+	} else {
+		// Scroll diff viewer
+		if msg.Button == tea.MouseButtonWheelUp {
+			m.diffViewer.ScrollUp(lines)
+		} else if msg.Button == tea.MouseButtonWheelDown {
+			m.diffViewer.ScrollDown(lines)
+		}
+	}
+	return m, nil
+}
+
+func (m mainModel) handleSidebarDrag(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// Clamp to reasonable bounds
+	minWidth := 20
+	maxWidth := m.width / 2
+	newWidth := max(minWidth, min(maxWidth, msg.X))
+
+	m.customSidebarWidth = newWidth
+
+	// Resize components
+	cmds := []tea.Cmd{}
+	cmds = append(cmds, m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight))
+	cmds = append(cmds, m.fileTree.SetSize(m.sidebarWidth(), m.height-footerHeight-headerHeight-searchHeight))
+
+	return m, tea.Batch(cmds...)
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
