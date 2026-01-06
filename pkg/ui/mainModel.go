@@ -181,14 +181,21 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Route messages: key messages go only to active panel, other messages go to both.
-	switch msg.(type) {
+	// Exception: ctrl+d/ctrl+u always go to diffViewer for scrolling.
+	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if m.activePanel == DiffViewerPanel {
+		switch msg.String() {
+		case "ctrl+d", "ctrl+u":
 			m.diffViewer, cmd = m.diffViewer.Update(msg)
 			cmds = append(cmds, cmd)
-		} else {
-			m.fileTree, cmd = m.fileTree.Update(msg)
-			cmds = append(cmds, cmd)
+		default:
+			if m.activePanel == DiffViewerPanel {
+				m.diffViewer, cmd = m.diffViewer.Update(msg)
+				cmds = append(cmds, cmd)
+			} else {
+				m.fileTree, cmd = m.fileTree.Update(msg)
+				cmds = append(cmds, cmd)
+			}
 		}
 	default:
 		m.diffViewer, cmd = m.diffViewer.Update(msg)
