@@ -124,6 +124,14 @@ func (m *Model) GoToTop() {
 	m.vp.GotoTop()
 }
 
+func (m *Model) LineUp(n int) {
+	m.vp.LineUp(n)
+}
+
+func (m *Model) LineDown(n int) {
+	m.vp.LineDown(n)
+}
+
 func diff(file *gitdiff.File, width int) tea.Cmd {
 	if width == 0 || file == nil {
 		return nil

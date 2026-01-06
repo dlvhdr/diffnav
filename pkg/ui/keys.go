@@ -11,6 +11,8 @@ type KeyMap struct {
 	Search         key.Binding
 	Quit           key.Binding
 	Copy           key.Binding
+	FocusLeft      key.Binding
+	FocusRight     key.Binding
 }
 
 var keys = &KeyMap{
@@ -46,12 +48,22 @@ var keys = &KeyMap{
 		key.WithKeys("y"),
 		key.WithHelp("y", "copy file path"),
 	),
+	FocusLeft: key.NewBinding(
+		key.WithKeys("left", "h"),
+		key.WithHelp("←/h", "files"),
+	),
+	FocusRight: key.NewBinding(
+		key.WithKeys("right", "l"),
+		key.WithHelp("→/l", "diff"),
+	),
 }
 
 func getKeys() []key.Binding {
 	return []key.Binding{
+		keys.FocusLeft,
 		keys.Up,
 		keys.Down,
+		keys.FocusRight,
 		keys.CtrlD,
 		keys.CtrlU,
 		keys.ToggleFileTree,
