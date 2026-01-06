@@ -93,6 +93,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
+	// Handle mouse events regardless of search mode
+	if msg, ok := msg.(tea.MouseMsg); ok {
+		return m.handleMouse(msg)
+	}
+
 	if !m.searching {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
@@ -171,9 +176,6 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.fileTree = m.fileTree.SetFiles(m.files)
 			cmd = m.setCursor(0)
 			cmds = append(cmds, cmd)
-
-		case tea.MouseMsg:
-			return m.handleMouse(msg)
 
 		case common.ErrMsg:
 			fmt.Printf("Error: %v\n", msg.Err)
