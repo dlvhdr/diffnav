@@ -5,24 +5,30 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/BurntSushi/toml"
+	"gopkg.in/yaml.v3"
 )
 
+type UIConfig struct {
+	HideHeader      bool `yaml:"hide_header"`
+	HideFooter      bool `yaml:"hide_footer"`
+	ShowFileTree    bool `yaml:"show_file_tree"`
+	FileTreeWidth   int  `yaml:"file_tree_width"`
+	SearchTreeWidth int  `yaml:"search_tree_width"`
+}
+
 type Config struct {
-	HideHeader      bool `toml:"hide_header"`
-	HideFooter      bool `toml:"hide_footer"`
-	ShowFileTree    bool `toml:"show_file_tree"`
-	FileTreeWidth   int  `toml:"file_tree_width"`
-	SearchTreeWidth int  `toml:"search_tree_width"`
+	UI UIConfig `yaml:"ui"`
 }
 
 func DefaultConfig() Config {
 	return Config{
-		HideHeader:      false,
-		HideFooter:      false,
-		ShowFileTree:    true,
-		FileTreeWidth:   26,
-		SearchTreeWidth: 50,
+		UI: UIConfig{
+			HideHeader:      false,
+			HideFooter:      false,
+			ShowFileTree:    true,
+			FileTreeWidth:   26,
+			SearchTreeWidth: 50,
+		},
 	}
 }
 
@@ -32,19 +38,19 @@ func getConfigFilePath() string {
 	// Environment variable override - useful for development or non-standard setups.
 	if dir := os.Getenv("DIFFNAV_CONFIG_DIR"); dir != "" {
 		if s, err := os.Stat(dir); err == nil && s.IsDir() {
-			return filepath.Join(dir, "config.toml")
+			return filepath.Join(dir, "config.yml")
 		}
 	}
 
-	// On macOS, check ~/.config first (common for CLI tools),
-	// then XDG_CONFIG_HOME if set.
+	// On macOS, check XDG_CONFIG_HOME first (if user explicitly set it),
+	// then fall back to ~/.config (common for CLI tools).
 	// os.UserConfigDir() already handles this for Linux.
 	if runtime.GOOS == "darwin" {
-		if home := os.Getenv("HOME"); home != "" {
-			configDirs = append(configDirs, filepath.Join(home, ".config"))
-		}
 		if xdgConfigDir := os.Getenv("XDG_CONFIG_HOME"); xdgConfigDir != "" {
 			configDirs = append(configDirs, xdgConfigDir)
+		}
+		if home := os.Getenv("HOME"); home != "" {
+			configDirs = append(configDirs, filepath.Join(home, ".config"))
 		}
 	}
 
@@ -55,7 +61,7 @@ func getConfigFilePath() string {
 
 	// Return the first config file that exists.
 	for _, dir := range configDirs {
-		configPath := filepath.Join(dir, "diffnav", "config.toml")
+		configPath := filepath.Join(dir, "diffnav", "config.yml")
 		if _, err := os.Stat(configPath); err == nil {
 			return configPath
 		}
@@ -63,7 +69,7 @@ func getConfigFilePath() string {
 
 	// If no config file exists, return the preferred path for creation.
 	if len(configDirs) > 0 {
-		return filepath.Join(configDirs[0], "diffnav", "config.toml")
+		return filepath.Join(configDirs[0], "diffnav", "config.yml")
 	}
 	return ""
 }
@@ -76,11 +82,12 @@ func Load() Config {
 		return cfg
 	}
 
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
 		return cfg
 	}
 
-	if _, err := toml.DecodeFile(configPath, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return DefaultConfig()
 	}
 

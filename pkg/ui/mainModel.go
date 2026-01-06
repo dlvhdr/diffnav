@@ -46,7 +46,7 @@ type mainModel struct {
 }
 
 func New(input string, cfg config.Config) mainModel {
-	m := mainModel{input: input, isShowingFileTree: cfg.ShowFileTree, config: cfg}
+	m := mainModel{input: input, isShowingFileTree: cfg.UI.ShowFileTree, config: cfg}
 	m.fileTree = filetree.New()
 	m.diffViewer = diffviewer.New()
 
@@ -68,7 +68,7 @@ func New(input string, cfg config.Config) mainModel {
 	m.search.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	m.search.Placeholder = "Filter files 󰬛 "
 	m.search.PlaceholderStyle = lipgloss.NewStyle().MaxWidth(lipgloss.Width(m.search.Placeholder)).Foreground(lipgloss.Color("8"))
-	m.search.Width = cfg.FileTreeWidth - 5
+	m.search.Width = cfg.UI.FileTreeWidth - 5
 
 	m.resultsVp = viewport.Model{}
 
@@ -96,7 +96,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.resultsCursor = 0
 				m.filtered = make([]string, 0)
 
-				m.resultsVp.Width = m.config.SearchTreeWidth
+				m.resultsVp.Width = m.config.UI.SearchTreeWidth
 				m.resultsVp.Height = m.height - m.footerHeight() - m.headerHeight() - searchHeight
 				m.resultsVp.SetContent(m.resultsView())
 
@@ -249,7 +249,7 @@ func (m mainModel) View() string {
 
 	var sections []string
 
-	if !m.config.HideHeader {
+	if !m.config.UI.HideHeader {
 		header := lipgloss.NewStyle().Width(m.width).
 			Border(lipgloss.NormalBorder(), false, false, true, false).
 			BorderForeground(lipgloss.Color("8")).
@@ -261,7 +261,7 @@ func (m mainModel) View() string {
 
 	sections = append(sections, mainContent)
 
-	if !m.config.HideFooter {
+	if !m.config.UI.HideFooter {
 		sections = append(sections, m.footerView())
 	}
 
@@ -296,7 +296,7 @@ func (m mainModel) footerView() string {
 func (m mainModel) resultsView() string {
 	sb := strings.Builder{}
 	for i, f := range m.filtered {
-		fName := utils.TruncateString(" "+f, m.config.SearchTreeWidth-2)
+		fName := utils.TruncateString(" "+f, m.config.UI.SearchTreeWidth-2)
 		if i == m.resultsCursor {
 			sb.WriteString(lipgloss.NewStyle().Background(lipgloss.Color("#1b1b33")).Bold(true).Render(fName) + "\n")
 		} else {
@@ -308,23 +308,23 @@ func (m mainModel) resultsView() string {
 
 func (m mainModel) sidebarWidth() int {
 	if m.searching {
-		return m.config.SearchTreeWidth
+		return m.config.UI.SearchTreeWidth
 	} else if m.isShowingFileTree {
-		return m.config.FileTreeWidth
+		return m.config.UI.FileTreeWidth
 	} else {
 		return 0
 	}
 }
 
 func (m mainModel) headerHeight() int {
-	if m.config.HideHeader {
+	if m.config.UI.HideHeader {
 		return 0
 	}
 	return headerHeight
 }
 
 func (m mainModel) footerHeight() int {
-	if m.config.HideFooter {
+	if m.config.UI.HideFooter {
 		return 0
 	}
 	return footerHeight

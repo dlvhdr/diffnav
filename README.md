@@ -52,37 +52,38 @@ git config --global pager.diff diffnav
 
 The config file is searched in this order:
 
-1. `$DIFFNAV_CONFIG_DIR/config.toml` (if env var is set)
-2. `~/.config/diffnav/config.toml` (macOS and Linux)
-3. `$XDG_CONFIG_HOME/diffnav/config.toml` (if set, macOS only)
-4. OS-specific config directory (e.g., `~/Library/Application Support/diffnav/config.toml` on macOS)
+1. `$DIFFNAV_CONFIG_DIR/config.yml` (if env var is set)
+2. `$XDG_CONFIG_HOME/diffnav/config.yml` (if set, macOS only)
+3. `~/.config/diffnav/config.yml` (macOS and Linux)
+4. OS-specific config directory (e.g., `~/Library/Application Support/diffnav/config.yml` on macOS)
 
 Example config file:
 
-```toml
-# Hide the header to get more screen space for diffs
-hide_header = true
+```yaml
+ui:
+  # Hide the header to get more screen space for diffs
+  hide_header: true
 
-# Hide the footer (keybindings help)
-hide_footer = true
+  # Hide the footer (keybindings help)
+  hide_footer: true
 
-# Start with the file tree hidden (toggle with 'e')
-show_file_tree = false
+  # Start with the file tree hidden (toggle with 'e')
+  show_file_tree: false
 
-# Customize the file tree width (default: 26)
-file_tree_width = 30
+  # Customize the file tree width (default: 26)
+  file_tree_width: 30
 
-# Customize the search panel width (default: 50)
-search_tree_width = 60
+  # Customize the search panel width (default: 50)
+  search_tree_width: 60
 ```
 
-| Option              | Type | Default | Description                           |
-| :------------------ | :--- | :------ | :------------------------------------ |
-| `hide_header`       | bool | `false` | Hide the "DIFFNAV" header             |
-| `hide_footer`       | bool | `false` | Hide the footer with keybindings help |
-| `show_file_tree`    | bool | `true`  | Show file tree on startup             |
-| `file_tree_width`   | int  | `26`    | Width of the file tree sidebar        |
-| `search_tree_width` | int  | `50`    | Width of the search panel             |
+| Option                 | Type | Default | Description                           |
+| :--------------------- | :--- | :------ | :------------------------------------ |
+| `ui.hide_header`       | bool | `false` | Hide the "DIFFNAV" header             |
+| `ui.hide_footer`       | bool | `false` | Hide the footer with keybindings help |
+| `ui.show_file_tree`    | bool | `true`  | Show file tree on startup             |
+| `ui.file_tree_width`   | int  | `26`    | Width of the file tree sidebar        |
+| `ui.search_tree_width` | int  | `50`    | Width of the search panel             |
 
 ### Delta
 
