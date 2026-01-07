@@ -62,28 +62,28 @@ Example config file:
 ```yaml
 ui:
   # Hide the header to get more screen space for diffs
-  hide_header: true
+  hideHeader: true
 
   # Hide the footer (keybindings help)
-  hide_footer: true
+  hideFooter: true
 
   # Start with the file tree hidden (toggle with 'e')
-  show_file_tree: false
+  showFileTree: false
 
   # Customize the file tree width (default: 26)
-  file_tree_width: 30
+  fileTreeWidth: 30
 
   # Customize the search panel width (default: 50)
-  search_tree_width: 60
+  searchTreeWidth: 60
 ```
 
-| Option                 | Type | Default | Description                           |
-| :--------------------- | :--- | :------ | :------------------------------------ |
-| `ui.hide_header`       | bool | `false` | Hide the "DIFFNAV" header             |
-| `ui.hide_footer`       | bool | `false` | Hide the footer with keybindings help |
-| `ui.show_file_tree`    | bool | `true`  | Show file tree on startup             |
-| `ui.file_tree_width`   | int  | `26`    | Width of the file tree sidebar        |
-| `ui.search_tree_width` | int  | `50`    | Width of the search panel             |
+| Option              | Type | Default | Description                           |
+| :------------------ | :--- | :------ | :------------------------------------ |
+| `ui.hideHeader`     | bool | `false` | Hide the "DIFFNAV" header             |
+| `ui.hideFooter`     | bool | `false` | Hide the footer with keybindings help |
+| `ui.showFileTree`   | bool | `true`  | Show file tree on startup             |
+| `ui.fileTreeWidth`  | int  | `26`    | Width of the file tree sidebar        |
+| `ui.searchTreeWidth`| int  | `50`    | Width of the search panel             |
 
 ### Delta
 

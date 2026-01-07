@@ -9,11 +9,11 @@ import (
 )
 
 type UIConfig struct {
-	HideHeader      bool `yaml:"hide_header"`
-	HideFooter      bool `yaml:"hide_footer"`
-	ShowFileTree    bool `yaml:"show_file_tree"`
-	FileTreeWidth   int  `yaml:"file_tree_width"`
-	SearchTreeWidth int  `yaml:"search_tree_width"`
+	HideHeader      bool `yaml:"hideHeader"`
+	HideFooter      bool `yaml:"hideFooter"`
+	ShowFileTree    bool `yaml:"showFileTree"`
+	FileTreeWidth   int  `yaml:"fileTreeWidth"`
+	SearchTreeWidth int  `yaml:"searchTreeWidth"`
 }
 
 type Config struct {
