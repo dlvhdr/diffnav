@@ -35,6 +35,13 @@ const (
 
 	// Sidebar resize detection threshold in pixels.
 	sidebarGrabThreshold = 2
+
+	// Sidebar width constraints.
+	sidebarMinWidth  = 20
+	sidebarHideWidth = 10
+
+	// Scroll speed in lines per wheel tick.
+	scrollLines = 3
 )
 
 type Panel int
@@ -576,7 +583,7 @@ func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m mainModel) handleScroll(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	lines := 3
+	lines := scrollLines
 
 	// Check if scrolling in sidebar (file tree or search results).
 	if zone.Get(zoneFileTree).InBounds(msg) || zone.Get(zoneSearchResults).InBounds(msg) {
@@ -609,7 +616,7 @@ func (m mainModel) handleScroll(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 func (m mainModel) handleSidebarDrag(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	// Hide sidebar if dragged below threshold.
-	if msg.X < 10 {
+	if msg.X < sidebarHideWidth {
 		m.isShowingFileTree = false
 		m.draggingSidebar = false
 		cmd := m.diffViewer.SetSize(m.width, m.height-footerHeight-headerHeight)
@@ -617,7 +624,7 @@ func (m mainModel) handleSidebarDrag(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Clamp to reasonable bounds.
-	minWidth := 20
+	minWidth := sidebarMinWidth
 	maxWidth := m.width / 2
 	newWidth := max(minWidth, min(maxWidth, msg.X))
 
