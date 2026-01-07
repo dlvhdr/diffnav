@@ -49,7 +49,7 @@ var keys = &KeyMap{
 	),
 	TogglePanel: key.NewBinding(
 		key.WithKeys("tab"),
-		key.WithHelp("tab", "switch panel"),
+		key.WithHelp("TAB", "switch panel"),
 	),
 }
 
