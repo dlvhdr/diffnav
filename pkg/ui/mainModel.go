@@ -32,6 +32,9 @@ const (
 	zoneFileTree      = "filetree"
 	zoneSearchResults = "searchresults"
 	zoneDiffViewer    = "diffviewer"
+
+	// Sidebar resize detection threshold in pixels.
+	sidebarGrabThreshold = 2
 )
 
 type Panel int
@@ -331,6 +334,16 @@ func (m mainModel) View() string {
 			Width(width).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(leftColor).Render(content)
+	} else {
+		// Show a thin grab line when sidebar is hidden.
+		// Width(0) means only the border is rendered (1 char).
+		grabLine := lipgloss.NewStyle().
+			Width(0).
+			Height(m.height - m.footerHeight() - m.headerHeight() - 1).
+			Border(lipgloss.NormalBorder(), false, true, false, false).
+			BorderForeground(lipgloss.Color("8")).
+			Render("")
+		sidebar = grabLine
 	}
 	dv := lipgloss.NewStyle().MaxHeight(m.height - m.footerHeight() - m.headerHeight() - 1).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
 	dv = zone.Mark(zoneDiffViewer, dv)
@@ -447,8 +460,14 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if msg.Button == tea.MouseButtonLeft {
 			// Keep coordinate check for resize border (hybrid approach).
 			sidebarWidth := m.sidebarWidth()
-			if m.isShowingFileTree && abs(msg.X-sidebarWidth) <= 2 {
+			if m.isShowingFileTree && abs(msg.X-sidebarWidth) <= sidebarGrabThreshold {
 				m.draggingSidebar = true
+				return m, nil
+			}
+			// Allow grabbing the line when sidebar is hidden.
+			if !m.isShowingFileTree && msg.X <= sidebarGrabThreshold {
+				m.draggingSidebar = true
+				m.isShowingFileTree = true
 				return m, nil
 			}
 
