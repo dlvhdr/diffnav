@@ -25,6 +25,11 @@ type Model struct {
 	selectedFile *string
 }
 
+// isRootHidden returns true if the tree root is hidden (not displayed).
+func (m Model) isRootHidden() bool {
+	return m.tree != nil && m.tree.Value() == dirIcon+"."
+}
+
 func (m Model) SetFiles(files []*gitdiff.File) Model {
 	m.files = files
 	t := buildFullFileTree(files)
@@ -87,8 +92,7 @@ func (m *Model) scrollSelectedFileIntoView(t *tree.Tree) {
 			if child.Path() == *m.selectedFile {
 				// offset is 1-based, so we need to subtract 1
 				offset := child.YOffset - 1 - contextLines
-				// we also need to subtract 1 if the root is not shown
-				if m.tree.Value() == "." {
+				if m.isRootHidden() {
 					offset = offset - 1
 				}
 				m.vp.SetYOffset(offset)
@@ -161,12 +165,11 @@ func (m Model) GetFileAtY(y int) string {
 	if m.tree == nil {
 		return ""
 	}
-	// Convert visual line (0-indexed) to YOffset (1-indexed from tree traversal)
+	// Convert visual line (0-indexed) to YOffset (1-indexed from tree traversal).
 	// YOffset starts at 1 for root, 2 for first child, etc.
-	// If root is hidden (Value == dirIcon+"."), first visible is at YOffset 2
-	yOffset := y + 1 // Convert from 0-indexed to 1-indexed
-	if m.tree.Value() == dirIcon+"." {
-		yOffset++ // Root is hidden, so visual line 0 = YOffset 2
+	yOffset := y + 1
+	if m.isRootHidden() {
+		yOffset++ // Root is hidden, so visual line 0 = YOffset 2.
 	}
 	return m.findFileAtY(m.tree, yOffset)
 }
@@ -201,7 +204,7 @@ func (m *Model) ScrollDown(lines int) {
 }
 
 func (m Model) printWithoutRoot() string {
-	if m.tree.Value() != dirIcon+"." {
+	if !m.isRootHidden() {
 		return m.tree.String()
 	}
 
