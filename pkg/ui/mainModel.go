@@ -126,7 +126,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, dfCmd, m.search.Focus())
 			case "e":
 				m.isShowingFileTree = !m.isShowingFileTree
-				if !m.isShowingFileTree {
+				if m.isShowingFileTree {
+					m.customSidebarWidth = 0 // Reset to default width.
+				} else {
 					m.activePanel = DiffViewerPanel
 				}
 				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-m.footerHeight()-m.headerHeight())
@@ -587,14 +589,22 @@ func (m mainModel) handleScroll(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m mainModel) handleSidebarDrag(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	// Clamp to reasonable bounds
+	// Hide sidebar if dragged below threshold.
+	if msg.X < 10 {
+		m.isShowingFileTree = false
+		m.draggingSidebar = false
+		cmd := m.diffViewer.SetSize(m.width, m.height-footerHeight-headerHeight)
+		return m, cmd
+	}
+
+	// Clamp to reasonable bounds.
 	minWidth := 20
 	maxWidth := m.width / 2
 	newWidth := max(minWidth, min(maxWidth, msg.X))
 
 	m.customSidebarWidth = newWidth
 
-	// Resize components
+	// Resize components.
 	cmds := []tea.Cmd{}
 	cmds = append(cmds, m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight))
 	cmds = append(cmds, m.fileTree.SetSize(m.sidebarWidth(), m.height-footerHeight-headerHeight-searchHeight))
