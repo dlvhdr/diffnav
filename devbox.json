@@ -4,7 +4,8 @@
     "go":            "1.22.6",
     "gopls":         "latest",
     "golangci-lint": "latest",
-    "svu":           "latest"
+    "svu":           "latest",
+    "git":           "latest"
   },
   "shell": {
     "scripts": {
