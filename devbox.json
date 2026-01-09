@@ -5,7 +5,8 @@
     "gopls":         "latest",
     "golangci-lint": "latest",
     "svu":           "latest",
-    "git":           "latest"
+    "git":           "latest",
+    "go-task":       "latest"
   },
   "shell": {
     "scripts": {
