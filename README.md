@@ -6,11 +6,6 @@ A git diff pager based on [delta](https://github.com/dandavison/delta) but with 
   <img width="750" src="https://github.com/user-attachments/assets/3148be62-830a-484c-9256-2129ff10ca13" />
 </p>
 
-> [!CAUTION]
-> This is early in development, bugs are to be expected.
->
-> Feel free to open issues.
-
 <details>
   <summary>Demo</summary>
   <img src="https://github.com/dlvhdr/diffnav/blob/74c3f341797ab121ce8edf785ef63e00075ce040/out.gif" />
@@ -102,6 +97,7 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>e</kbd>      | Toggle the file tree |
 | <kbd>t</kbd>      | Search/go-to file    |
 | <kbd>y</kbd>      | Copy file path       |
+| <kbd>Tab</kbd>      | Switch focus between the panes       |
 | <kbd>q</kbd>      | Quit                 |
 
 ## Under the hood
