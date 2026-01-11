@@ -79,7 +79,7 @@ func (f FileNode) getIcon() string {
 			return "⛌"
 		}
 		return "●"
-	default: // ascii (default)
+	default: // ascii (fallback for unknown values)
 		if f.File.IsNew {
 			return "+"
 		} else if f.File.IsDelete {
