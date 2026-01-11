@@ -23,6 +23,7 @@ type FileNode struct {
 	IconStyle      string
 	Selected       bool
 	ColorFileNames bool
+	PanelWidth     int
 }
 
 func (f FileNode) Path() string {
@@ -36,13 +37,20 @@ func (f FileNode) Value() string {
 	coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
 
 	if f.Selected {
-		styledName := lipgloss.NewStyle().
+		// Apply background with fixed width to extend to panel edge
+		bgStyle := lipgloss.NewStyle().
 			Bold(true).
-			Underline(true).
 			Foreground(f.StatusColor()).
-			Render(name)
-		indicator := lipgloss.NewStyle().Foreground(f.StatusColor()).Render("◂")
-		return coloredIcon + " " + styledName + " " + indicator
+			Background(lipgloss.Color("#3a3a3a"))
+		if f.PanelWidth > 0 {
+			iconWidth := lipgloss.Width(coloredIcon) + 1
+			// Subtract tree indentation
+			availableWidth := f.PanelWidth - iconWidth - (f.Depth * 2)
+			if availableWidth > 0 {
+				bgStyle = bgStyle.Width(availableWidth)
+			}
+		}
+		return coloredIcon + " " + bgStyle.Render(name)
 	}
 
 	if f.ColorFileNames {
