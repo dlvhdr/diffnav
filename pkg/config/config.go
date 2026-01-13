@@ -16,6 +16,7 @@ type UIConfig struct {
 	SearchTreeWidth int    `yaml:"searchTreeWidth"`
 	Icons           string `yaml:"icons"`          // "nerd-fonts" (default), "nerd-fonts-alt", "unicode", "ascii"
 	ColorFileNames  bool   `yaml:"colorFileNames"` // Color filenames by git status (default: true)
+	SideBySide      bool   `yaml:"sideBySide"`     // Side-by-side diff view (default: true)
 }
 
 type Config struct {
@@ -32,6 +33,7 @@ func DefaultConfig() Config {
 			SearchTreeWidth: 50,
 			Icons:           "nerd-fonts",
 			ColorFileNames:  true,
+			SideBySide:      true,
 		},
 	}
 }

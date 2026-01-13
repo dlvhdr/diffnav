@@ -73,12 +73,13 @@ type mainModel struct {
 	draggingSidebar    bool
 	customSidebarWidth int
 	iconStyle          string
+	sideBySide         bool
 }
 
-func New(input string, cfg config.Config) mainModel {
-	m := mainModel{input: input, isShowingFileTree: cfg.UI.ShowFileTree, activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons}
+func New(input string, cfg config.Config, sideBySide bool) mainModel {
+	m := mainModel{input: input, isShowingFileTree: cfg.UI.ShowFileTree, activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: sideBySide}
 	m.fileTree = filetree.New(cfg.UI.Icons, cfg.UI.ColorFileNames)
-	m.diffViewer = diffviewer.New()
+	m.diffViewer = diffviewer.New(sideBySide)
 
 	m.help = help.New()
 	helpSt := lipgloss.NewStyle()
@@ -148,6 +149,10 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, dfCmd)
 			case "i":
 				m.cycleIconStyle()
+			case "s":
+				m.sideBySide = !m.sideBySide
+				cmd = m.diffViewer.SetSideBySide(m.sideBySide)
+				cmds = append(cmds, cmd)
 			case "tab":
 				if m.isShowingFileTree {
 					if m.activePanel == FileTreePanel {
@@ -371,7 +376,7 @@ func (m mainModel) View() string {
 		// Width(0) means only the border is rendered (1 char).
 		grabLine := lipgloss.NewStyle().
 			Width(0).
-			Height(m.height - m.footerHeight() - m.headerHeight() - 1).
+			Height(m.height-m.footerHeight()-m.headerHeight()-1).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(lipgloss.Color("8")).
 			Render("")

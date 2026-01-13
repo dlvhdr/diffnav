@@ -20,14 +20,16 @@ const dirHeaderHeight = 3
 
 type Model struct {
 	common.Common
-	vp     viewport.Model
-	buffer *bytes.Buffer
-	file   *gitdiff.File
+	vp         viewport.Model
+	buffer     *bytes.Buffer
+	file       *gitdiff.File
+	sideBySide bool
 }
 
-func New() Model {
+func New(sideBySide bool) Model {
 	return Model{
-		vp: viewport.Model{},
+		vp:         viewport.Model{},
+		sideBySide: sideBySide,
 	}
 }
 
@@ -76,7 +78,7 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.Height = height
 	m.vp.Width = m.Width
 	m.vp.Height = m.Height - dirHeaderHeight
-	return diff(m.file, m.Width)
+	return diff(m.file, m.Width, m.sideBySide)
 }
 
 func (m Model) headerView() string {
@@ -117,11 +119,17 @@ func (m Model) headerView() string {
 func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	m.buffer = new(bytes.Buffer)
 	m.file = file
-	return m, diff(m.file, m.Width)
+	return m, diff(m.file, m.Width, m.sideBySide)
 }
 
 func (m *Model) GoToTop() {
 	m.vp.GotoTop()
+}
+
+// SetSideBySide updates the diff view mode and re-renders.
+func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
+	m.sideBySide = sideBySide
+	return diff(m.file, m.Width, m.sideBySide)
 }
 
 func (m *Model) LineUp(n int) {
@@ -142,19 +150,19 @@ func (m *Model) ScrollDown(lines int) {
 	m.vp.LineDown(lines)
 }
 
-
-func diff(file *gitdiff.File, width int) tea.Cmd {
+func diff(file *gitdiff.File, width int, sideBySidePreference bool) tea.Cmd {
 	if width == 0 || file == nil {
 		return nil
 	}
 	return func() tea.Msg {
-		sideBySide := !file.IsNew && !file.IsDelete
+		// Only use side-by-side if preference is true AND file is not new/deleted
+		useSideBySide := sideBySidePreference && !file.IsNew && !file.IsDelete
 		args := []string{
 			"--paging=never",
 			fmt.Sprintf("-w=%d", width),
 			fmt.Sprintf("--max-line-length=%d", width),
 		}
-		if sideBySide {
+		if useSideBySide {
 			args = append(args, "--side-by-side")
 		}
 		deltac := exec.Command("delta", args...)

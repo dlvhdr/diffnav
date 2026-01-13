@@ -13,6 +13,7 @@ type KeyMap struct {
 	Copy           key.Binding
 	TogglePanel    key.Binding
 	OpenInEditor   key.Binding
+	ToggleDiffView key.Binding
 }
 
 var keys = &KeyMap{
@@ -56,6 +57,10 @@ var keys = &KeyMap{
 		key.WithKeys("o"),
 		key.WithHelp("o", "open"),
 	),
+	ToggleDiffView: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "toggle side-by-side"),
+	),
 }
 
 func getKeys() []key.Binding {
@@ -69,6 +74,7 @@ func getKeys() []key.Binding {
 		keys.Search,
 		keys.Copy,
 		keys.OpenInEditor,
+		keys.ToggleDiffView,
 		keys.Quit,
 	}
 }

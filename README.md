@@ -43,6 +43,20 @@ go install github.com/dlvhdr/diffnav@latest
 git config --global pager.diff diffnav
 ```
 
+## Flags
+
+| Flag | Description |
+|------|-------------|
+| `--side-by-side, -s` | Force side-by-side diff view |
+| `--unified, -u` | Force unified diff view |
+
+Example:
+
+```sh
+git diff | diffnav --unified
+git diff | diffnav -u
+```
+
 ## Configuration
 
 The config file is searched in this order:
@@ -76,6 +90,9 @@ ui:
 
   # Color filenames by git status (default: true)
   colorFileNames: false
+
+  # Use side-by-side diff view (default: true, set false for unified)
+  sideBySide: true
 ```
 
 | Option              | Type   | Default | Description                           |
@@ -87,6 +104,7 @@ ui:
 | `ui.searchTreeWidth`| int    | `50`    | Width of the search panel             |
 | `ui.icons`          | string | `nerd-fonts` | Icon style: `nerd-fonts`, `nerd-fonts-alt`, `unicode`, or `ascii` |
 | `ui.colorFileNames` | bool   | `true`  | Color filenames by git status |
+| `ui.sideBySide`     | bool   | `true`  | Use side-by-side diff view (false for unified) |
 
 ### Delta
 
@@ -107,6 +125,7 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>y</kbd>      | Copy file path       |
 | <kbd>i</kbd>      | Cycle icon style     |
 | <kbd>o</kbd>      | Open file in $EDITOR |
+| <kbd>s</kbd>      | Toggle side-by-side/unified view |
 | <kbd>Tab</kbd>    | Switch focus between the panes |
 | <kbd>q</kbd>      | Quit                 |
 
