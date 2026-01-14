@@ -76,10 +76,10 @@ type mainModel struct {
 	sideBySide         bool
 }
 
-func New(input string, cfg config.Config, sideBySide bool) mainModel {
-	m := mainModel{input: input, isShowingFileTree: cfg.UI.ShowFileTree, activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: sideBySide}
+func New(input string, cfg config.Config) mainModel {
+	m := mainModel{input: input, isShowingFileTree: cfg.UI.ShowFileTree, activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: cfg.UI.SideBySide}
 	m.fileTree = filetree.New(cfg.UI.Icons, cfg.UI.ColorFileNames)
-	m.diffViewer = diffviewer.New(sideBySide)
+	m.diffViewer = diffviewer.New(cfg.UI.SideBySide)
 
 	m.help = help.New()
 	helpSt := lipgloss.NewStyle()

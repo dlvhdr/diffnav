@@ -87,15 +87,14 @@ func main() {
 	}
 	cfg := config.Load()
 
-	// Determine sideBySide: CLI flag > config > default
-	sideBySide := cfg.UI.SideBySide
+	// Override config with CLI flags if specified
 	if *unifiedFlag {
-		sideBySide = false
+		cfg.UI.SideBySide = false
 	} else if *sideBySideFlag {
-		sideBySide = true
+		cfg.UI.SideBySide = true
 	}
 
-	p := tea.NewProgram(ui.New(input, cfg, sideBySide), tea.WithMouseAllMotion())
+	p := tea.NewProgram(ui.New(input, cfg), tea.WithMouseAllMotion())
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
