@@ -1,4 +1,4 @@
-package filetreev2
+package filetree
 
 import (
 	"os"

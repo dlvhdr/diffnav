@@ -20,7 +20,7 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/filenode"
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/diffviewer"
-	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetreev2"
+	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetree"
 	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
@@ -58,7 +58,7 @@ type mainModel struct {
 	input             string
 	files             []*gitdiff.File
 	cursor            int
-	fileTreeV2        filetreev2.Model
+	fileTree          filetree.Model
 	diffViewer        diffviewer.Model
 	width             int
 	height            int
@@ -81,8 +81,8 @@ func New(input string, cfg config.Config) mainModel {
 		input: input, isShowingFileTree: cfg.UI.ShowFileTree,
 		activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: cfg.UI.SideBySide,
 	}
-	m.fileTreeV2 = filetreev2.New(cfg.UI.Icons, cfg.UI.ColorFileNames)
-	m.fileTreeV2.SetSize(cfg.UI.FileTreeWidth, 0)
+	m.fileTree = filetree.New(cfg.UI.Icons, cfg.UI.ColorFileNames)
+	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
 	m.diffViewer = diffviewer.New(cfg.UI.SideBySide)
 
 	m.help = help.New()
@@ -161,7 +161,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					treeWidth = m.config.UI.FileTreeWidth
 				}
 
-				m.fileTreeV2.SetSize(treeWidth, h-searchHeight-1)
+				m.fileTree.SetSize(treeWidth, h-searchHeight-1)
 				dfCmd := m.diffViewer.SetSize(m.width-sidebarWidth, h)
 				cmds = append(cmds, dfCmd)
 			case key.Matches(msg, keys.ToggleIconStyle):
@@ -199,7 +199,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.diffViewer.ScrollDown(1)
 				}
 			case key.Matches(msg, keys.Copy):
-				cmd = m.fileTreeV2.CopyFilePath(m.cursor)
+				cmd = m.fileTree.CopyFilePath(m.cursor)
 				if cmd != nil {
 					cmds = append(cmds, cmd)
 				}
@@ -220,7 +220,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			tWidth, tHeight := m.sidebarWidth(), m.mainContentHeight()-searchHeight
 
-			m.fileTreeV2.SetSize(tWidth, tHeight)
+			m.fileTree.SetSize(tWidth, tHeight)
 			m.search.SetWidth(tWidth)
 
 		case fileTreeMsg:
@@ -228,7 +228,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.files) == 0 {
 				return m, tea.Quit
 			}
-			m.fileTreeV2 = m.fileTreeV2.SetFiles(m.files)
+			m.fileTree = m.fileTree.SetFiles(m.files)
 			cmd = m.setCursor(0)
 			cmds = append(cmds, cmd)
 
@@ -255,14 +255,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.diffViewer, cmd = m.diffViewer.Update(msg)
 				cmds = append(cmds, cmd)
 			} else {
-				m.fileTreeV2, cmd = m.fileTreeV2.Update(msg)
+				m.fileTree, cmd = m.fileTree.Update(msg)
 				cmds = append(cmds, cmd)
 			}
 		}
 	default:
 		m.diffViewer, cmd = m.diffViewer.Update(msg)
 		cmds = append(cmds, cmd)
-		m.fileTreeV2, cmd = m.fileTreeV2.Update(msg)
+		m.fileTree, cmd = m.fileTree.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -288,7 +288,7 @@ func (m *mainModel) cycleIconStyle() {
 	default:
 		m.iconStyle = filenode.IconsASCII
 	}
-	m.fileTreeV2.SetIconStyle(m.iconStyle)
+	m.fileTree.SetIconStyle(m.iconStyle)
 }
 
 func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
@@ -314,7 +314,7 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 					if filenode.GetFileName(f) == selected {
 						m.cursor = i
 						m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
-						m.fileTreeV2.SetCursor(i)
+						m.fileTree.SetCursor(i)
 						cmds = append(cmds, cmd)
 						break
 					}
@@ -384,7 +384,7 @@ func (m mainModel) View() tea.View {
 		if m.searching {
 			content = zone.Mark(zoneSearchResults, m.resultsVp.View())
 		} else {
-			content = zone.Mark(zoneFileTree, m.fileTreeV2.View())
+			content = zone.Mark(zoneFileTree, m.fileTree.View())
 		}
 		content = lipgloss.NewStyle().Render(lipgloss.JoinVertical(lipgloss.Left, searchBox, content))
 
@@ -473,7 +473,7 @@ func (m mainModel) sidebarWidth() int {
 	}
 
 	if m.isShowingFileTree {
-		return m.fileTreeV2.Width()
+		return m.fileTree.Width()
 	}
 
 	return 0
@@ -508,7 +508,7 @@ func (m *mainModel) setCursor(cursor int) tea.Cmd {
 	var cmd tea.Cmd
 	m.cursor = cursor
 	m.diffViewer, cmd = m.diffViewer.SetFilePatch(m.files[m.cursor])
-	m.fileTreeV2.SetCursor(m.cursor)
+	m.fileTree.SetCursor(m.cursor)
 
 	return cmd
 }
@@ -600,7 +600,7 @@ func (m mainModel) handleSearchResultClick(msg tea.MouseMsg) (tea.Model, tea.Cmd
 		if filenode.GetFileName(f) == selected {
 			m.cursor = i
 			m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
-			m.fileTreeV2.SetCursor(i)
+			m.fileTree.SetCursor(i)
 			cmds = append(cmds, cmd)
 			break
 		}
@@ -633,10 +633,10 @@ func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if y < 0 {
 		return m, nil
 	}
-	clickedY := y + m.fileTreeV2.ViewportYOffset()
+	clickedY := y + m.fileTree.ViewportYOffset()
 
 	// Find file at this Y position using tree traversal.
-	filePath := m.fileTreeV2.GetFileAtY(clickedY)
+	filePath := m.fileTree.GetFileAtY(clickedY)
 	if filePath == "" {
 		return m, nil
 	}
@@ -649,7 +649,7 @@ func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
 			// Use SetCursorNoScroll to avoid jumping the file tree view.
-			m.fileTreeV2.SetCursorNoScroll(i)
+			m.fileTree.SetCursorNoScroll(i)
 			return m, cmd
 		}
 	}
@@ -665,13 +665,13 @@ func (m mainModel) handleScroll(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			if m.searching {
 				m.resultsVp.ScrollUp(lines)
 			} else {
-				m.fileTreeV2.ScrollUp(lines)
+				m.fileTree.ScrollUp(lines)
 			}
 		} else {
 			if m.searching {
 				m.resultsVp.ScrollDown(lines)
 			} else {
-				m.fileTreeV2.ScrollDown(lines)
+				m.fileTree.ScrollDown(lines)
 			}
 		}
 		return m, nil
@@ -712,7 +712,7 @@ func (m mainModel) handleSidebarDrag(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	cmds := []tea.Cmd{}
 
 	cmds = append(cmds, m.diffViewer.SetSize(m.width-newWidth, m.mainContentHeight()))
-	m.fileTreeV2.SetSize(newWidth-1, m.mainContentHeight()-searchHeight-1)
+	m.fileTree.SetSize(newWidth-1, m.mainContentHeight()-searchHeight-1)
 
 	return m, tea.Batch(cmds...)
 }
