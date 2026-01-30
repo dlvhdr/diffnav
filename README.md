@@ -3,8 +3,9 @@
 A git diff pager based on [delta](https://github.com/dandavison/delta) but with a file tree, à la GitHub.
 
 <p align="center">
-  <img width="750" src="https://github.com/user-attachments/assets/3148be62-830a-484c-9256-2129ff10ca13" />
+  <img width="900" src="https://github.com/user-attachments/assets/104e156e-7e9d-4ea5-bea1-399ca71e12a5" />
 </p>
+
 
 <details>
   <summary>Demo</summary>
