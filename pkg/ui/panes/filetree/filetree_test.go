@@ -6,6 +6,7 @@ import (
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/dlvhdr/diffnav/pkg/constants"
+	"github.com/dlvhdr/diffnav/pkg/dirnode"
 	"github.com/dlvhdr/diffnav/pkg/filenode"
 )
 
@@ -30,7 +31,7 @@ func TestBuildFullFileTree(t *testing.T) {
 		t.Fatalf("expected 5 nodes, but got %d", len(allNodes))
 	}
 	root := tr
-	if root.GivenValue() != constants.RootName {
+	if root.GivenValue().(*dirnode.DirNode).Name != constants.RootName {
 		t.Fatalf(`expected root value to be constants.RootName, but got "%s"`, root.Value())
 	}
 
@@ -39,7 +40,7 @@ func TestBuildFullFileTree(t *testing.T) {
 	}
 
 	graphqlServer := root.ChildNodes()[0]
-	if graphqlServer.GivenValue() != "graphql-server" {
+	if graphqlServer.GivenValue().(*dirnode.DirNode).Name != "graphql-server" {
 		t.Fatalf(`expected root first child value to be "graphql-server", but got %s`, graphqlServer.GivenValue())
 	}
 	yarnLock := root.ChildNodes()[1]
@@ -54,7 +55,7 @@ func TestBuildFullFileTree(t *testing.T) {
 	}
 
 	tests := graphqlServer.ChildNodes()[0]
-	if tests.GivenValue() != "tests" {
+	if tests.GivenValue().(*dirnode.DirNode).Name != "tests" {
 		t.Fatalf(`expected graphql-server only child value to be "tests", but got %s`, tests.GivenValue())
 	}
 
@@ -100,7 +101,7 @@ func TestCollapseTree(t *testing.T) {
 	}
 
 	root := tr
-	if root.GivenValue() != constants.RootName {
+	if root.GivenValue().(*dirnode.DirNode).Name != constants.RootName {
 		t.Fatalf(`expected root value to be constants.RootName, but got "%s"`, root.Value())
 	}
 
@@ -109,7 +110,7 @@ func TestCollapseTree(t *testing.T) {
 	}
 
 	graphqlServer := root.ChildNodes()[0]
-	if graphqlServer.GivenValue() != "graphql-server/tests" {
+	if graphqlServer.GivenValue().(*dirnode.DirNode).Name != "graphql-server/tests" {
 		t.Fatalf(`expected root first child value to be "graphql-server/tests", but got %s`, graphqlServer.GivenValue())
 	}
 

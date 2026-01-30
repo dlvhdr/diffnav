@@ -1,6 +1,7 @@
 package filetree
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/charmbracelet/log"
 
 	"github.com/dlvhdr/diffnav/pkg/constants"
+	"github.com/dlvhdr/diffnav/pkg/dirnode"
 	"github.com/dlvhdr/diffnav/pkg/filenode"
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
 	"github.com/dlvhdr/diffnav/pkg/utils"
@@ -102,6 +104,7 @@ func (m *Model) SetCursor(cursor int) {
 		return
 	}
 	name := filenode.GetFileName(m.files[cursor])
+	log.Debug("filetree - setting cursor", "name", name)
 	m.selectedFile = &name
 	m.rebuildTree()
 	m.scrollSelectedFileIntoView(m.t.Root())
@@ -126,14 +129,18 @@ func (m *Model) scrollSelectedFileIntoView(t *tree.Node) {
 	for i := range len(children.ChildNodes()) {
 		child := children.ChildNodes()[i]
 		switch value := child.GivenValue().(type) {
-		case string:
+		case *dirnode.DirNode:
+			log.Debug("checking dir", "value", value.FullPath)
 			m.scrollSelectedFileIntoView(child)
 		case *filenode.FileNode:
+			log.Debug("checking", "value", value.Path(), "selectedFile", *m.selectedFile)
 			if value.Path() == *m.selectedFile {
 				m.t.SetYOffset(child.YOffset())
 				found = true
 				break
 			}
+		default:
+			log.Error("unexpcted", "type", fmt.Sprintf("%T", value))
 		}
 		if found {
 			break
@@ -148,7 +155,7 @@ type options struct {
 }
 
 func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
-	t := tree.Root(constants.RootName)
+	t := tree.Root(&dirnode.DirNode{FullPath: "/", Name: constants.RootName})
 	for _, file := range files {
 		// start from the root
 		subTree := t
@@ -163,7 +170,7 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 			found := false
 			children := subTree.ChildNodes()
 			for _, child := range children {
-				if _, ok := child.GivenValue().(string); ok && child.GivenValue() == part {
+				if dir, ok := child.GivenValue().(*dirnode.DirNode); ok && dir.Name == part {
 					subTree = child
 					path = path + part + string(os.PathSeparator)
 					found = true
@@ -190,7 +197,8 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 				node.Selected = opts.selectedFile != nil && node.Path() == *opts.selectedFile
 				subTree.Child(node)
 			} else {
-				c = tree.Root(part)
+				dirNode := dirnode.DirNode{Name: part, FullPath: filepath.Join(path, part)}
+				c = tree.Root(&dirNode)
 				subTree.Child(c)
 				subTree = c
 			}
@@ -220,7 +228,11 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 // │   └── d
 func collapseTree(t *tree.Node) *tree.Node {
 	children := t.ChildNodes()
-	newT := tree.Root(t.GivenValue())
+	rootDir, ok := t.GivenValue().(*dirnode.DirNode)
+	if !ok {
+		log.Fatalf("failed collapsing tree, root is not a directory")
+	}
+	newT := tree.Root(rootDir)
 	if len(children) == 0 {
 		return newT
 	}
@@ -239,23 +251,25 @@ func collapseTree(t *tree.Node) *tree.Node {
 	newChildren := newT.ChildNodes()
 	if len(newChildren) == 1 {
 		child := newChildren[0]
-		// if the child is a string - it's a directory (files are filenode.FileNode).
-		// So this tree has one chlid that's a directory -> collapse it
-		if _, ok := child.GivenValue().(string); ok {
+		// If the child is dir with one chlid that's also a dir -> collapse it
+		if dir, ok := child.GivenValue().(*dirnode.DirNode); ok {
 
 			// if the only child is a tree and its parent is the root we don't want to collapse.
 			// The root should always be visible
-			if newT.GivenValue() == constants.RootName {
+			if rootDir.Name == constants.RootName {
 				return newT
 			}
 
-			val := newT.GivenValue().(string) + string(os.PathSeparator) + child.GivenValue().(string)
+			newDir := dirnode.DirNode{
+				FullPath: filepath.Join(rootDir.FullPath, dir.Name),
+				Name:     filepath.Join(rootDir.Name, dir.Name),
+			}
 			children := make([]any, 0)
 			for _, c := range child.ChildNodes() {
 				children = append(children, c)
 			}
 
-			collapsed := tree.Root(val).Child(children...)
+			collapsed := tree.Root(&newDir).Child(children...)
 			return collapsed
 		}
 	}
@@ -266,17 +280,18 @@ func collapseTree(t *tree.Node) *tree.Node {
 func truncateTree(t *tree.Node, depth int, numNodes int, numChildren int, iconStyle string,
 	selectedFile *string, colorFileNames bool, width int,
 ) (*tree.Node, int) {
-	if _, ok := t.GivenValue().(string); !ok {
+	dir, ok := t.GivenValue().(*dirnode.DirNode)
+	if !ok {
 		return t, 0
 	}
 
-	newT := tree.Root(utils.TruncateString(t.GivenValue().(string), width-depth-2))
+	newT := tree.Root(&dirnode.DirNode{Name: utils.TruncateString(dir.Name, width-depth-2), FullPath: dir.FullPath})
 	numNodes++
 
 	for _, child := range t.ChildNodes() {
 		numChildren++
 		switch value := child.GivenValue().(type) {
-		case string:
+		case *dirnode.DirNode:
 			subTree, subNum := truncateTree(child, depth+1, numNodes, 0, iconStyle, selectedFile, colorFileNames, width)
 			numChildren += subNum
 			numNodes += subNum + 1

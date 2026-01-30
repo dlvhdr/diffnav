@@ -505,6 +505,7 @@ func (m *mainModel) stopSearch() {
 }
 
 func (m *mainModel) setCursor(cursor int) tea.Cmd {
+	log.Debug("tui - setting cursor", "cursor", cursor)
 	var cmd tea.Cmd
 	m.cursor = cursor
 	m.diffViewer, cmd = m.diffViewer.SetFilePatch(m.files[m.cursor])
