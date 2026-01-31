@@ -24,7 +24,6 @@ import (
 type Model struct {
 	t              tree.Model
 	files          []*gitdiff.File
-	selectedFile   *string
 	iconStyle      string
 	colorFileNames bool
 }
@@ -124,28 +123,10 @@ func (m Model) SetFiles(files []*gitdiff.File) Model {
 
 func (m *Model) Down() {
 	m.t.Down()
-	if _, ok := m.t.NodeAtCurrentOffset().GivenValue().(*filenode.FileNode); ok {
-		// name := filenode.GetFileName(m.files[cursor])
-		// TODO
-	} else {
-		m.selectedFile = nil
-	}
-
-	// TODO: handle properly as rebuildTree resets the closed/open state
-	// m.rebuildTree()
 }
 
 func (m *Model) Up() {
 	m.t.Up()
-	if _, ok := m.t.NodeAtCurrentOffset().GivenValue().(*filenode.FileNode); ok {
-		// name := filenode.GetFileName(m.files[cursor])
-		// TODO
-	} else {
-		m.selectedFile = nil
-	}
-
-	// TODO: handle properly as rebuildTree resets the closed/open state
-	// m.rebuildTree()
 }
 
 func (m *Model) SetCursorByPath(path string) {
@@ -177,19 +158,17 @@ func (m *Model) SetCursorByPath(path string) {
 
 func (m *Model) rebuildTree() {
 	t := buildFullFileTree(m.files, options{
-		selectedFile:   m.selectedFile,
 		iconStyle:      m.iconStyle,
 		colorFileNames: m.colorFileNames,
 	})
 	t = collapseTree(t)
-	t, _ = truncateTree(t, 0, 0, 0, m.iconStyle, m.selectedFile, m.colorFileNames, m.t.Width())
+	t, _ = truncateTree(t, 0, 0, 0, m.iconStyle, m.colorFileNames, m.t.Width())
 	m.t.SetNodes(t)
 	m.t.SetWidth(m.t.Width())
 	m.updateStyles()
 }
 
 type options struct {
-	selectedFile   *string
 	iconStyle      string
 	colorFileNames bool
 }
@@ -234,7 +213,6 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 					IconStyle:      opts.iconStyle,
 					ColorFileNames: opts.colorFileNames,
 				}
-				node.Selected = opts.selectedFile != nil && node.Path() == *opts.selectedFile
 				subTree.Child(node)
 			} else {
 				dirNode := dirnode.DirNode{
@@ -321,7 +299,7 @@ func collapseTree(t *tree.Node) *tree.Node {
 }
 
 func truncateTree(t *tree.Node, depth int, numNodes int, numChildren int, iconStyle string,
-	selectedFile *string, colorFileNames bool, width int,
+	colorFileNames bool, width int,
 ) (*tree.Node, int) {
 	dir, ok := t.GivenValue().(*dirnode.DirNode)
 	if !ok {
@@ -335,7 +313,7 @@ func truncateTree(t *tree.Node, depth int, numNodes int, numChildren int, iconSt
 		numChildren++
 		switch value := child.GivenValue().(type) {
 		case *dirnode.DirNode:
-			subTree, subNum := truncateTree(child, depth+1, numNodes, 0, iconStyle, selectedFile, colorFileNames, width)
+			subTree, subNum := truncateTree(child, depth+1, numNodes, 0, iconStyle, colorFileNames, width)
 			numChildren += subNum
 			numNodes += subNum + 1
 			child.SetValue(value)
