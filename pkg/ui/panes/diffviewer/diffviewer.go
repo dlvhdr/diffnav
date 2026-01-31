@@ -78,7 +78,17 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.Height = height
 	m.vp.SetWidth(m.Width)
 	m.vp.SetHeight(m.Height - dirHeaderHeight)
-	return diffFile(m.file, m.Width, m.sideBySide)
+	return m.diff()
+}
+
+func (m *Model) diff() tea.Cmd {
+	if m.file != nil {
+		return diffFile(m.file, m.Width, m.sideBySide)
+	} else if m.dir != "" {
+		return diffDir(m.dir, m.dirFiles, m.Width, m.sideBySide)
+	}
+
+	return nil
 }
 
 func (m Model) headerView() string {
