@@ -3,6 +3,9 @@ package ui
 import "charm.land/bubbles/v2/key"
 
 type KeyMap struct {
+	ExpandNode      key.Binding
+	CollapseNode    key.Binding
+	ToggleNode      key.Binding
 	Up              key.Binding
 	Down            key.Binding
 	CtrlD           key.Binding
@@ -18,6 +21,18 @@ type KeyMap struct {
 }
 
 var keys = &KeyMap{
+	ExpandNode: key.NewBinding(
+		key.WithKeys("l"),
+		key.WithHelp("l", "expand"),
+	),
+	CollapseNode: key.NewBinding(
+		key.WithKeys("h"),
+		key.WithHelp("h", "collapse"),
+	),
+	ToggleNode: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "toggle"),
+	),
 	Up: key.NewBinding(
 		key.WithKeys("up", "k"),
 		key.WithHelp("↑/k", "prev file"),

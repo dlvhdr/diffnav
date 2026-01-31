@@ -1,11 +1,11 @@
 package filetree
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/tree"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -33,8 +33,6 @@ func New(iconStyle string, colorFileNames bool) Model {
 	t := tree.New(nil, constants.OpenFileTreeWidth, 0)
 	t.SetCursorCharacter("")
 	t.SetShowHelp(false)
-	t.SetOpenCharacter(getDirIcon(iconStyle))
-	t.SetClosedCharacter(getDirIcon(iconStyle))
 	t.Enumerator(enumerator).Indenter(indenter)
 	t.SetScrollOff(3)
 
@@ -43,49 +41,74 @@ func New(iconStyle string, colorFileNames bool) Model {
 		iconStyle:      iconStyle,
 		colorFileNames: colorFileNames,
 	}
+
+	open, closed := getDirIcons(m.iconStyle)
+	t.SetOpenCharacter(open)
+	t.SetClosedCharacter(closed)
 	m.updateStyles()
 
 	return m
 }
 
-func (m Model) Init() tea.Cmd {
-	return nil
-}
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		switch {
+		case key.Matches(msg, keys.ExpandNode):
+			m.t.OpenCurrentNode()
 
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+		case key.Matches(msg, keys.CollapseNode):
+			m.t.CloseCurrentNode()
+
+		case key.Matches(msg, keys.ToggleNode):
+			m.t.ToggleCurrentNode()
+		}
+	}
 	return m, nil
 }
 
-func (m Model) View() string {
+func (m *Model) View() string {
 	return m.t.View()
 }
 
-func getDirIcon(iconStyle string) string {
+func getDirIcons(iconStyle string) (string, string) {
 	switch iconStyle {
 	case filenode.IconsNerdStatus, filenode.IconsNerdSimple, filenode.IconsNerdFiletype, filenode.IconsNerdFull:
-		return ""
+		return "", "󰉋"
 	case filenode.IconsUnicode:
-		return "▶"
+		return "▼", "▶"
 	default: // ascii
-		return ">"
+		return ">", "-"
 	}
 }
 
 func (m *Model) updateStyles() {
-	dimmed := lipgloss.Color("235")
+	dimmed := common.Colors[common.Selected]
 	base := lipgloss.NewStyle()
 	m.t.SetStyles(tree.Styles{
-		TreeStyle:         base,
-		RootNodeStyle:     base.Foreground(lipgloss.Color("4")),
-		ParentNodeStyle:   base.Foreground(lipgloss.Color("4")),
-		SelectedNodeStyle: base.Bold(true).Background(lipgloss.Color("8")),
-		HelpStyle:         base.MarginTop(1),
-		EnumeratorStyle:   base.Foreground(dimmed),
-		IndenterStyle:     base.Foreground(dimmed),
+		TreeStyle:       base,
+		RootNodeStyle:   base.Foreground(lipgloss.BrightBlue),
+		ParentNodeStyle: base.Foreground(lipgloss.BrightBlue),
+		SelectedNodeStyleFunc: func(children tree.Nodes, i int) lipgloss.Style {
+			base := base.Bold(true).Background(dimmed)
+			child := children.At(i)
+			switch child.GivenValue().(type) {
+			case *filenode.FileNode:
+				return base
+			case string, *dirnode.DirNode:
+				return base.Foreground(lipgloss.BrightBlue)
+			}
+			return base
+		},
+		HelpStyle:               base.MarginTop(1),
+		EnumeratorStyle:         base.Foreground(dimmed),
+		SelectedEnumeratorStyle: base.Bold(true).Foreground(lipgloss.BrightBlue),
+		IndenterStyle:           base.Foreground(dimmed),
 	})
 
-	m.t.SetOpenCharacter(getDirIcon(m.iconStyle))
-	m.t.SetClosedCharacter(getDirIcon(m.iconStyle))
+	open, closed := getDirIcons(m.iconStyle)
+	m.t.SetOpenCharacter(open)
+	m.t.SetClosedCharacter(closed)
 }
 
 func (m Model) SetFiles(files []*gitdiff.File) Model {
@@ -99,15 +122,57 @@ func (m Model) SetFiles(files []*gitdiff.File) Model {
 	return m
 }
 
-func (m *Model) SetCursor(cursor int) {
+func (m *Model) Down() {
+	m.t.Down()
+	if _, ok := m.t.NodeAtCurrentOffset().GivenValue().(*filenode.FileNode); ok {
+		// name := filenode.GetFileName(m.files[cursor])
+		// TODO
+	} else {
+		m.selectedFile = nil
+	}
+
+	// TODO: handle properly as rebuildTree resets the closed/open state
+	// m.rebuildTree()
+}
+
+func (m *Model) Up() {
+	m.t.Up()
+	if _, ok := m.t.NodeAtCurrentOffset().GivenValue().(*filenode.FileNode); ok {
+		// name := filenode.GetFileName(m.files[cursor])
+		// TODO
+	} else {
+		m.selectedFile = nil
+	}
+
+	// TODO: handle properly as rebuildTree resets the closed/open state
+	// m.rebuildTree()
+}
+
+func (m *Model) SetCursorByPath(path string) {
 	if len(m.files) == 0 {
 		return
 	}
-	name := filenode.GetFileName(m.files[cursor])
-	log.Debug("filetree - setting cursor", "name", name)
-	m.selectedFile = &name
+
+	yoffset := 0
+	for _, node := range m.t.AllNodes() {
+		switch val := node.GivenValue().(type) {
+		case *filenode.FileNode:
+			name := filenode.GetFileName(val.File)
+			if name == path {
+				yoffset = node.YOffset()
+				break
+			}
+		case *dirnode.DirNode:
+			if val.FullPath == path {
+				yoffset = node.YOffset()
+				break
+			}
+		}
+	}
+
+	log.Debug("filetree - setting cursor", "name", path)
 	m.rebuildTree()
-	m.scrollSelectedFileIntoView(m.t.Root())
+	m.t.SetYOffset(yoffset)
 }
 
 func (m *Model) rebuildTree() {
@@ -121,31 +186,6 @@ func (m *Model) rebuildTree() {
 	m.t.SetNodes(t)
 	m.t.SetWidth(m.t.Width())
 	m.updateStyles()
-}
-
-func (m *Model) scrollSelectedFileIntoView(t *tree.Node) {
-	children := t
-	found := false
-	for i := range len(children.ChildNodes()) {
-		child := children.ChildNodes()[i]
-		switch value := child.GivenValue().(type) {
-		case *dirnode.DirNode:
-			log.Debug("checking dir", "value", value.FullPath)
-			m.scrollSelectedFileIntoView(child)
-		case *filenode.FileNode:
-			log.Debug("checking", "value", value.Path(), "selectedFile", *m.selectedFile)
-			if value.Path() == *m.selectedFile {
-				m.t.SetYOffset(child.YOffset())
-				found = true
-				break
-			}
-		default:
-			log.Error("unexpcted", "type", fmt.Sprintf("%T", value))
-		}
-		if found {
-			break
-		}
-	}
 }
 
 type options struct {
@@ -163,7 +203,7 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 		name := filenode.GetFileName(file)
 		dir := filepath.Dir(name)
 		parts := strings.Split(dir, string(os.PathSeparator))
-		path := ""
+		existingPath := ""
 
 		// walk the tree to find existing path
 		for _, part := range parts {
@@ -172,7 +212,7 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 			for _, child := range children {
 				if dir, ok := child.GivenValue().(*dirnode.DirNode); ok && dir.Name == part {
 					subTree = child
-					path = path + part + string(os.PathSeparator)
+					existingPath = existingPath + part + string(os.PathSeparator)
 					found = true
 					// found a part of the path, continue to the subtree
 					break
@@ -184,7 +224,7 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 		}
 
 		// path does not exist from this point, need to create it
-		leftover := strings.TrimPrefix(name, path)
+		leftover := strings.TrimPrefix(name, existingPath)
 		parts = strings.Split(leftover, string(os.PathSeparator))
 		for i, part := range parts {
 			var c *tree.Node
@@ -197,7 +237,10 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 				node.Selected = opts.selectedFile != nil && node.Path() == *opts.selectedFile
 				subTree.Child(node)
 			} else {
-				dirNode := dirnode.DirNode{Name: part, FullPath: filepath.Join(path, part)}
+				dirNode := dirnode.DirNode{
+					Name:     part,
+					FullPath: filepath.Join(existingPath, filepath.Join(parts[:i]...), part),
+				}
 				c = tree.Root(&dirNode)
 				subTree.Child(c)
 				subTree = c
@@ -331,18 +374,23 @@ func (m Model) ViewportYOffset() int {
 	return m.t.ViewportYOffset()
 }
 
-// GetYOffset returns the tree's current Y scroll offset.
-func (m Model) GetFileAtY(yoffset int) string {
-	node := m.t.Node(yoffset)
-	if node == nil {
-		return ""
-	}
+// GetNodeAtY returns the tree's node at the Y scroll offset.
+func (m Model) GetNodeAtY(yoffset int) *tree.Node {
+	return m.t.Node(yoffset)
+}
 
-	if f, ok := node.GivenValue().(*filenode.FileNode); ok {
-		return f.Path()
-	}
+func (m *Model) GetCurrNode() *tree.Node {
+	return m.t.NodeAtCurrentOffset()
+}
 
-	return ""
+func (m *Model) GetCurrNodeDesendantDiffs() []*gitdiff.File {
+	var files []*gitdiff.File
+	for _, node := range m.GetCurrNode().AllNodes() {
+		if file, ok := node.GivenValue().(*filenode.FileNode); ok {
+			files = append(files, file.File)
+		}
+	}
+	return files
 }
 
 // SetCursorNoScroll updates the selected file without scrolling the viewport.
@@ -351,26 +399,27 @@ func (m *Model) SetCursorNoScroll(cursor int) {
 	if len(m.files) == 0 {
 		return
 	}
-	name := filenode.GetFileName(m.files[cursor])
-	m.selectedFile = &name
 	scroll := m.t.ViewportYOffset()
 	m.rebuildTree()
 
-	for _, child := range m.t.AllNodes() {
-		if f, ok := child.GivenValue().(*filenode.FileNode); ok && f.Path() == name {
-			m.t.SetYOffset(child.YOffset())
-			break
-		}
-	}
+	m.t.SetYOffset(cursor)
 	m.t.SetViewportYOffset(scroll)
 }
 
-func (m *Model) CopyFilePath(cursor int) tea.Cmd {
-	if len(m.files) == 0 {
-		return nil
+func (m *Model) CurrNodePath() string {
+	fullpath := ""
+	switch val := m.t.NodeAtCurrentOffset().GivenValue().(type) {
+	case *filenode.FileNode:
+		fullpath = filenode.GetFileName(val.File)
+	case *dirnode.DirNode:
+		fullpath = val.FullPath
 	}
-	name := filenode.GetFileName(m.files[cursor])
-	err := clipboard.WriteAll(name)
+	return fullpath
+}
+
+func (m *Model) CopyCurrNodePath() tea.Cmd {
+	fullpath := m.CurrNodePath()
+	err := clipboard.WriteAll(fullpath)
 	if err != nil {
 		return func() tea.Msg {
 			return common.ErrMsg{Err: err}

@@ -1,6 +1,7 @@
 package filenode
 
 import (
+	"fmt"
 	"image/color"
 	"path/filepath"
 
@@ -153,11 +154,11 @@ func (f *FileNode) getStatusIcon() string {
 // StatusColor returns the color for this file based on its git status.
 func (f *FileNode) StatusColor() color.Color {
 	if f.File.IsNew {
-		return lipgloss.Color("2") // green
+		return lipgloss.Green
 	} else if f.File.IsDelete {
-		return lipgloss.Color("1") // red
+		return lipgloss.Red
 	}
-	return lipgloss.Color("3") // yellow/orange
+	return lipgloss.Yellow
 }
 
 func (f *FileNode) String() string {
@@ -175,6 +176,31 @@ func (f *FileNode) Hidden() bool {
 func (f *FileNode) SetHidden(bool) {}
 
 func (f *FileNode) SetValue(any) {}
+
+func LinesCounts(file *gitdiff.File) (int64, int64) {
+	var added int64 = 0
+	var deleted int64 = 0
+	frags := file.TextFragments
+	for _, frag := range frags {
+		added += frag.LinesAdded
+		deleted += frag.LinesDeleted
+	}
+	return added, deleted
+}
+
+func ViewLinesCounts(added, deleted int64, base lipgloss.Style) string {
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		base.Foreground(lipgloss.Green).Render(fmt.Sprintf("+%d ", added)),
+		base.Foreground(lipgloss.Red).Render(fmt.Sprintf("-%d", deleted)),
+	)
+}
+
+func ViewFileLinesCounts(file *gitdiff.File, base lipgloss.Style) string {
+	added, deleted := LinesCounts(file)
+
+	return ViewLinesCounts(added, deleted, base)
+}
 
 func GetFileName(file *gitdiff.File) string {
 	if file.NewName != "" {
