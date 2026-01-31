@@ -92,19 +92,23 @@ ui:
   # Color filenames by git status (default: true)
   colorFileNames: false
 
+  # Show the amount of lines added / removed next to the file
+  showDiffStats: false
+
   # Use side-by-side diff view (default: true, set false for unified)
   sideBySide: true
 ```
 
-| Option               | Type   | Default             | Description                                    |
-| :------------------- | :----- | :------------------ | :--------------------------------------------- |
-| `ui.hideHeader`      | bool   | `false`             | Hide the "DIFFNAV" header                      |
-| `ui.hideFooter`      | bool   | `false`             | Hide the footer with keybindings help          |
-| `ui.showFileTree`    | bool   | `true`              | Show file tree on startup                      |
-| `ui.fileTreeWidth`   | int    | `26`                | Width of the file tree sidebar                 |
-| `ui.searchTreeWidth` | int    | `50`                | Width of the search panel                      |
-| `ui.icons`           | string | `nerd-fonts-status` | Icon style (see below for details)             |
-| `ui.colorFileNames`  | bool   | `true`              | Color filenames by git status                  |
+| Option               | Type   | Default             | Description                                                                |
+| :------------------- | :----- | :------------------ | :------------------------------------------------------------------------- |
+| `ui.hideHeader`      | bool   | `false`             | Hide the "DIFFNAV" header                                                  |
+| `ui.hideFooter`      | bool   | `false`             | Hide the footer with keybindings help                                      |
+| `ui.showFileTree`    | bool   | `true`              | Show file tree on startup                                                  |
+| `ui.fileTreeWidth`   | int    | `26`                | Width of the file tree sidebar                                             |
+| `ui.searchTreeWidth` | int    | `50`                | Width of the search panel                                                  |
+| `ui.icons`           | string | `nerd-fonts-status` | Icon style (see below for details)                                         |
+| `ui.colorFileNames`  | bool   | `true`              | Color filenames by git status                                              |
+| `ui.showDiffStats`   | bool   | `true`              | Show the amount of lines added / removed next to the file                  |
 | `ui.sideBySide`      | bool   | `true`              | Use side-by-side diff view (false for unified) |
 
 ### Icon Styles
