@@ -20,12 +20,22 @@ import (
 
 const dirHeaderHeight = 3
 
+type cachedNode struct {
+	path      string
+	files     []*gitdiff.File
+	additions int64
+	deletions int64
+	diff      string
+}
+
+type nodeCache map[string]*cachedNode
+
 type Model struct {
 	common.Common
 	vp         viewport.Model
-	file       *gitdiff.File
-	dir        string
-	dirFiles   []*gitdiff.File
+	file       *cachedNode
+	dir        *cachedNode
+	cache      nodeCache
 	sideBySide bool
 }
 
@@ -33,6 +43,7 @@ func New(sideBySide bool) Model {
 	return Model{
 		vp:         viewport.Model{},
 		sideBySide: sideBySide,
+		cache:      map[string]*cachedNode{},
 	}
 }
 
@@ -63,7 +74,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				lines[i] = ansi.Truncate(line, m.vp.Width(), "")
 			}
 		}
-		m.vp.SetContent(strings.Join(lines, "\n"))
+		diff := strings.Join(lines, "\n")
+		if _, ok := m.cache[msg.path]; ok {
+			m.cache[msg.path].diff = diff
+		}
+		m.vp.SetContent(diff)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -83,23 +98,29 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 
 func (m *Model) diff() tea.Cmd {
 	if m.file != nil {
+		if m.file.diff != "" {
+			return nil
+		}
 		return diffFile(m.file, m.Width, m.sideBySide)
-	} else if m.dir != "" {
-		return diffDir(m.dir, m.dirFiles, m.Width, m.sideBySide)
+	} else if m.dir != nil {
+		if m.dir.diff != "" {
+			return nil
+		}
+		return diffDir(m.dir, m.Width, m.sideBySide)
 	}
 
 	return nil
 }
 
 func (m Model) headerView() string {
-	if m.dir != "" {
+	if m.dir != nil {
 		return m.dirHeaderView()
 	}
 
-	if m.file == nil {
+	if m.file == nil || len(m.file.files) != 1 {
 		return ""
 	}
-	name := filenode.GetFileName(m.file)
+	name := m.file.path
 	base := lipgloss.NewStyle()
 
 	fileIcon := icons.GetIcon(name, false)
@@ -107,7 +128,7 @@ func (m Model) headerView() string {
 	name = utils.TruncateString(name, m.Width-lipgloss.Width(prefix))
 	top := prefix + base.Bold(true).Render(name)
 
-	bottom := filenode.ViewFileLinesCounts(m.file, base)
+	bottom := filenode.ViewFileLinesCounts(m.file.files[0], base)
 
 	return base.
 		Width(m.Width).
@@ -121,17 +142,10 @@ func (m Model) headerView() string {
 func (m Model) dirHeaderView() string {
 	base := lipgloss.NewStyle().Foreground(lipgloss.Blue)
 	prefix := base.Render(" ")
-	name := utils.TruncateString(m.dir, m.Width-lipgloss.Width(prefix))
-
-	var additions, deletions int64
-	for _, file := range m.dirFiles {
-		a, d := filenode.LinesCounts(file)
-		additions += a
-		deletions += d
-	}
+	name := utils.TruncateString(m.dir.path, m.Width-lipgloss.Width(prefix))
 
 	top := prefix + base.Bold(true).Render(name)
-	bottom := filenode.ViewLinesCounts(additions, deletions, base)
+	bottom := filenode.ViewLinesCounts(m.dir.additions, m.dir.deletions, base)
 	return base.
 		Width(m.Width).
 		Height(dirHeaderHeight - 1).
@@ -142,16 +156,52 @@ func (m Model) dirHeaderView() string {
 }
 
 func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
-	m.file = file
-	m.dir = ""
+	m.dir = nil
+
+	fname := filenode.GetFileName(file)
+	if cached, ok := m.cache[fname]; ok {
+		m.file = cached
+		m.vp.SetContent(cached.diff)
+		return m, nil
+	}
+
+	files := make([]*gitdiff.File, 1)
+	files[0] = file
+	additions, deletions := filenode.LinesCounts(file)
+	m.file = &cachedNode{
+		path:      fname,
+		files:     files,
+		additions: additions,
+		deletions: deletions,
+	}
+	m.cache[fname] = m.file
+
 	return m, diffFile(m.file, m.Width, m.sideBySide)
 }
 
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
 	m.file = nil
-	m.dir = dirPath
-	m.dirFiles = files
-	return m, diffDir(dirPath, files, m.Width, m.sideBySide)
+
+	if cached, ok := m.cache[dirPath]; ok {
+		m.dir = cached
+		m.vp.SetContent(cached.diff)
+		return m, nil
+	}
+
+	var added, deleted int64
+	for _, file := range files {
+		na, nd := filenode.LinesCounts(file)
+		added += na
+		deleted += nd
+	}
+	m.dir = &cachedNode{
+		path:      dirPath,
+		files:     files,
+		additions: added,
+		deletions: deleted,
+	}
+	m.cache[dirPath] = m.dir
+	return m, diffDir(m.dir, m.Width, m.sideBySide)
 }
 
 func (m *Model) GoToTop() {
@@ -174,10 +224,12 @@ func (m *Model) ScrollDown(lines int) {
 	m.vp.ScrollDown(lines)
 }
 
-func diffFile(file *gitdiff.File, width int, sideBySidePreference bool) tea.Cmd {
-	if width == 0 || file == nil {
+func diffFile(node *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
+	if width == 0 || node == nil || len(node.files) != 1 {
 		return nil
 	}
+
+	file := node.files[0]
 	return func() tea.Msg {
 		// Only use side-by-side if preference is true AND file is not new/deleted
 		useSideBySide := sideBySidePreference && !file.IsNew && !file.IsDelete
@@ -197,12 +249,12 @@ func diffFile(file *gitdiff.File, width int, sideBySidePreference bool) tea.Cmd 
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{text: string(out)}
+		return diffContentMsg{path: filenode.GetFileName(file), text: string(out)}
 	}
 }
 
-func diffDir(dirPath string, files []*gitdiff.File, width int, sideBySidePreference bool) tea.Cmd {
-	if width == 0 || dirPath == "" {
+func diffDir(dir *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
+	if width == 0 || dir == nil {
 		return nil
 	}
 	return func() tea.Msg {
@@ -229,7 +281,7 @@ func diffDir(dirPath string, files []*gitdiff.File, width int, sideBySidePrefere
 		deltac := exec.Command("delta", args...)
 		deltac.Env = os.Environ()
 		strs := strings.Builder{}
-		for _, file := range files {
+		for _, file := range dir.files {
 			strs.WriteString(file.String())
 		}
 		deltac.Stdin = strings.NewReader(strs.String() + "\n")
@@ -238,10 +290,11 @@ func diffDir(dirPath string, files []*gitdiff.File, width int, sideBySidePrefere
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{text: string(out)}
+		return diffContentMsg{path: dir.path, text: string(out)}
 	}
 }
 
 type diffContentMsg struct {
+	path string
 	text string
 }

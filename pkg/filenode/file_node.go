@@ -178,6 +178,9 @@ func (f *FileNode) SetHidden(bool) {}
 func (f *FileNode) SetValue(any) {}
 
 func LinesCounts(file *gitdiff.File) (int64, int64) {
+	if file == nil {
+		return 0, 0
+	}
 	var added int64 = 0
 	var deleted int64 = 0
 	frags := file.TextFragments
