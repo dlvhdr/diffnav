@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2/tree"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 
+	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/icons"
 	"github.com/dlvhdr/diffnav/pkg/utils"
 )
@@ -24,13 +25,12 @@ const (
 )
 
 type FileNode struct {
-	File           *gitdiff.File
-	Depth          int
-	YOffset        int
-	IconStyle      string
-	Selected       bool
-	ColorFileNames bool
-	PanelWidth     int
+	File       *gitdiff.File
+	Depth      int
+	YOffset    int
+	Selected   bool
+	PanelWidth int
+	Cfg        config.Config
 }
 
 func (f *FileNode) Path() string {
@@ -41,7 +41,7 @@ func (f *FileNode) Value() string {
 	name := filepath.Base(f.Path())
 
 	// full has a special layout: [status icon] [filename] [file-type icon]
-	if f.IconStyle == IconsNerdFull {
+	if f.Cfg.UI.Icons == IconsNerdFull {
 		return utils.RemoveReset(f.renderFullLayout(name))
 	}
 
@@ -54,7 +54,13 @@ func (f *FileNode) Value() string {
 func (f *FileNode) renderStandardLayout(name string) string {
 	icon := f.getIcon() + " "
 	iconWidth := lipgloss.Width(icon) + 1
-	nameMaxWidth := f.PanelWidth - f.Depth - iconWidth
+
+	stats := ""
+	if f.Cfg.UI.ShowDiffStats {
+		stats = " " + ViewFileDiffStats(f.File, lipgloss.NewStyle())
+	}
+
+	nameMaxWidth := f.PanelWidth - f.Depth - iconWidth - lipgloss.Width(stats)
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 	coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
 
@@ -68,15 +74,15 @@ func (f *FileNode) renderStandardLayout(name string) string {
 				bgStyle = bgStyle.Width(availableWidth)
 			}
 		}
-		return coloredIcon + bgStyle.Render(truncatedName)
+		return coloredIcon + bgStyle.Render(truncatedName) + stats
 	}
 
-	if f.ColorFileNames {
+	if f.Cfg.UI.ColorFileNames {
 		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(truncatedName)
-		return coloredIcon + styledName
+		return coloredIcon + styledName + stats
 	}
 
-	return coloredIcon + truncatedName
+	return coloredIcon + truncatedName + stats
 }
 
 // renderFullLayout renders: [status icon colored] [file-type icon colored] [filename]
@@ -86,10 +92,15 @@ func (f *FileNode) renderFullLayout(name string) string {
 	fileIcon := icons.GetIcon(name, false)
 	style := lipgloss.NewStyle().Foreground(f.StatusColor())
 
+	stats := ""
+	if f.Cfg.UI.ShowDiffStats {
+		stats = " " + ViewFileDiffStats(f.File, lipgloss.NewStyle())
+	}
+
 	iconsPrefix := style.Render(statusIcon) + " " + style.Render(fileIcon) + " "
 	iconsWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
 
-	nameMaxWidth := f.PanelWidth - f.Depth - iconsWidth
+	nameMaxWidth := f.PanelWidth - f.Depth - iconsWidth - lipgloss.Width(stats)
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 
 	if f.Selected {
@@ -99,19 +110,19 @@ func (f *FileNode) renderFullLayout(name string) string {
 				bgStyle = bgStyle.Width(w)
 			}
 		}
-		return iconsPrefix + bgStyle.Render(truncatedName)
+		return iconsPrefix + bgStyle.Render(truncatedName) + stats
 	}
 
-	if f.ColorFileNames {
-		return iconsPrefix + style.Render(truncatedName)
+	if f.Cfg.UI.ColorFileNames {
+		return iconsPrefix + style.Render(truncatedName) + stats
 	}
-	return iconsPrefix + lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Render(truncatedName)
+	return iconsPrefix + lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Render(truncatedName) + stats
 }
 
 // getIcon returns the left icon based on the icon style.
 func (f *FileNode) getIcon() string {
 	name := filepath.Base(f.Path())
-	switch f.IconStyle {
+	switch f.Cfg.UI.Icons {
 	case IconsNerdStatus:
 		if f.File.IsNew {
 			return ""
@@ -177,7 +188,7 @@ func (f *FileNode) SetHidden(bool) {}
 
 func (f *FileNode) SetValue(any) {}
 
-func LinesCounts(file *gitdiff.File) (int64, int64) {
+func DiffStats(file *gitdiff.File) (int64, int64) {
 	if file == nil {
 		return 0, 0
 	}
@@ -191,18 +202,29 @@ func LinesCounts(file *gitdiff.File) (int64, int64) {
 	return added, deleted
 }
 
-func ViewLinesCounts(added, deleted int64, base lipgloss.Style) string {
-	return lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		base.Foreground(lipgloss.Green).Render(fmt.Sprintf("+%d ", added)),
-		base.Foreground(lipgloss.Red).Render(fmt.Sprintf("-%d", deleted)),
-	)
+func ViewDiffStats(added, deleted int64, base lipgloss.Style) string {
+	addedView := ""
+	deletedView := ""
+
+	if added > 0 {
+		addedView = base.Foreground(lipgloss.Green).Render(fmt.Sprintf("+%d", added))
+	}
+
+	if added > 0 && deleted > 0 {
+		addedView += " "
+	}
+
+	if deleted > 0 {
+		deletedView = base.Foreground(lipgloss.Red).Render(fmt.Sprintf("-%d", deleted))
+	}
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, addedView, deletedView)
 }
 
-func ViewFileLinesCounts(file *gitdiff.File, base lipgloss.Style) string {
-	added, deleted := LinesCounts(file)
+func ViewFileDiffStats(file *gitdiff.File, base lipgloss.Style) string {
+	added, deleted := DiffStats(file)
 
-	return ViewLinesCounts(added, deleted, base)
+	return ViewDiffStats(added, deleted, base)
 }
 
 func GetFileName(file *gitdiff.File) string {

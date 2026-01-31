@@ -14,6 +14,7 @@ import (
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/charmbracelet/log"
 
+	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/constants"
 	"github.com/dlvhdr/diffnav/pkg/dirnode"
 	"github.com/dlvhdr/diffnav/pkg/filenode"
@@ -22,13 +23,12 @@ import (
 )
 
 type Model struct {
-	t              tree.Model
-	files          []*gitdiff.File
-	iconStyle      string
-	colorFileNames bool
+	t     tree.Model
+	files []*gitdiff.File
+	cfg   config.Config
 }
 
-func New(iconStyle string, colorFileNames bool) Model {
+func New(cfg config.Config) Model {
 	t := tree.New(nil, constants.OpenFileTreeWidth, 0)
 	t.SetCursorCharacter("")
 	t.SetShowHelp(false)
@@ -36,12 +36,11 @@ func New(iconStyle string, colorFileNames bool) Model {
 	t.SetScrollOff(3)
 
 	m := Model{
-		t:              t,
-		iconStyle:      iconStyle,
-		colorFileNames: colorFileNames,
+		t:   t,
+		cfg: cfg,
 	}
 
-	open, closed := getDirIcons(m.iconStyle)
+	open, closed := getDirIcons(m.cfg.UI.Icons)
 	t.SetOpenCharacter(open)
 	t.SetClosedCharacter(closed)
 	m.updateStyles()
@@ -105,7 +104,7 @@ func (m *Model) updateStyles() {
 		IndenterStyle:           base.Foreground(dimmed),
 	})
 
-	open, closed := getDirIcons(m.iconStyle)
+	open, closed := getDirIcons(m.cfg.UI.Icons)
 	m.t.SetOpenCharacter(open)
 	m.t.SetClosedCharacter(closed)
 }
@@ -157,23 +156,15 @@ func (m *Model) SetCursorByPath(path string) {
 }
 
 func (m *Model) rebuildTree() {
-	t := buildFullFileTree(m.files, options{
-		iconStyle:      m.iconStyle,
-		colorFileNames: m.colorFileNames,
-	})
+	t := buildFullFileTree(m.files, m.cfg)
 	t = collapseTree(t)
-	t, _ = truncateTree(t, 0, 0, 0, m.iconStyle, m.colorFileNames, m.t.Width())
+	t, _ = truncateTree(t, 0, 0, 0, m.cfg, m.t.Width())
 	m.t.SetNodes(t)
 	m.t.SetWidth(m.t.Width())
 	m.updateStyles()
 }
 
-type options struct {
-	iconStyle      string
-	colorFileNames bool
-}
-
-func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
+func buildFullFileTree(files []*gitdiff.File, cfg config.Config) *tree.Node {
 	t := tree.Root(&dirnode.DirNode{FullPath: "/", Name: constants.RootName})
 	for _, file := range files {
 		// start from the root
@@ -209,9 +200,8 @@ func buildFullFileTree(files []*gitdiff.File, opts options) *tree.Node {
 			var c *tree.Node
 			if i == len(parts)-1 {
 				node := &filenode.FileNode{
-					File:           file,
-					IconStyle:      opts.iconStyle,
-					ColorFileNames: opts.colorFileNames,
+					File: file,
+					Cfg:  cfg,
 				}
 				subTree.Child(node)
 			} else {
@@ -298,8 +288,7 @@ func collapseTree(t *tree.Node) *tree.Node {
 	return newT
 }
 
-func truncateTree(t *tree.Node, depth int, numNodes int, numChildren int, iconStyle string,
-	colorFileNames bool, width int,
+func truncateTree(t *tree.Node, depth int, numNodes int, numChildren int, cfg config.Config, width int,
 ) (*tree.Node, int) {
 	dir, ok := t.GivenValue().(*dirnode.DirNode)
 	if !ok {
@@ -313,7 +302,7 @@ func truncateTree(t *tree.Node, depth int, numNodes int, numChildren int, iconSt
 		numChildren++
 		switch value := child.GivenValue().(type) {
 		case *dirnode.DirNode:
-			subTree, subNum := truncateTree(child, depth+1, numNodes, 0, iconStyle, colorFileNames, width)
+			subTree, subNum := truncateTree(child, depth+1, numNodes, 0, cfg, width)
 			numChildren += subNum
 			numNodes += subNum + 1
 			child.SetValue(value)
@@ -420,7 +409,7 @@ func (m *Model) ScrollDown(lines int) {
 
 // SetIconStyle changes the icon style and regenerates the tree.
 func (m *Model) SetIconStyle(iconStyle string) {
-	m.iconStyle = iconStyle
+	m.cfg.UI.Icons = iconStyle
 	if len(m.files) > 0 {
 		m.rebuildTree()
 	}

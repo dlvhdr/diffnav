@@ -46,7 +46,11 @@ func main() {
 			fmt.Println("Error opening debug.log:", fileErr)
 			os.Exit(1)
 		}
-		defer logFile.Close()
+		defer func() {
+			if err := logFile.Close(); err != nil {
+				log.Fatal("failed closing log file", "err", err)
+			}
+		}()
 
 		if fileErr == nil {
 			log.SetOutput(logFile)

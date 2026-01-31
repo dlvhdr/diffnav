@@ -82,7 +82,7 @@ func New(input string, cfg config.Config) mainModel {
 		input: input, isShowingFileTree: cfg.UI.ShowFileTree,
 		activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: cfg.UI.SideBySide,
 	}
-	m.fileTree = filetree.New(cfg.UI.Icons, cfg.UI.ColorFileNames)
+	m.fileTree = filetree.New(cfg)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
 	m.diffViewer = diffviewer.New(cfg.UI.SideBySide)
 

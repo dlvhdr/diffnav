@@ -128,7 +128,7 @@ func (m Model) headerView() string {
 	name = utils.TruncateString(name, m.Width-lipgloss.Width(prefix))
 	top := prefix + base.Bold(true).Render(name)
 
-	bottom := filenode.ViewFileLinesCounts(m.file.files[0], base)
+	bottom := filenode.ViewFileDiffStats(m.file.files[0], base)
 
 	return base.
 		Width(m.Width).
@@ -145,7 +145,7 @@ func (m Model) dirHeaderView() string {
 	name := utils.TruncateString(m.dir.path, m.Width-lipgloss.Width(prefix))
 
 	top := prefix + base.Bold(true).Render(name)
-	bottom := filenode.ViewLinesCounts(m.dir.additions, m.dir.deletions, base)
+	bottom := filenode.ViewDiffStats(m.dir.additions, m.dir.deletions, base)
 	return base.
 		Width(m.Width).
 		Height(dirHeaderHeight - 1).
@@ -167,7 +167,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 
 	files := make([]*gitdiff.File, 1)
 	files[0] = file
-	additions, deletions := filenode.LinesCounts(file)
+	additions, deletions := filenode.DiffStats(file)
 	m.file = &cachedNode{
 		path:      fname,
 		files:     files,
@@ -190,7 +190,7 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 
 	var added, deleted int64
 	for _, file := range files {
-		na, nd := filenode.LinesCounts(file)
+		na, nd := filenode.DiffStats(file)
 		added += na
 		deleted += nd
 	}

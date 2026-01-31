@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
+	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/constants"
 	"github.com/dlvhdr/diffnav/pkg/dirnode"
 	"github.com/dlvhdr/diffnav/pkg/filenode"
@@ -25,7 +26,7 @@ func TestBuildFullFileTree(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tr := buildFullFileTree(files, options{})
+	tr := buildFullFileTree(files, config.Config{})
 	allNodes := tr.AllNodes()
 	if len(allNodes) != 5 {
 		t.Fatalf("expected 5 nodes, but got %d", len(allNodes))
@@ -92,7 +93,7 @@ func TestCollapseTree(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tr := buildFullFileTree(files, options{})
+	tr := buildFullFileTree(files, config.Config{})
 	tr = collapseTree(tr)
 
 	allNodes := tr.AllNodes()
@@ -156,7 +157,7 @@ func TestUncollapsableTree(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tr := buildFullFileTree(files, options{})
+	tr := buildFullFileTree(files, config.Config{})
 
 	tr = collapseTree(tr)
 	allNodes := tr.AllNodes()

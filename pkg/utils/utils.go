@@ -8,6 +8,9 @@ import (
 
 // TruncateString is a convenient wrapper around truncate.TruncateString.
 func TruncateString(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
 	if max < 0 {
 		max = 0
 	}

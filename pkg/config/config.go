@@ -16,6 +16,7 @@ type UIConfig struct {
 	SearchTreeWidth int    `yaml:"searchTreeWidth"`
 	Icons           string `yaml:"icons"`          // "nerd-fonts-status" (default), "nerd-fonts-simple", "nerd-fonts-filetype", "nerd-fonts-full", "unicode", "ascii"
 	ColorFileNames  bool   `yaml:"colorFileNames"` // Color filenames by git status (default: true)
+	ShowDiffStats   bool   `yaml:"showDiffStats"`  // Show the amount of lines added / removed next to the file
 	SideBySide      bool   `yaml:"sideBySide"`     // Side-by-side diff view (default: true)
 }
 
@@ -29,11 +30,12 @@ func DefaultConfig() Config {
 			HideHeader:      false,
 			HideFooter:      false,
 			ShowFileTree:    true,
-			FileTreeWidth:   26,
+			FileTreeWidth:   30,
 			SearchTreeWidth: 50,
 			Icons:           "nerd-fonts-status",
 			ColorFileNames:  true,
 			SideBySide:      true,
+			ShowDiffStats:   true,
 		},
 	}
 }
