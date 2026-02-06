@@ -68,6 +68,9 @@ func main() {
 			log.Debug("🚀 Starting diffnav", "logFile",
 				wd+string(os.PathSeparator)+logFile.Name())
 		}
+	} else {
+		log.SetOutput(os.Stderr)
+		log.SetLevel(log.FatalLevel)
 	}
 
 	reader := bufio.NewReader(os.Stdin)
