@@ -1,16 +1,21 @@
-# diffnav
+<br />
+<p align="center">
+  <img width="504" height="96" alt="output-onlinepngtools" src="https://github.com/user-attachments/assets/b932225f-7f49-4274-886d-61e640f4ef8b" />  
+</p>
 
-A git diff pager based on [delta](https://github.com/dandavison/delta) but with a file tree, à la GitHub.
+<p align="center">
+  A git diff pager based on <a href="https://github.com/dandavison/delta">delta</a> but with a file tree, à la GitHub.
+  <br />
+  <br />
+  <a href="https://github.com/dlvhdr/gh-dash/releases"><img src="https://img.shields.io/github/release/dlvhdr/diffnav.svg" alt="Latest Release"></a>
+  <a href="https://discord.gg/SXNXp9NctV"><img src="https://img.shields.io/discord/1413193703476035755?label=discord" alt="Discord"/></a>
+  <a href="https://github.com/sponsors/dlvhdr"><img src=https://img.shields.io/github/sponsors/dlvhdr?logo=githubsponsors&color=EA4AAA /></a>
+  <a href="https://www.jetify.com/devbox/docs/contributor-quickstart/" alt="Built with Devbox"><img src="https://www.jetify.com/img/devbox/shield_galaxy.svg" /></a>
+</p>
 
 <p align="center">
   <img width="900" src="https://github.com/user-attachments/assets/104e156e-7e9d-4ea5-bea1-399ca71e12a5" />
 </p>
-
-
-<details>
-  <summary>Demo</summary>
-  <img src="https://github.com/dlvhdr/diffnav/blob/74c3f341797ab121ce8edf785ef63e00075ce040/out.gif" />
-</details>
 
 ## Installation
 
