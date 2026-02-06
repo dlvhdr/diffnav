@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
@@ -211,6 +212,13 @@ func (m *Model) GoToTop() {
 // SetSideBySide updates the diff view mode and re-renders.
 func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	m.sideBySide = sideBySide
+	m.cache = make(nodeCache)
+	if m.file != nil {
+		m.file.diff = ""
+	}
+	if m.dir != nil {
+		m.dir.diff = ""
+	}
 	return m.diff()
 }
 
@@ -224,6 +232,36 @@ func (m *Model) ScrollDown(lines int) {
 	m.vp.ScrollDown(lines)
 }
 
+// deltaConfigPath returns a path to a temporary gitconfig that includes
+// the user's config but overrides the side-by-side setting. This is needed
+// because delta's --side-by-side flag can only enable side-by-side mode,
+// not disable it when the user's config has side-by-side = true.
+func deltaConfigPath(sideBySide bool) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	gitconfig := filepath.Join(home, ".gitconfig")
+
+	val := "false"
+	if sideBySide {
+		val = "true"
+	}
+	content := fmt.Sprintf("[include]\n    path = %s\n[delta]\n    side-by-side = %s\n", gitconfig, val)
+
+	f, err := os.CreateTemp("", "diffnav-delta-*.gitconfig")
+	if err != nil {
+		return "", err
+	}
+	if _, err := f.WriteString(content); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return "", err
+	}
+	f.Close()
+	return f.Name(), nil
+}
+
 func diffFile(node *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
 	if width == 0 || node == nil || len(node.files) != 1 {
 		return nil
@@ -233,16 +271,19 @@ func diffFile(node *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
 	return func() tea.Msg {
 		// Only use side-by-side if preference is true AND file is not new/deleted
 		useSideBySide := sideBySidePreference && !file.IsNew && !file.IsDelete
+		configPath, err := deltaConfigPath(useSideBySide)
+		if err != nil {
+			return common.ErrMsg{Err: err}
+		}
+		defer os.Remove(configPath)
+
 		args := []string{
 			"--paging=never",
+			fmt.Sprintf("--config=%s", configPath),
 			fmt.Sprintf("-w=%d", width),
 			fmt.Sprintf("--max-line-length=%d", width),
 		}
-		if useSideBySide {
-			args = append(args, "--side-by-side")
-		}
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
 		deltac.Stdin = strings.NewReader(file.String() + "\n")
 		out, err := deltac.Output()
 		if err != nil {
@@ -275,11 +316,14 @@ func diffDir(dir *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
 			fmt.Sprintf("-w=%d", width),
 			fmt.Sprintf("--max-line-length=%d", width),
 		}
-		if useSideBySide {
-			args = append(args, "--side-by-side")
+		configPath, err := deltaConfigPath(useSideBySide)
+		if err != nil {
+			return common.ErrMsg{Err: err}
 		}
+		defer os.Remove(configPath)
+
+		args = append(args, fmt.Sprintf("--config=%s", configPath))
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
 		strs := strings.Builder{}
 		for _, file := range dir.files {
 			strs.WriteString(file.String())
