@@ -18,6 +18,7 @@ type KeyMap struct {
 	OpenInEditor    key.Binding
 	ToggleDiffView  key.Binding
 	ToggleIconStyle key.Binding
+	ToggleHelp      key.Binding
 }
 
 var keys = &KeyMap{
@@ -67,7 +68,7 @@ var keys = &KeyMap{
 	),
 	SwitchPanel: key.NewBinding(
 		key.WithKeys("tab"),
-		key.WithHelp("TAB", "switch panel"),
+		key.WithHelp("tab", "switch panel"),
 	),
 	OpenInEditor: key.NewBinding(
 		key.WithKeys("o"),
@@ -79,23 +80,30 @@ var keys = &KeyMap{
 	),
 	ToggleIconStyle: key.NewBinding(
 		key.WithKeys("i"),
-		key.WithHelp("i", "toggle ToggleIconStyle"),
+		key.WithHelp("i", "toggle icon style"),
+	),
+	ToggleHelp: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "toggle help"),
 	),
 }
 
-func getKeys() []key.Binding {
-	return []key.Binding{
+func KeyGroups() [][]key.Binding {
+	return [][]key.Binding{{
 		keys.SwitchPanel,
 		keys.Up,
 		keys.Down,
 		keys.CtrlD,
 		keys.CtrlU,
+	}, {
 		keys.ToggleFileTree,
 		keys.Search,
 		keys.Copy,
 		keys.OpenInEditor,
 		keys.ToggleDiffView,
 		keys.ToggleIconStyle,
+	}, {
+		keys.ToggleHelp,
 		keys.Quit,
-	}
+	}}
 }

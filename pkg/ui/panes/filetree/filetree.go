@@ -150,7 +150,6 @@ func (m *Model) SetCursorByPath(path string) {
 		}
 	}
 
-	log.Debug("filetree - setting cursor", "name", path)
 	m.rebuildTree()
 	m.t.SetYOffset(yoffset)
 }
@@ -327,7 +326,6 @@ var indenter = func(children ltree.Children, index int) string {
 
 // SetSize implements the Component interface.
 func (m *Model) SetSize(width, height int) {
-	log.Debug("setting tree size", "width", width, "height", height)
 	m.t.SetSize(width, height)
 	m.rebuildTree()
 }

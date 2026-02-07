@@ -330,3 +330,11 @@ type diffContentMsg struct {
 	cacheKey string
 	text     string
 }
+
+func (m *Model) RootDiffStats() (int64, int64) {
+	if item, ok := m.cache[cacheKey("/", m.sideBySide)]; ok {
+		return item.additions, item.deletions
+	}
+
+	return 0, 0
+}

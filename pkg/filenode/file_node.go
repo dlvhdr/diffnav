@@ -211,7 +211,7 @@ func ViewDiffStats(added, deleted int64, base lipgloss.Style) string {
 	}
 
 	if added > 0 && deleted > 0 {
-		addedView += " "
+		addedView += base.Render(" ")
 	}
 
 	if deleted > 0 {

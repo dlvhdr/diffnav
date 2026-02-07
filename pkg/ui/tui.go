@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/tree"
@@ -23,12 +22,13 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/diffviewer"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetree"
+	"github.com/dlvhdr/diffnav/pkg/ui/panes/help"
 	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
 const (
 	minResizeStep = 6
-	footerHeight  = 2
+	footerHeight  = 1
 	headerHeight  = 2
 	searchHeight  = 3
 
@@ -66,7 +66,6 @@ type mainModel struct {
 	isShowingFileTree bool
 	activePanel       Panel
 	search            textinput.Model
-	help              help.Model
 	resultsVp         viewport.Model
 	resultsCursor     int
 	searching         bool
@@ -75,6 +74,8 @@ type mainModel struct {
 	draggingSidebar   bool
 	iconStyle         string
 	sideBySide        bool
+	help              help.Model
+	helpOpen          bool
 }
 
 func New(input string, cfg config.Config) mainModel {
@@ -85,17 +86,8 @@ func New(input string, cfg config.Config) mainModel {
 	m.fileTree = filetree.New(cfg)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
 	m.diffViewer = diffviewer.New(cfg.UI.SideBySide)
-
 	m.help = help.New()
-	helpSt := lipgloss.NewStyle()
-	m.help.ShortSeparator = " · "
-	m.help.Styles.ShortKey = helpSt
-	m.help.Styles.ShortDesc = helpSt
-	m.help.Styles.ShortSeparator = helpSt
-	m.help.Styles.ShortKey = helpSt.Foreground(lipgloss.Color("254"))
-	m.help.Styles.ShortDesc = helpSt
-	m.help.Styles.ShortSeparator = helpSt
-	m.help.Styles.Ellipsis = helpSt
+	m.help.SetKeys(KeyGroups())
 
 	m.search = textinput.New()
 	m.search.ShowSuggestions = true
@@ -140,6 +132,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, keys.ToggleHelp):
+			m.helpOpen = !m.helpOpen
 		case key.Matches(msg, keys.Search):
 			m.searching = true
 			m.search.SetWidth(m.searchWidth())
@@ -213,7 +207,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		log.Info("got tea.WindowSizeMsg", "width", msg.Width, "height", msg.Height)
-		m.help.SetWidth(msg.Width)
+		m.help.Update(msg)
 		m.width = msg.Width
 		m.height = msg.Height
 		dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.mainContentHeight())
@@ -336,6 +330,11 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 }
 
 func (m mainModel) View() tea.View {
+	var view tea.View
+	view.AltScreen = true
+	view.MouseMode = tea.MouseModeAllMotion
+
+	view.KeyboardEnhancements.ReportEventTypes = true
 	// Determine colors based on active panel.
 	leftColor := lipgloss.Color("8")
 	rightColor := lipgloss.Color("8")
@@ -412,11 +411,28 @@ func (m mainModel) View() tea.View {
 		sections = append(sections, m.footerView())
 	}
 
-	v := tea.NewView(zone.Scan(lipgloss.JoinVertical(lipgloss.Left, sections...)))
-	v.AltScreen = true
-	v.MouseMode = tea.MouseModeAllMotion
-	v.KeyboardEnhancements.ReportEventTypes = true
-	return v
+	appView := zone.Scan(lipgloss.JoinVertical(lipgloss.Left, sections...))
+	layers := []*lipgloss.Layer{
+		lipgloss.NewLayer(appView),
+	}
+
+	if m.helpOpen {
+		helpView := m.help.View()
+		s := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), true).Padding(1, 3).BorderForeground(lipgloss.Blue)
+		row := m.height/4 - 2 // just a bit above the center
+		col := m.width / 2
+		col -= lipgloss.Width(helpView) / 2
+		layers = append(
+			layers,
+			lipgloss.NewLayer(s.Render(helpView)).X(col).Y(row),
+		)
+	}
+
+	comp := lipgloss.NewCompositor(layers...)
+
+	view.Content = comp.Render()
+
+	return view
 }
 
 type fileTreeMsg struct {
@@ -435,12 +451,18 @@ func (m mainModel) fetchFileTree() tea.Msg {
 }
 
 func (m mainModel) footerView() string {
-	return lipgloss.NewStyle().
+	base := lipgloss.NewStyle().Background(common.Colors[common.DarkerSelected])
+	files := fmt.Sprintf(" %d files", len(m.files))
+	sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
+	added, deleted := m.diffViewer.RootDiffStats()
+	help := base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("? help")
+	stats := filenode.ViewDiffStats(added, deleted, base)
+	spacing := base.Render(strings.Repeat(" ", max(0, m.width-lipgloss.Width(stats)-
+		lipgloss.Width(help)-lipgloss.Width(files)-lipgloss.Width(sep))))
+	return base.
 		Width(m.width).
-		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(lipgloss.Color("8")).
 		Height(1).
-		Render(m.help.ShortHelpView(getKeys()))
+		Render(lipgloss.JoinHorizontal(lipgloss.Top, files, sep, stats, spacing, help))
 }
 
 func (m mainModel) resultsView() string {
