@@ -17,6 +17,11 @@
   <img width="900" src="https://github.com/user-attachments/assets/104e156e-7e9d-4ea5-bea1-399ca71e12a5" />
 </p>
 
+## Donating ❤️
+
+If you enjoy `diffnav` and want to help, consider supporting the project with a
+donation at the [sponsors page](https://github.com/sponsors/dlvhdr).
+
 ## Installation
 
 Homebrew:
@@ -28,7 +33,9 @@ brew install dlvhdr/formulae/diffnav
 Go:
 
 ```sh
-go install github.com/dlvhdr/diffnav@latest
+git clone https://github.com/dlvhdr/diffnav.git
+cd diffnav
+go install .
 ```
 
 > [!NOTE]
@@ -38,12 +45,12 @@ go install github.com/dlvhdr/diffnav@latest
 
 ## Usage
 
-### Pipe into diffnav
+### Pipe into `diffnav`
 
 - `git diff | diffnav`
 - `gh pr diff https://github.com/dlvhdr/gh-dash/pull/447 | diffnav`
 
-### Set up as global git diff pager
+### Set up as Global Git Diff Pager
 
 ```bash
 git config --global pager.diff diffnav
@@ -51,10 +58,10 @@ git config --global pager.diff diffnav
 
 ## Flags
 
-| Flag | Description |
-|------|-------------|
+| Flag                 | Description                  |
+| -------------------- | ---------------------------- |
 | `--side-by-side, -s` | Force side-by-side diff view |
-| `--unified, -u` | Force unified diff view |
+| `--unified, -u`      | Force unified diff view      |
 
 Example:
 
@@ -104,17 +111,17 @@ ui:
   sideBySide: true
 ```
 
-| Option               | Type   | Default             | Description                                                                |
-| :------------------- | :----- | :------------------ | :------------------------------------------------------------------------- |
-| `ui.hideHeader`      | bool   | `false`             | Hide the "DIFFNAV" header                                                  |
-| `ui.hideFooter`      | bool   | `false`             | Hide the footer with keybindings help                                      |
-| `ui.showFileTree`    | bool   | `true`              | Show file tree on startup                                                  |
-| `ui.fileTreeWidth`   | int    | `26`                | Width of the file tree sidebar                                             |
-| `ui.searchTreeWidth` | int    | `50`                | Width of the search panel                                                  |
-| `ui.icons`           | string | `nerd-fonts-status` | Icon style (see below for details)                                         |
-| `ui.colorFileNames`  | bool   | `true`              | Color filenames by git status                                              |
-| `ui.showDiffStats`   | bool   | `true`              | Show the amount of lines added / removed next to the file                  |
-| `ui.sideBySide`      | bool   | `true`              | Use side-by-side diff view (false for unified) |
+| Option               | Type   | Default             | Description                                               |
+| :------------------- | :----- | :------------------ | :-------------------------------------------------------- |
+| `ui.hideHeader`      | bool   | `false`             | Hide the "DIFFNAV" header                                 |
+| `ui.hideFooter`      | bool   | `false`             | Hide the footer with keybindings help                     |
+| `ui.showFileTree`    | bool   | `true`              | Show file tree on startup                                 |
+| `ui.fileTreeWidth`   | int    | `26`                | Width of the file tree sidebar                            |
+| `ui.searchTreeWidth` | int    | `50`                | Width of the search panel                                 |
+| `ui.icons`           | string | `nerd-fonts-status` | Icon style (see below for details)                        |
+| `ui.colorFileNames`  | bool   | `true`              | Color filenames by git status                             |
+| `ui.showDiffStats`   | bool   | `true`              | Show the amount of lines added / removed next to the file |
+| `ui.sideBySide`      | bool   | `true`              | Use side-by-side diff view (false for unified)            |
 
 ### Icon Styles
 
@@ -135,22 +142,30 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 
 ## Keys
 
-| Key               | Description          |
-| :---------------- | :------------------- |
-| <kbd>j</kbd>      | Next file            |
-| <kbd>k</kbd>      | Previous file        |
-| <kbd>Ctrl-d</kbd> | Scroll the diff down |
-| <kbd>Ctrl-u</kbd> | Scroll the diff up   |
-| <kbd>e</kbd>      | Toggle the file tree |
-| <kbd>t</kbd>      | Search/go-to file    |
-| <kbd>y</kbd>      | Copy file path       |
-| <kbd>i</kbd>      | Cycle icon style     |
-| <kbd>o</kbd>      | Open file in $EDITOR |
+| Key               | Description                      |
+| :---------------- | :------------------------------- |
+| <kbd>j</kbd>      | Next file                        |
+| <kbd>k</kbd>      | Previous file                    |
+| <kbd>Ctrl-d</kbd> | Scroll the diff down             |
+| <kbd>Ctrl-u</kbd> | Scroll the diff up               |
+| <kbd>e</kbd>      | Toggle the file tree             |
+| <kbd>t</kbd>      | Search/go-to file                |
+| <kbd>y</kbd>      | Copy file path                   |
+| <kbd>i</kbd>      | Cycle icon style                 |
+| <kbd>o</kbd>      | Open file in $EDITOR             |
 | <kbd>s</kbd>      | Toggle side-by-side/unified view |
-| <kbd>Tab</kbd>    | Switch focus between the panes |
-| <kbd>q</kbd>      | Quit                 |
+| <kbd>Tab</kbd>    | Switch focus between the panes   |
+| <kbd>q</kbd>      | Quit                             |
 
-## Under the hood
+## Discord
+
+Have questions? Join our [Discord community](https://discord.gg/SXNXp9NctV)!
+
+## Contributing
+
+See the contribution guide at [https://www.gh-dash.dev/contributing](https://www.gh-dash.dev/contributing/).
+
+## Under the Hood
 
 `diffnav` uses:
 
