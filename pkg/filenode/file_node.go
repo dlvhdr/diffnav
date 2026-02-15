@@ -116,7 +116,10 @@ func (f *FileNode) renderFullLayout(name string) string {
 	if f.Cfg.UI.ColorFileNames {
 		return iconsPrefix + style.Render(truncatedName) + stats
 	}
-	return iconsPrefix + lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Render(truncatedName) + stats
+	return iconsPrefix + lipgloss.NewStyle().
+		Foreground(lipgloss.Color("15")).
+		Render(truncatedName) +
+		stats
 }
 
 // getIcon returns the left icon based on the icon style.

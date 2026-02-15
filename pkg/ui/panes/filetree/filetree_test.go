@@ -42,7 +42,10 @@ func TestBuildFullFileTree(t *testing.T) {
 
 	graphqlServer := root.ChildNodes()[0]
 	if graphqlServer.GivenValue().(*dirnode.DirNode).Name != "graphql-server" {
-		t.Fatalf(`expected root first child value to be "graphql-server", but got %s`, graphqlServer.GivenValue())
+		t.Fatalf(
+			`expected root first child value to be "graphql-server", but got %s`,
+			graphqlServer.GivenValue(),
+		)
 	}
 	yarnLock := root.ChildNodes()[1]
 	if yarnLock.GivenValue().(*filenode.FileNode).Path() != "yarn.lock" {
@@ -52,12 +55,18 @@ func TestBuildFullFileTree(t *testing.T) {
 	}
 
 	if len(graphqlServer.ChildNodes()) != 1 {
-		t.Fatalf("expected graphql-server to have 1 children, but got %d", len(graphqlServer.ChildNodes()))
+		t.Fatalf(
+			"expected graphql-server to have 1 children, but got %d",
+			len(graphqlServer.ChildNodes()),
+		)
 	}
 
 	tests := graphqlServer.ChildNodes()[0]
 	if tests.GivenValue().(*dirnode.DirNode).Name != "tests" {
-		t.Fatalf(`expected graphql-server only child value to be "tests", but got %s`, tests.GivenValue())
+		t.Fatalf(
+			`expected graphql-server only child value to be "tests", but got %s`,
+			tests.GivenValue(),
+		)
 	}
 
 	if len(tests.ChildNodes()) != 1 {
@@ -66,8 +75,10 @@ func TestBuildFullFileTree(t *testing.T) {
 
 	packageJson := tests.ChildNodes()[0]
 	if packageJson.GivenValue().(*filenode.FileNode).Path() != "graphql-server/tests/package.json" {
-		t.Fatalf(`expected tests only child value to be "graphql-server/tests/package.json", but got %s`,
-			packageJson.GivenValue().(*filenode.FileNode).Path())
+		t.Fatalf(
+			`expected tests only child value to be "graphql-server/tests/package.json", but got %s`,
+			packageJson.GivenValue().(*filenode.FileNode).Path(),
+		)
 	}
 }
 
@@ -112,15 +123,24 @@ func TestCollapseTree(t *testing.T) {
 
 	graphqlServer := root.ChildNodes()[0]
 	if graphqlServer.GivenValue().(*dirnode.DirNode).Name != "graphql-server/tests" {
-		t.Fatalf(`expected root first child value to be "graphql-server/tests", but got %s`, graphqlServer.GivenValue())
+		t.Fatalf(
+			`expected root first child value to be "graphql-server/tests", but got %s`,
+			graphqlServer.GivenValue(),
+		)
 	}
 
 	if len(graphqlServer.ChildNodes()) != 1 {
-		t.Fatalf("expected graphql-server to have 1 children, but got %d", len(graphqlServer.ChildNodes()))
+		t.Fatalf(
+			"expected graphql-server to have 1 children, but got %d",
+			len(graphqlServer.ChildNodes()),
+		)
 	}
 	packageJson := graphqlServer.ChildNodes()[0]
 	if packageJson.GivenValue().(*filenode.FileNode).Path() != "graphql-server/tests/package.json" {
-		t.Fatalf(`expected graphql-server/tests only child value to be "graphql-server/tests/package.json", but got %s`, packageJson.GivenValue())
+		t.Fatalf(
+			`expected graphql-server/tests only child value to be "graphql-server/tests/package.json", but got %s`,
+			packageJson.GivenValue(),
+		)
 	}
 
 	yarnLock := root.ChildNodes()[1]

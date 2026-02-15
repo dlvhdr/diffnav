@@ -18,9 +18,15 @@ tasks:
     desc: Run in debug mode. Run `task logs` to watch the logs.
 
   install:
+    desc: Install the application
+    vars:
+      LDFLAGS: '{{if .VERSION}}-ldflags="-X github.com/dlvhdr/diffnav/pkg/version.Version={{.VERSION}}"{{end}}'
     cmds:
-      - go build -buildvcs=false . && go install -buildvcs=false .
-    desc: Install with go
+      - go install {{.LDFLAGS}} -v .
+    sources:
+      - ./**/*.go
+      - go.mod
+
 
   diff:
     cmds:
@@ -76,9 +82,9 @@ tasks:
     desc: Run tests
 
   fmt:
-    desc: Run gofumpt
+    desc: Run golangci-lint fmt
     cmds:
-      - gofumpt -w $(git ls-files '*.go')
+      - golangci-lint fmt
 
   check-nerd-font:
     cmds:

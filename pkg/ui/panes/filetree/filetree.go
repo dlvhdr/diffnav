@@ -71,7 +71,10 @@ func (m *Model) View() string {
 
 func getDirIcons(iconStyle string) (string, string) {
 	switch iconStyle {
-	case filenode.IconsNerdStatus, filenode.IconsNerdSimple, filenode.IconsNerdFiletype, filenode.IconsNerdFull:
+	case filenode.IconsNerdStatus,
+		filenode.IconsNerdSimple,
+		filenode.IconsNerdFiletype,
+		filenode.IconsNerdFull:
 		return "", "󰉋"
 	case filenode.IconsUnicode:
 		return "▼", "▶"
@@ -287,14 +290,25 @@ func collapseTree(t *tree.Node) *tree.Node {
 	return newT
 }
 
-func truncateTree(t *tree.Node, depth int, numNodes int, numChildren int, cfg config.Config, width int,
+func truncateTree(
+	t *tree.Node,
+	depth int,
+	numNodes int,
+	numChildren int,
+	cfg config.Config,
+	width int,
 ) (*tree.Node, int) {
 	dir, ok := t.GivenValue().(*dirnode.DirNode)
 	if !ok {
 		return t, 0
 	}
 
-	newT := tree.Root(&dirnode.DirNode{Name: utils.TruncateString(dir.Name, width-depth-2), FullPath: dir.FullPath})
+	newT := tree.Root(
+		&dirnode.DirNode{
+			Name:     utils.TruncateString(dir.Name, width-depth-2),
+			FullPath: dir.FullPath,
+		},
+	)
 	numNodes++
 
 	for _, child := range t.ChildNodes() {

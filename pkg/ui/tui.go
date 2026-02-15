@@ -350,9 +350,13 @@ func (m mainModel) View() tea.View {
 		if m.isShowingFileTree {
 			sidebarW := m.sidebarWidth()
 			rightW := max(m.width-sidebarW, 0)
-			leftLine := lipgloss.NewStyle().Foreground(leftColor).Render(strings.Repeat("─", sidebarW))
+			leftLine := lipgloss.NewStyle().
+				Foreground(leftColor).
+				Render(strings.Repeat("─", sidebarW))
 			junction := lipgloss.NewStyle().Foreground(leftColor).Render("┬")
-			rightLine := lipgloss.NewStyle().Foreground(rightColor).Render(strings.Repeat("─", rightW))
+			rightLine := lipgloss.NewStyle().
+				Foreground(rightColor).
+				Render(strings.Repeat("─", rightW))
 			separator = leftLine + junction + rightLine
 		} else {
 			separator = lipgloss.NewStyle().Foreground(rightColor).Render(strings.Repeat("─", m.width))
@@ -374,7 +378,8 @@ func (m mainModel) View() tea.View {
 		} else {
 			content = zone.Mark(zoneFileTree, m.fileTree.View())
 		}
-		content = lipgloss.NewStyle().Render(lipgloss.JoinVertical(lipgloss.Left, searchBox, content))
+		content = lipgloss.NewStyle().
+			Render(lipgloss.JoinVertical(lipgloss.Left, searchBox, content))
 
 		sidebar = lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), false, true, false, false).
@@ -418,7 +423,10 @@ func (m mainModel) View() tea.View {
 
 	if m.helpOpen {
 		helpView := m.help.View()
-		s := lipgloss.NewStyle().Border(lipgloss.NormalBorder(), true).Padding(1, 3).BorderForeground(lipgloss.Blue)
+		s := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), true).
+			Padding(1, 3).
+			BorderForeground(lipgloss.Blue)
 		row := m.height/4 - 2 // just a bit above the center
 		col := m.width / 2
 		col -= lipgloss.Width(helpView) / 2
@@ -470,7 +478,13 @@ func (m mainModel) resultsView() string {
 	for i, f := range m.filtered {
 		fName := utils.TruncateString(" "+f, m.config.UI.SearchTreeWidth-2)
 		if i == m.resultsCursor {
-			sb.WriteString(lipgloss.NewStyle().Background(lipgloss.Color("#1b1b33")).Bold(true).Render(fName) + "\n")
+			sb.WriteString(
+				lipgloss.NewStyle().
+					Background(lipgloss.Color("#1b1b33")).
+					Bold(true).
+					Render(fName) +
+					"\n",
+			)
 		} else {
 			sb.WriteString(fName + "\n")
 		}
@@ -753,7 +767,10 @@ func (m mainModel) setNodeDiff(node *tree.Node) (mainModel, tea.Cmd) {
 func (m *mainModel) setSearchResults() {
 	filtered := make([]string, 0)
 	for _, f := range m.files {
-		if strings.Contains(strings.ToLower(filenode.GetFileName(f)), strings.ToLower(m.search.Value())) {
+		if strings.Contains(
+			strings.ToLower(filenode.GetFileName(f)),
+			strings.ToLower(m.search.Value()),
+		) {
 			filtered = append(filtered, filenode.GetFileName(f))
 		}
 	}
