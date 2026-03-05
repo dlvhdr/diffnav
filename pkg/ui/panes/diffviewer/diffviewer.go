@@ -389,6 +389,10 @@ type diffContentMsg struct {
 	text     string
 }
 
+func (m *Model) ClearCache() {
+	m.cache = make(nodeCache)
+}
+
 func (m *Model) RootDiffStats() (int64, int64) {
 	if item, ok := m.cache[cacheKey("/", m.sideBySide)]; ok {
 		return item.additions, item.deletions
