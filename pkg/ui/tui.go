@@ -224,6 +224,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		m.fileTree = m.fileTree.SetFiles(m.files)
+		m.diffViewer.SetPreamble(strings.TrimSpace(msg.preamble))
 		m.diffViewer, cmd = m.diffViewer.SetDirPatch("/", m.fileTree.GetCurrNodeDesendantDiffs())
 		cmds = append(cmds, cmd)
 
@@ -444,18 +445,19 @@ func (m mainModel) View() tea.View {
 }
 
 type fileTreeMsg struct {
-	files []*gitdiff.File
+	files    []*gitdiff.File
+	preamble string
 }
 
 func (m mainModel) fetchFileTree() tea.Msg {
 	// TODO: handle error
-	files, _, err := gitdiff.Parse(strings.NewReader(m.input + "\n"))
+	files, preamble, err := gitdiff.Parse(strings.NewReader(m.input + "\n"))
 	if err != nil {
 		return common.ErrMsg{Err: err}
 	}
 	sortFiles(files)
 
-	return fileTreeMsg{files: files}
+	return fileTreeMsg{files: files, preamble: preamble}
 }
 
 func (m mainModel) footerView() string {

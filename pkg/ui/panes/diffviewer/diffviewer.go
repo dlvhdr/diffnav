@@ -44,6 +44,12 @@ type Model struct {
 	dir        *cachedNode
 	cache      nodeCache
 	sideBySide bool
+	preamble   string
+}
+
+// SetPreamble stores the preamble text (e.g. commit metadata from git show).
+func (m *Model) SetPreamble(preamble string) {
+	m.preamble = preamble
 }
 
 func New(sideBySide bool) Model {
@@ -136,7 +142,11 @@ func (m *Model) diff() tea.Cmd {
 		}
 		m.dir = node
 		m.cache[key] = node
-		return diffDir(node, m.Width, m.sideBySide)
+		preamble := ""
+		if m.dir.path == "/" {
+			preamble = m.preamble
+		}
+		return diffDir(node, m.Width, m.sideBySide, preamble)
 	}
 
 	return nil
@@ -233,7 +243,11 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 		deletions: deleted,
 	}
 	m.cache[key] = m.dir
-	return m, diffDir(m.dir, m.Width, m.sideBySide)
+	preamble := ""
+	if dirPath == "/" {
+		preamble = m.preamble
+	}
+	return m, diffDir(m.dir, m.Width, m.sideBySide, preamble)
 }
 
 func (m *Model) GoToTop() {
@@ -285,7 +299,7 @@ func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 	}
 }
 
-func diffDir(dir *cachedNode, width int, sideBySide bool) tea.Cmd {
+func diffDir(dir *cachedNode, width int, sideBySide bool, preamble string) tea.Cmd {
 	if width == 0 || dir == nil {
 		return nil
 	}
@@ -322,8 +336,41 @@ func diffDir(dir *cachedNode, width int, sideBySide bool) tea.Cmd {
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{cacheKey: key, text: string(out)}
+		text := string(out)
+		if preamble != "" {
+			text = renderPreamble(preamble) + "\n" + text
+		}
+		return diffContentMsg{cacheKey: key, text: text}
 	}
+}
+
+func renderPreamble(preamble string) string {
+	preamble = strings.TrimSpace(preamble)
+	if preamble == "" {
+		return ""
+	}
+
+	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	yellow := lipgloss.NewStyle().Foreground(lipgloss.Yellow)
+
+	var out []string
+	for _, line := range strings.Split(preamble, "\n") {
+		switch {
+		case strings.HasPrefix(line, "commit "):
+			out = append(out, dim.Render("commit ")+yellow.Render(strings.TrimPrefix(line, "commit ")))
+		case strings.HasPrefix(line, "Author:"),
+			strings.HasPrefix(line, "AuthorDate:"),
+			strings.HasPrefix(line, "Date:"),
+			strings.HasPrefix(line, "Commit:"),
+			strings.HasPrefix(line, "CommitDate:"),
+			strings.HasPrefix(line, "Merge:"):
+			out = append(out, dim.Render(line))
+		default:
+			out = append(out, line)
+		}
+	}
+
+	return strings.Join(out, "\n")
 }
 
 type diffContentMsg struct {
