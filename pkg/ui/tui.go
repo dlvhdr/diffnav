@@ -757,15 +757,21 @@ func (m mainModel) footerView() string {
 	added, deleted := m.diffViewer.RootDiffStats()
 	help := zone.Mark(zoneHelp, base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("F1/? help"))
 	stats := filenode.ViewDiffStats(added, deleted, base)
+	parts := []string{files, sep, stats}
+	usedWidth := lipgloss.Width(stats) + lipgloss.Width(help) + lipgloss.Width(files) + lipgloss.Width(sep)
 
-	left := lipgloss.JoinHorizontal(lipgloss.Top, files, sep, stats)
-	rightWidth := lipgloss.Width(help)
+	if m.watchEnabled {
+		watchLabel := base.Foreground(lipgloss.Color("3")).Render(" watching: " + m.watchCmd)
+		parts = append(parts, watchLabel)
+		usedWidth += lipgloss.Width(watchLabel)
+	}
 
-	spacing := base.Render(strings.Repeat(" ", max(0, m.width-lipgloss.Width(left)-rightWidth)))
+	spacing := base.Render(strings.Repeat(" ", max(0, m.width-usedWidth)))
+	parts = append(parts, spacing, help)
 	return base.
 		Width(m.width).
 		Height(1).
-		Render(lipgloss.JoinHorizontal(lipgloss.Top, left, spacing, help))
+		Render(lipgloss.JoinHorizontal(lipgloss.Top, parts...))
 }
 
 func (m *mainModel) messageView() string {
