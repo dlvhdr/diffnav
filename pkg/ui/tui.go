@@ -26,6 +26,7 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetree"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/help"
 	"github.com/dlvhdr/diffnav/pkg/utils"
+	"github.com/dlvhdr/diffnav/pkg/watch"
 	"github.com/lrstanley/go-nf/glyphs/md"
 	"github.com/lrstanley/go-nf/glyphs/neo"
 )
@@ -87,12 +88,17 @@ type mainModel struct {
 	preamble          string
 	commitBranch      string
 	cachedMeta        commitMeta
+	watchEnabled      bool
+	watchCmd          string
+	watchInterval     time.Duration
+	pendingCursorPath string
 }
 
 func New(input string, cfg config.Config) mainModel {
 	m := mainModel{
 		input: input, isShowingFileTree: cfg.UI.ShowFileTree,
 		activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: cfg.UI.SideBySide,
+		watchEnabled: cfg.Watch.Enabled, watchCmd: cfg.Watch.Cmd, watchInterval: cfg.Watch.Interval,
 	}
 	m.fileTree = filetree.New(cfg)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
@@ -118,8 +124,30 @@ func New(input string, cfg config.Config) mainModel {
 	return m
 }
 
+type watchTickMsg struct{ time.Time }
+
+type watchResultMsg struct {
+	output string
+	err    error
+}
+
 func (m mainModel) Init() tea.Cmd {
-	return tea.Batch(m.fetchFileTree, m.diffViewer.Init())
+	cmds := []tea.Cmd{m.fetchFileTree, m.diffViewer.Init()}
+	if m.watchEnabled {
+		cmds = append(cmds, m.scheduleWatchTick())
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m mainModel) scheduleWatchTick() tea.Cmd {
+	return tea.Tick(m.watchInterval, func(t time.Time) tea.Msg {
+		return watchTickMsg{t}
+	})
+}
+
+func (m mainModel) fetchWatchDiff() tea.Msg {
+	output, err := watch.RunCmd(m.watchCmd)
+	return watchResultMsg{output: output, err: err}
 }
 
 func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -270,9 +298,28 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateMessageVp()
 		}
 
+	case watchTickMsg:
+		return m, m.fetchWatchDiff
+
+	case watchResultMsg:
+		if msg.err != nil {
+			log.Error("watch command failed", "err", msg.err)
+			cmds = append(cmds, m.scheduleWatchTick())
+			return m, tea.Batch(cmds...)
+		}
+		if msg.output == m.input {
+			cmds = append(cmds, m.scheduleWatchTick())
+			return m, tea.Batch(cmds...)
+		}
+		m.pendingCursorPath = m.fileTree.CurrNodePath()
+		m.diffViewer.ClearCache()
+		m.input = msg.output
+		cmds = append(cmds, m.fetchFileTree, m.scheduleWatchTick())
+		return m, tea.Batch(cmds...)
+
 	case fileTreeMsg:
 		m.files = msg.files
-		if len(m.files) == 0 {
+		if len(m.files) == 0 && !m.watchEnabled {
 			return m, tea.Quit
 		}
 		m.fileTree = m.fileTree.SetFiles(m.files)
@@ -282,6 +329,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.diffViewer.SetPreamble(m.preamble)
 		m.diffViewer, cmd = m.diffViewer.SetDirPatch("/", m.fileTree.GetCurrNodeDesendantDiffs())
 		cmds = append(cmds, cmd)
+		if m.pendingCursorPath != "" {
+			m.fileTree.SetCursorByPath(m.pendingCursorPath)
+			node := m.fileTree.GetCurrNode()
+			m, cmd = m.setNodeDiff(node)
+			cmds = append(cmds, cmd)
+			m.pendingCursorPath = ""
+		}
 
 	case common.ErrMsg:
 		fmt.Printf("Error: %v\n", msg.Err)
