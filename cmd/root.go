@@ -23,6 +23,7 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/ui"
 	"github.com/dlvhdr/diffnav/pkg/version"
+	"github.com/dlvhdr/diffnav/pkg/watch"
 )
 
 //go:embed logo-diff-part.txt
@@ -116,16 +117,6 @@ func init() {
 
 		zone.NewGlobal()
 
-		stat, err := os.Stdin.Stat()
-		if err != nil {
-			panic(err)
-		}
-
-		if !helpFlag && stat.Mode()&os.ModeNamedPipe == 0 && stat.Size() == 0 {
-			fmt.Println("No diff, exiting")
-			os.Exit(0)
-		}
-
 		if os.Getenv("DEBUG") == "true" {
 			var fileErr error
 			logFile, fileErr := os.OpenFile("debug.log",
@@ -161,26 +152,46 @@ func init() {
 			log.SetLevel(log.FatalLevel)
 		}
 
-		reader := bufio.NewReader(os.Stdin)
-		var b strings.Builder
-
-		for {
-			r, _, err := reader.ReadRune()
-			if err != nil && err == io.EOF {
-				break
+		var input string
+		if watchFlag {
+			output, wErr := watch.RunCmd(watchCmd)
+			if wErr != nil {
+				log.Warn("initial watch command failed, starting with empty diff", "err", wErr)
 			}
-			_, err = b.WriteRune(r)
-			if err != nil {
-				fmt.Println("Error getting input:", err)
-				os.Exit(1)
+			input = output
+		} else {
+			stat, sErr := os.Stdin.Stat()
+			if sErr != nil {
+				panic(sErr)
+			}
+
+			if !helpFlag && stat.Mode()&os.ModeNamedPipe == 0 && stat.Size() == 0 {
+				fmt.Println("No diff, exiting")
+				os.Exit(0)
+			}
+
+			reader := bufio.NewReader(os.Stdin)
+			var b strings.Builder
+
+			for {
+				r, _, rErr := reader.ReadRune()
+				if rErr != nil && rErr == io.EOF {
+					break
+				}
+				_, rErr = b.WriteRune(r)
+				if rErr != nil {
+					fmt.Println("Error getting input:", rErr)
+					os.Exit(1)
+				}
+			}
+
+			input = ansi.Strip(b.String())
+			if strings.TrimSpace(input) == "" {
+				fmt.Println("No input provided, exiting")
+				os.Exit(0)
 			}
 		}
 
-		input := ansi.Strip(b.String())
-		if strings.TrimSpace(input) == "" {
-			fmt.Println("No input provided, exiting")
-			os.Exit(0)
-		}
 		cfg := config.Load()
 
 		// Override config with CLI flags if specified
