@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -20,8 +21,15 @@ type UIConfig struct {
 	SideBySide      bool   `yaml:"sideBySide"`     // Side-by-side diff view (default: true)
 }
 
+type WatchConfig struct {
+	Enabled  bool
+	Cmd      string
+	Interval time.Duration
+}
+
 type Config struct {
-	UI UIConfig `yaml:"ui"`
+	UI    UIConfig    `yaml:"ui"`
+	Watch WatchConfig `yaml:"-"`
 }
 
 func DefaultConfig() Config {

@@ -79,6 +79,10 @@ func init() {
 
 	rootCmd.Flags().BoolP("unified", "u", false, "Force unified diff view")
 
+	rootCmd.Flags().BoolP("watch", "w", false, "Watch mode: periodically re-run a diff command and refresh")
+	rootCmd.Flags().String("watch-cmd", "git diff", "Command to run in watch mode")
+	rootCmd.Flags().Duration("watch-interval", 2*time.Second, "Interval between watch refreshes")
+
 	rootCmd.SetVersionTemplate("\n" + logo + "\n" + `{{printf "version %s\n" .Version}}`)
 
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
@@ -95,6 +99,19 @@ func init() {
 		helpFlag, err := cmd.Flags().GetBool("help")
 		if err != nil {
 			log.Fatal("Cannot parse the help flag", err)
+		}
+
+		watchFlag, err := cmd.Flags().GetBool("watch")
+		if err != nil {
+			log.Fatal("Cannot parse the watch flag", err)
+		}
+		watchCmd, err := cmd.Flags().GetString("watch-cmd")
+		if err != nil {
+			log.Fatal("Cannot parse the watch-cmd flag", err)
+		}
+		watchInterval, err := cmd.Flags().GetDuration("watch-interval")
+		if err != nil {
+			log.Fatal("Cannot parse the watch-interval flag", err)
 		}
 
 		zone.NewGlobal()
@@ -171,6 +188,12 @@ func init() {
 			cfg.UI.SideBySide = false
 		} else if sideBySideFlag {
 			cfg.UI.SideBySide = true
+		}
+
+		cfg.Watch = config.WatchConfig{
+			Enabled:  watchFlag,
+			Cmd:      watchCmd,
+			Interval: watchInterval,
 		}
 
 		ttyIn, _, err := tea.OpenTTY()
