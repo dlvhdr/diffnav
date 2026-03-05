@@ -85,7 +85,7 @@ diffnav --watch
 diffnav --watch --watch-cmd "git diff --cached" --watch-interval 5s
 
 # watch changes against a specific branch
-diffnav --watch --watch-cmd "git diff main"
+diffnav --watch --watch-cmd "git diff main..."
 ```
 
 ## Configuration
