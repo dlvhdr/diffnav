@@ -92,6 +92,7 @@ type mainModel struct {
 	watchCmd          string
 	watchInterval     time.Duration
 	pendingCursorPath string
+	watchInFlight     bool
 }
 
 func New(input string, cfg config.Config) mainModel {
@@ -299,11 +300,16 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case watchTickMsg:
+		if m.watchInFlight {
+			return m, nil
+		}
+		m.watchInFlight = true
 		return m, m.fetchWatchDiff
 
 	case watchResultMsg:
+		m.watchInFlight = false
 		if msg.err != nil {
-			log.Error("watch command failed", "err", msg.err)
+			log.Warn("watch command failed", "err", msg.err)
 			cmds = append(cmds, m.scheduleWatchTick())
 			return m, tea.Batch(cmds...)
 		}

@@ -49,6 +49,10 @@ gh pr diff https://github.com/dlvhdr/gh-dash/pull/447 | diffnav
 
 # set up as the global git diff pager
 git config --global pager.diff diffnav
+
+# watch mode: auto-refresh a diff command
+diffnav --watch
+diffnav --watch --watch-cmd "git diff HEAD" --watch-interval 5s
 	`,
 }
 
