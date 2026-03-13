@@ -24,11 +24,11 @@ type KeyMap struct {
 var keys = &KeyMap{
 	ExpandNode: key.NewBinding(
 		key.WithKeys("l"),
-		key.WithHelp("l", "expand"),
+		key.WithHelp("l", "expand/focus diff"),
 	),
 	CollapseNode: key.NewBinding(
 		key.WithKeys("h"),
-		key.WithHelp("h", "collapse"),
+		key.WithHelp("h", "collapse/focus tree"),
 	),
 	ToggleNode: key.NewBinding(
 		key.WithKeys("enter"),
@@ -91,6 +91,8 @@ var keys = &KeyMap{
 func KeyGroups() [][]key.Binding {
 	return [][]key.Binding{{
 		keys.SwitchPanel,
+		keys.ExpandNode,
+		keys.CollapseNode,
 		keys.Up,
 		keys.Down,
 		keys.CtrlD,

@@ -114,6 +114,7 @@ func (m mainModel) Init() tea.Cmd {
 func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+	var keyHandled bool
 
 	// Handle mouse events regardless of search mode
 	if msg, ok := msg.(tea.MouseMsg); ok {
@@ -180,6 +181,19 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.activePanel = FileTreePanel
 				}
 			}
+		case key.Matches(msg, keys.ExpandNode):
+			if m.activePanel == FileTreePanel {
+				node := m.fileTree.GetCurrNode()
+				if _, isFile := node.GivenValue().(*filenode.FileNode); isFile {
+					m.activePanel = DiffViewerPanel
+					keyHandled = true
+				}
+			}
+		case key.Matches(msg, keys.CollapseNode):
+			if m.activePanel == DiffViewerPanel {
+				m.activePanel = FileTreePanel
+				keyHandled = true
+			}
 		case key.Matches(msg, keys.Up):
 			if m.activePanel == FileTreePanel {
 				m, cmd = m.moveCursor(-1)
@@ -236,8 +250,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Route messages: key messages go only to active panel, other messages go to both.
 	// Exception: ctrl+d/ctrl+u always go to diffViewer for scrolling.
+	// Skip routing if the key was already fully handled (e.g. panel switch via h/l).
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if keyHandled {
+			break
+		}
 		switch msg.String() {
 		case "ctrl+d", "ctrl+u":
 			m.diffViewer, cmd = m.diffViewer.Update(msg)
