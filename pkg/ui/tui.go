@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
@@ -13,8 +14,8 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"charm.land/log/v2"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	"github.com/charmbracelet/log"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/diffnav/pkg/config"
@@ -25,6 +26,7 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetree"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/help"
 	"github.com/dlvhdr/diffnav/pkg/utils"
+	"github.com/lrstanley/go-nf/glyphs/neo"
 )
 
 const (
@@ -510,33 +512,10 @@ func (m mainModel) fetchFileTree() tea.Msg {
 	return fileTreeMsg{files: files, preamble: preamble, branch: branch}
 }
 
-func relativeTime(t time.Time) string {
-	d := time.Since(t)
-	switch {
-	case d < time.Minute:
-		return "now"
-	case d < time.Hour:
-		m := int(d.Minutes())
-		return fmt.Sprintf("%dm", m)
-	case d < 24*time.Hour:
-		h := int(d.Hours())
-		return fmt.Sprintf("%dh", h)
-	case d < 30*24*time.Hour:
-		days := int(d.Hours() / 24)
-		return fmt.Sprintf("%dD", days)
-	case d < 365*24*time.Hour:
-		months := int(d.Hours() / 24 / 30)
-		return fmt.Sprintf("%dM", months)
-	default:
-		years := int(d.Hours() / 24 / 365)
-		return fmt.Sprintf("%dY", years)
-	}
-}
-
 // resolveBranch finds branches pointing at the preamble commit.
 func resolveBranch(preamble string) string {
 	// Check for decoration in commit line: "commit abc123 (HEAD -> branch)"
-	for _, line := range strings.Split(preamble, "\n") {
+	for line := range strings.SplitSeq(preamble, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "commit ") {
 			if idx := strings.Index(trimmed, " ("); idx > 0 {
@@ -544,7 +523,7 @@ func resolveBranch(preamble string) string {
 				if end := strings.Index(refs, ")"); end > 0 {
 					refs = refs[:end]
 				}
-				for _, ref := range strings.Split(refs, ",") {
+				for ref := range strings.SplitSeq(refs, ",") {
 					ref = strings.TrimSpace(ref)
 					if strings.HasPrefix(ref, "HEAD -> ") {
 						return strings.TrimPrefix(ref, "HEAD -> ")
@@ -563,7 +542,7 @@ func resolveBranch(preamble string) string {
 			if err != nil {
 				return ""
 			}
-			for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			for l := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 				b := strings.TrimLeft(l, " *+")
 				if b != "" {
 					return b
@@ -586,7 +565,7 @@ func (m mainModel) parseCommitMeta() commitMeta {
 	if m.preamble == "" {
 		return meta
 	}
-	for _, line := range strings.Split(m.preamble, "\n") {
+	for line := range strings.SplitSeq(m.preamble, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "commit ") && meta.hash == "" {
 			h := strings.TrimPrefix(trimmed, "commit ")
@@ -637,7 +616,7 @@ func (m mainModel) commitSubject() string {
 	if m.preamble == "" {
 		return ""
 	}
-	for _, line := range strings.Split(m.preamble, "\n") {
+	for line := range strings.SplitSeq(m.preamble, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
@@ -676,12 +655,20 @@ func (m mainModel) viewHeader() string {
 		var infoParts []string
 		infoParts = append(infoParts, hashStyle.Render(meta.hash))
 		if meta.date != "" {
-			infoParts = append(infoParts, dateStyle.Render(meta.date))
+			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
+				infoParts = append(infoParts, dateStyle.Render(" " + meta.date))
+			} else {
+				infoParts = append(infoParts, dateStyle.Render(meta.date))
+			}
 		}
 		if meta.author != "" {
+			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
+				infoParts = append(infoParts, authorStyle.Render(" " + meta.author))
+			} else {
 			infoParts = append(infoParts, authorStyle.Render(meta.author))
+			}
 		}
-		headerParts = headerParts + sep + strings.Join(infoParts, " ")
+		headerParts = headerParts + sep + strings.Join(infoParts, sep)
 
 		// Branch ref.
 		if m.commitBranch != "" {
@@ -733,7 +720,7 @@ func (m *mainModel) messageView() string {
 	var out []string
 
 	// Render preamble lines.
-	for _, line := range strings.Split(m.preamble, "\n") {
+	for line := range strings.SplitSeq(m.preamble, "\n") {
 		switch {
 		case strings.HasPrefix(line, "commit "):
 			out = append(out, dim.Render("commit ")+yellow.Render(strings.TrimPrefix(line, "commit ")))
@@ -755,10 +742,7 @@ func (m *mainModel) messageView() string {
 func (m *mainModel) updateMessageVp() {
 	s := overlayStyle()
 	maxWidth := min(m.width*3/4, 80)
-	maxHeight := m.height/2 - s.GetVerticalFrameSize()
-	if maxHeight < 5 {
-		maxHeight = 5
-	}
+	maxHeight := max(m.height/2 - s.GetVerticalFrameSize(), 5)
 	content := lipgloss.NewStyle().Width(maxWidth).Render(m.messageView())
 	m.messageVp.SetWidth(maxWidth)
 	m.messageVp.SetHeight(maxHeight)
@@ -786,7 +770,7 @@ func (m mainModel) renderScrollbar() string {
 	thumb := lipgloss.NewStyle().Foreground(lipgloss.Blue)
 
 	var sb strings.Builder
-	for i := 0; i < trackHeight; i++ {
+	for i := range trackHeight {
 		if i > 0 {
 			sb.WriteByte('\n')
 		}
@@ -801,17 +785,33 @@ func (m mainModel) renderScrollbar() string {
 
 func (m mainModel) resultsView() string {
 	sb := strings.Builder{}
+	baseStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#F7F7F7"))
+	dirStyle := lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("#B8B8B8"))
 	for i, f := range m.filtered {
-		fName := utils.TruncateString(" "+f, m.config.UI.SearchTreeWidth-2)
+		icon := neo.ByPath(f)
+		if icon == nil {
+			icon = neo.ByFileExtension("txt")
+		}
+		base := utils.RemoveReset(lipgloss.NewStyle().
+			Foreground(icon.Color(true)).
+			Render(icon.Glyph().String()) + " " + baseStyle.Render(path.Base(f)))
+		dir := utils.TruncateString(
+			dirStyle.Render(path.Dir(f)),
+			m.config.UI.SearchTreeWidth-2-lipgloss.Width(base),
+		)
+		if path.Dir(f) == "." {
+			dir = ""
+		}
 		if i == m.resultsCursor {
-			sb.WriteString(
-				lipgloss.NewStyle().
-					Background(lipgloss.Color("#1b1b33")).
-					Bold(true).
-					Render(fName) +
-					"\n",
+			bg := lipgloss.NewStyle().Background(lipgloss.Color("#1b1b33"))
+			fName := lipgloss.NewStyle().Bold(true).Render(bg.Render(base)) + bg.Render(" ") + bg.Render(dir)
+			sb.WriteString(bg.
+				Width(m.config.UI.SearchTreeWidth).
+				Render(fName) +
+				"\n",
 			)
 		} else {
+			fName := base + " " + dir
 			sb.WriteString(fName + "\n")
 		}
 	}
