@@ -783,9 +783,9 @@ func (m mainModel) footerView() string {
 	)
 
 	if m.watchEnabled {
-		watchLabel := base.Foreground(lipgloss.Color("3")).Render("watching: " + m.watchCmd)
+		watchLabel := base.Foreground(lipgloss.Yellow).Render("watching: " + m.watchCmd)
 		parts = append(parts, sep, watchLabel)
-		usedWidth += lipgloss.Width(watchLabel)
+		usedWidth += lipgloss.Width(sep) + lipgloss.Width(watchLabel)
 	}
 
 	spacing := base.Render(strings.Repeat(" ", max(0, m.width-usedWidth)))
