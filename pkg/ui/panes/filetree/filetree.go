@@ -312,7 +312,6 @@ func collapseTree(t *tree.Node) *tree.Node {
 		child := newChildren[0]
 		// If the child is dir with one chlid that's also a dir -> collapse it
 		if dir, ok := child.GivenValue().(*dirnode.DirNode); ok {
-
 			// if the only child is a tree and its parent is the root we don't want to collapse.
 			// The root should always be visible
 			if rootDir.Name == constants.RootName {

@@ -40,7 +40,10 @@ func TestSearchUpdateKeepsCursorValidWhenResultsAreEmpty(t *testing.T) {
 
 	updated, _ := m.searchUpdate(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
 	if updated.resultsCursor != 0 {
-		t.Fatalf("expected cursor to remain at 0 after down on empty results, got %d", updated.resultsCursor)
+		t.Fatalf(
+			"expected cursor to remain at 0 after down on empty results, got %d",
+			updated.resultsCursor,
+		)
 	}
 
 	updated.resultsCursor = -3
@@ -170,7 +173,11 @@ func TestSearchSidebarDragMotionIsIgnored(t *testing.T) {
 		t.Fatal("expected search-mode drag motion to clear dragging state")
 	}
 	if result.fileTree.Width() != m.fileTree.Width() {
-		t.Fatalf("expected file tree width to remain %d, got %d", m.fileTree.Width(), result.fileTree.Width())
+		t.Fatalf(
+			"expected file tree width to remain %d, got %d",
+			m.fileTree.Width(),
+			result.fileTree.Width(),
+		)
 	}
 }
 

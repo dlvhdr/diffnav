@@ -368,7 +368,10 @@ func renderPreamble(preamble string) string {
 	for _, line := range strings.Split(preamble, "\n") {
 		switch {
 		case strings.HasPrefix(line, "commit "):
-			out = append(out, dim.Render("commit ")+yellow.Render(strings.TrimPrefix(line, "commit ")))
+			out = append(
+				out,
+				dim.Render("commit ")+yellow.Render(strings.TrimPrefix(line, "commit ")),
+			)
 		case strings.HasPrefix(line, "Author:"),
 			strings.HasPrefix(line, "AuthorDate:"),
 			strings.HasPrefix(line, "Date:"),

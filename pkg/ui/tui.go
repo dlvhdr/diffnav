@@ -97,9 +97,15 @@ type mainModel struct {
 
 func New(input string, cfg config.Config) mainModel {
 	m := mainModel{
-		input: input, isShowingFileTree: cfg.UI.ShowFileTree,
-		activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: cfg.UI.SideBySide,
-		watchEnabled: cfg.Watch.Enabled, watchCmd: cfg.Watch.Cmd, watchInterval: cfg.Watch.Interval,
+		input:             input,
+		isShowingFileTree: cfg.UI.ShowFileTree,
+		activePanel:       FileTreePanel,
+		config:            cfg,
+		iconStyle:         cfg.UI.Icons,
+		sideBySide:        cfg.UI.SideBySide,
+		watchEnabled:      cfg.Watch.Enabled,
+		watchCmd:          cfg.Watch.Cmd,
+		watchInterval:     cfg.Watch.Interval,
 	}
 	m.fileTree = filetree.New(cfg)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
