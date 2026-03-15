@@ -159,6 +159,10 @@ func init() {
 
 		var input string
 		if watchFlag {
+			stat, sErr := os.Stdin.Stat()
+			if sErr == nil && stat.Mode()&os.ModeNamedPipe != 0 {
+				fmt.Fprintln(os.Stderr, "Warning: stdin input ignored in watch mode")
+			}
 			output, wErr := watch.RunCmd(watchCmd)
 			if wErr != nil {
 				log.Warn("initial watch command failed, starting with empty diff", "err", wErr)
