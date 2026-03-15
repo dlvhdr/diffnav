@@ -84,7 +84,8 @@ func init() {
 
 	rootCmd.Flags().BoolP("unified", "u", false, "Force unified diff view")
 
-	rootCmd.Flags().BoolP("watch", "w", false, "Watch mode: periodically re-run a diff command and refresh")
+	rootCmd.Flags().
+		BoolP("watch", "w", false, "Watch mode: periodically re-run a diff command and refresh")
 	rootCmd.Flags().String("watch-cmd", "git diff", "Command to run in watch mode")
 	rootCmd.Flags().Duration("watch-interval", 2*time.Second, "Interval between watch refreshes")
 
