@@ -486,7 +486,9 @@ func (m mainModel) View() tea.View {
 				Render(strings.Repeat("─", rightW))
 			separator = leftLine + junction + rightLine
 		} else {
-			separator = lipgloss.NewStyle().Foreground(rightColor).Render(strings.Repeat("─", m.width))
+			separator = lipgloss.NewStyle().
+				Foreground(rightColor).
+				Render(strings.Repeat("─", m.width))
 		}
 	}
 
@@ -1035,7 +1037,8 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if msg.Button == tea.MouseLeft {
 			// Keep coordinate check for resize border (hybrid approach).
 			sidebarWidth := m.sidebarWidth()
-			if !m.searching && m.isShowingFileTree && abs(msg.X-sidebarWidth) <= sidebarGrabThreshold {
+			if !m.searching && m.isShowingFileTree &&
+				abs(msg.X-sidebarWidth) <= sidebarGrabThreshold {
 				m.draggingSidebar = true
 				return m, nil
 			}
