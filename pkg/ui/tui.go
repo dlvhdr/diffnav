@@ -759,16 +759,24 @@ func (m mainModel) viewHeader() string {
 func (m mainModel) footerView() string {
 	base := lipgloss.NewStyle().Background(common.Colors[common.DarkerSelected])
 	files := fmt.Sprintf(" %d files", len(m.files))
-	sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
+	sep := base.Foreground(lipgloss.BrightBlack).Render(" • ")
 	added, deleted := m.diffViewer.RootDiffStats()
 	help := zone.Mark(zoneHelp, base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("F1/? help"))
 	stats := filenode.ViewDiffStats(added, deleted, base)
 	parts := []string{files, sep, stats}
-	usedWidth := lipgloss.Width(stats) + lipgloss.Width(help) + lipgloss.Width(files) + lipgloss.Width(sep)
+	usedWidth := lipgloss.Width(
+		stats,
+	) + lipgloss.Width(
+		help,
+	) + lipgloss.Width(
+		files,
+	) + lipgloss.Width(
+		sep,
+	)
 
 	if m.watchEnabled {
-		watchLabel := base.Foreground(lipgloss.Color("3")).Render(" watching: " + m.watchCmd)
-		parts = append(parts, watchLabel)
+		watchLabel := base.Foreground(lipgloss.Color("3")).Render("watching: " + m.watchCmd)
+		parts = append(parts, sep, watchLabel)
 		usedWidth += lipgloss.Width(watchLabel)
 	}
 
