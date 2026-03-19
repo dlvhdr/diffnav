@@ -78,7 +78,7 @@ var keys = &KeyMap{
 		key.WithHelp("y", "copy file path"),
 	),
 	SwitchPanel: key.NewBinding(
-		key.WithKeys("tab"),
+		key.WithKeys("tab", "shift+tab"),
 		key.WithHelp("tab", "switch panel"),
 	),
 	OpenInEditor: key.NewBinding(
