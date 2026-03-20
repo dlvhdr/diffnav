@@ -26,6 +26,7 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetree"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/help"
 	"github.com/dlvhdr/diffnav/pkg/utils"
+	"github.com/lrstanley/go-nf/glyphs/md"
 	"github.com/lrstanley/go-nf/glyphs/neo"
 )
 
@@ -656,14 +657,14 @@ func (m mainModel) viewHeader() string {
 		infoParts = append(infoParts, hashStyle.Render(meta.hash))
 		if meta.date != "" {
 			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
-				infoParts = append(infoParts, dateStyle.Render(" " + meta.date))
+				infoParts = append(infoParts, dateStyle.Render(string(md.ClockOutline) + " " + meta.date))
 			} else {
 				infoParts = append(infoParts, dateStyle.Render(meta.date))
 			}
 		}
 		if meta.author != "" {
 			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
-				infoParts = append(infoParts, authorStyle.Render(" " + meta.author))
+				infoParts = append(infoParts, authorStyle.Render(string(md.AccountCircleOutline) + " " + meta.author))
 			} else {
 			infoParts = append(infoParts, authorStyle.Render(meta.author))
 			}
@@ -674,7 +675,7 @@ func (m mainModel) viewHeader() string {
 		if m.commitBranch != "" {
 			branchLabel := "[" + m.commitBranch + "]"
 			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
-				branchLabel = "\ue0a0 " + m.commitBranch
+				branchLabel = string(md.SourceBranch) + " " + m.commitBranch
 			}
 			headerParts = headerParts + sep + refStyle.Render(branchLabel)
 		}
