@@ -63,7 +63,7 @@ git config --global pager.diff diffnav
 | `--side-by-side, -s` | Force side-by-side diff view                     |
 | `--unified, -u`      | Force unified diff view                          |
 | `--watch, -w`        | Watch mode: periodically re-run a command and refresh |
-| `--watch-cmd`        | Command to run in watch mode (default: `git diff`) |
+| `--watch-cmd`        | Command to run in watch mode (implies `--watch`, default: `git diff`) |
 | `--watch-interval`   | Interval between watch refreshes (default: `2s`) |
 
 Example:
@@ -82,10 +82,10 @@ Watch mode lets diffnav periodically re-run a diff command and refresh the displ
 diffnav --watch
 
 # watch staged changes with a custom interval
-diffnav --watch --watch-cmd "git diff --cached" --watch-interval 5s
+diffnav --watch-cmd "git diff --cached" --watch-interval 5s
 
 # watch changes against a specific branch
-diffnav --watch --watch-cmd "git diff main..."
+diffnav --watch-cmd "git diff main..."
 ```
 
 ## Configuration

@@ -119,6 +119,9 @@ func init() {
 		if err != nil {
 			log.Fatal("Cannot parse the watch-interval flag", err)
 		}
+		if cmd.Flags().Changed("watch-cmd") {
+			watchFlag = true
+		}
 
 		zone.NewGlobal()
 
