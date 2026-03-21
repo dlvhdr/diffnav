@@ -66,4 +66,3 @@ func relativeTime(t time.Time) string {
 		return fmt.Sprintf("%dy", years)
 	}
 }
-

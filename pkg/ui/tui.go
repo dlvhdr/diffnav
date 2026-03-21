@@ -725,16 +725,22 @@ func (m mainModel) viewHeader() string {
 		infoParts = append(infoParts, hashStyle.Render(meta.hash))
 		if meta.date != "" {
 			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
-				infoParts = append(infoParts, dateStyle.Render(string(md.ClockOutline) + " " + meta.date))
+				infoParts = append(
+					infoParts,
+					dateStyle.Render(string(md.ClockOutline)+" "+meta.date),
+				)
 			} else {
 				infoParts = append(infoParts, dateStyle.Render(meta.date))
 			}
 		}
 		if meta.author != "" {
 			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
-				infoParts = append(infoParts, authorStyle.Render(string(md.AccountCircleOutline) + " " + meta.author))
+				infoParts = append(
+					infoParts,
+					authorStyle.Render(string(md.AccountCircleOutline)+" "+meta.author),
+				)
 			} else {
-			infoParts = append(infoParts, authorStyle.Render(meta.author))
+				infoParts = append(infoParts, authorStyle.Render(meta.author))
 			}
 		}
 		headerParts = headerParts + sep + strings.Join(infoParts, sep)
@@ -769,7 +775,10 @@ func (m mainModel) footerView() string {
 	files := fmt.Sprintf(" %d files", len(m.files))
 	sep := base.Foreground(lipgloss.BrightBlack).Render(" • ")
 	added, deleted := m.diffViewer.RootDiffStats()
-	help := zone.Mark(zoneHelp, base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("F1/? help"))
+	help := zone.Mark(
+		zoneHelp,
+		base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("F1/? help"),
+	)
 	stats := filenode.ViewDiffStats(added, deleted, base)
 	parts := []string{files, sep, stats}
 	usedWidth := lipgloss.Width(
@@ -806,7 +815,10 @@ func (m *mainModel) messageView() string {
 	for line := range strings.SplitSeq(m.preamble, "\n") {
 		switch {
 		case strings.HasPrefix(line, "commit "):
-			out = append(out, dim.Render("commit ")+yellow.Render(strings.TrimPrefix(line, "commit ")))
+			out = append(
+				out,
+				dim.Render("commit ")+yellow.Render(strings.TrimPrefix(line, "commit ")),
+			)
 		case strings.HasPrefix(line, "Author:"),
 			strings.HasPrefix(line, "AuthorDate:"),
 			strings.HasPrefix(line, "Date:"),
@@ -825,7 +837,7 @@ func (m *mainModel) messageView() string {
 func (m *mainModel) updateMessageVp() {
 	s := overlayStyle()
 	maxWidth := min(m.width*3/4, 80)
-	maxHeight := max(m.height/2 - s.GetVerticalFrameSize(), 5)
+	maxHeight := max(m.height/2-s.GetVerticalFrameSize(), 5)
 	content := lipgloss.NewStyle().Width(maxWidth).Render(m.messageView())
 	m.messageVp.SetWidth(maxWidth)
 	m.messageVp.SetHeight(maxHeight)
@@ -887,7 +899,14 @@ func (m mainModel) resultsView() string {
 		}
 		if i == m.resultsCursor {
 			bg := lipgloss.NewStyle().Background(lipgloss.Color("#1b1b33"))
-			fName := lipgloss.NewStyle().Bold(true).Render(bg.Render(base)) + bg.Render(" ") + bg.Render(dir)
+			fName := lipgloss.NewStyle().
+				Bold(true).
+				Render(bg.Render(base)) +
+				bg.Render(
+					" ",
+				) + bg.Render(
+				dir,
+			)
 			sb.WriteString(bg.
 				Width(m.config.UI.SearchTreeWidth).
 				Render(fName) +
@@ -973,8 +992,8 @@ func overlayStyle() lipgloss.Style {
 }
 
 type overlayResult struct {
-	rendered     string
-	col, row     int
+	rendered      string
+	col, row      int
 	width, height int
 }
 
@@ -1006,7 +1025,8 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 					content = m.help.View()
 				}
 				o := m.renderOverlay(content)
-				if msg.X < o.col || msg.X >= o.col+o.width || msg.Y < o.row || msg.Y >= o.row+o.height {
+				if msg.X < o.col || msg.X >= o.col+o.width || msg.Y < o.row ||
+					msg.Y >= o.row+o.height {
 					// Click outside: close overlay.
 					m.messageOpen = false
 					m.helpOpen = false
