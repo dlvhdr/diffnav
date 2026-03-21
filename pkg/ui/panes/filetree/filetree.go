@@ -10,9 +10,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	ltree "charm.land/lipgloss/v2/tree"
+	"charm.land/log/v2"
 	"github.com/atotto/clipboard"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	"github.com/charmbracelet/log"
 
 	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/constants"

@@ -13,12 +13,12 @@ import (
 	"github.com/spf13/cobra"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/fang/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/fang"
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
 	zone "github.com/lrstanley/bubblezone/v2"
-	"github.com/muesli/termenv"
 
 	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/ui"
@@ -146,7 +146,7 @@ func init() {
 				log.SetLevel(log.DebugLevel)
 
 				log.SetOutput(logFile)
-				log.SetColorProfile(termenv.TrueColor)
+				log.SetColorProfile(colorprofile.TrueColor)
 				wd, err := os.Getwd()
 				if err != nil {
 					fmt.Println("Error getting current working dir", err)
