@@ -208,8 +208,22 @@ func (m *Model) rebuildTree() {
 	t = collapseTree(t)
 	t, _ = truncateTree(t, 0, 0, 0, m.cfg, m.t.Width())
 	m.t.SetNodes(t)
+	if m.cfg.UI.StartFoldersOpenDepth >= 0 {
+		closeDirsBelow(m.t.Root(), m.cfg.UI.StartFoldersOpenDepth)
+	}
 	m.t.SetWidth(m.t.Width())
 	m.updateStyles()
+}
+
+func closeDirsBelow(node *tree.Node, maxOpenDepth int) {
+	for _, child := range node.ChildNodes() {
+		closeDirsBelow(child, maxOpenDepth)
+	}
+	if _, ok := node.GivenValue().(*dirnode.DirNode); ok {
+		if node.Depth() > maxOpenDepth {
+			node.Close()
+		}
+	}
 }
 
 func buildFullFileTree(files []*gitdiff.File, cfg config.Config) *tree.Node {

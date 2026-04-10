@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"charm.land/bubbles/v2/tree"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/constants"
@@ -183,5 +184,89 @@ func TestUncollapsableTree(t *testing.T) {
 	allNodes := tr.AllNodes()
 	if len(allNodes) != 13 {
 		t.Fatalf("expected 13 nodes, but got %d", len(allNodes))
+	}
+}
+
+func TestCloseDirsBelowDepthZero(t *testing.T) {
+	f, err := os.Open("testdata/multiple_files.diff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _, err := gitdiff.Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tr := buildFullFileTree(files, config.Config{})
+	tr = collapseTree(tr)
+
+	treeModel := tree.New(nil, 80, 40)
+	treeModel.SetNodes(tr)
+
+	root := treeModel.Root()
+
+	allNodesBefore := root.AllNodes()
+	if len(allNodesBefore) != 4 {
+		t.Fatalf("expected 4 nodes before closing, but got %d", len(allNodesBefore))
+	}
+
+	closeDirsBelow(root, 0)
+
+	if !root.IsOpen() {
+		t.Fatal("expected root node to remain open")
+	}
+
+	allNodesAfter := root.AllNodes()
+	if len(allNodesAfter) >= len(allNodesBefore) {
+		t.Fatalf("expected fewer visible nodes after closing dirs, got %d (before: %d)",
+			len(allNodesAfter), len(allNodesBefore))
+	}
+
+	for _, node := range allNodesAfter {
+		if _, ok := node.GivenValue().(*dirnode.DirNode); ok {
+			if node.Depth() > 0 && node.IsOpen() {
+				t.Fatalf("expected directory at depth %d to be closed", node.Depth())
+			}
+		}
+	}
+}
+
+func TestCloseDirsBelowDepthOne(t *testing.T) {
+	f, err := os.Open("testdata/gh_dash_pr.diff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _, err := gitdiff.Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tr := buildFullFileTree(files, config.Config{})
+	tr = collapseTree(tr)
+
+	treeModel := tree.New(nil, 80, 40)
+	treeModel.SetNodes(tr)
+
+	root := treeModel.Root()
+
+	closeDirsBelow(root, 1)
+
+	if !root.IsOpen() {
+		t.Fatal("expected root node to remain open")
+	}
+
+	for _, node := range root.ChildNodes() {
+		if dir, ok := node.GivenValue().(*dirnode.DirNode); ok {
+			if !node.IsOpen() {
+				t.Fatalf("expected depth-1 directory %q to be open", dir.Name)
+			}
+			for _, child := range node.ChildNodes() {
+				if _, ok := child.GivenValue().(*dirnode.DirNode); ok {
+					if child.IsOpen() {
+						t.Fatalf("expected depth-2 directory to be closed")
+					}
+				}
+			}
+		}
 	}
 }

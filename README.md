@@ -127,6 +127,9 @@ ui:
 
   # Use side-by-side diff view (default: true, set false for unified)
   sideBySide: true
+
+  # How many levels of folders to open on start (-1 = all, 0 = none, 1 = first level, etc.)
+  startFoldersOpenDepth: 1
 ```
 
 | Option               | Type   | Default             | Description                                               |
@@ -139,7 +142,8 @@ ui:
 | `ui.icons`           | string | `nerd-fonts-status` | Icon style (see below for details)                        |
 | `ui.colorFileNames`  | bool   | `true`              | Color filenames by git status                             |
 | `ui.showDiffStats`   | bool   | `true`              | Show the amount of lines added / removed next to the file |
-| `ui.sideBySide`      | bool   | `true`              | Use side-by-side diff view (false for unified)            |
+| `ui.sideBySide`             | bool   | `true`              | Use side-by-side diff view (false for unified)            |
+| `ui.startFoldersOpenDepth`  | int    | `-1`                | Folder open depth on start (-1 = all, 0 = none)          |
 
 ### Icon Styles
 
