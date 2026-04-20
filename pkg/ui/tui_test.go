@@ -16,14 +16,14 @@ func TestSearchUpdateEnterWithNoResultsDoesNotPanic(t *testing.T) {
 	m := newTestMainModel(t)
 	m.width = 100
 	m.height = 40
-	m.searching = true
-	m.search.Focus()
-	m.search.SetValue("does-not-match")
+	m.searchingFiles = true
+	m.filesSearch.Focus()
+	m.filesSearch.SetValue("does-not-match")
 	m.setSearchResults()
 
 	updated, _ := m.searchUpdate(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
 
-	if updated.searching {
+	if updated.searchingFiles {
 		t.Fatal("expected search to stop after pressing enter")
 	}
 	if updated.resultsCursor != 0 {
@@ -33,8 +33,8 @@ func TestSearchUpdateEnterWithNoResultsDoesNotPanic(t *testing.T) {
 
 func TestSearchUpdateKeepsCursorValidWhenResultsAreEmpty(t *testing.T) {
 	m := newTestMainModel(t)
-	m.searching = true
-	m.search.Focus()
+	m.searchingFiles = true
+	m.filesSearch.Focus()
 	m.filtered = nil
 	m.resultsCursor = 0
 
@@ -47,7 +47,7 @@ func TestSearchUpdateKeepsCursorValidWhenResultsAreEmpty(t *testing.T) {
 	}
 
 	updated.resultsCursor = -3
-	updated.search.SetValue("does-not-match")
+	updated.filesSearch.SetValue("does-not-match")
 	updated.setSearchResults()
 	if updated.resultsCursor != 0 {
 		t.Fatalf("expected cursor to clamp to 0 for empty results, got %d", updated.resultsCursor)
@@ -59,8 +59,8 @@ func TestSearchResultsRenderWhenFileTreeIsHidden(t *testing.T) {
 	m.width = 100
 	m.height = 40
 	m.isShowingFileTree = false
-	m.searching = true
-	m.search.SetWidth(m.searchWidth())
+	m.searchingFiles = true
+	m.filesSearch.SetWidth(m.searchWidth())
 	m.setSearchResults()
 	m.resultsVp.SetWidth(m.config.UI.SearchTreeWidth)
 	m.resultsVp.SetHeight(m.mainContentHeight() - searchHeight)
@@ -85,8 +85,8 @@ func TestHiddenTreeSearchEnterThenToggleDoesNotPanic(t *testing.T) {
 	if !m.isShowingFileTree {
 		t.Fatal("expected file tree to be visible after toggling it back on")
 	}
-	if m.search.Width() < 0 {
-		t.Fatalf("expected non-negative search width, got %d", m.search.Width())
+	if m.filesSearch.Width() < 0 {
+		t.Fatalf("expected non-negative search width, got %d", m.filesSearch.Width())
 	}
 	_ = m.View().Content
 }
@@ -96,7 +96,7 @@ func TestHiddenTreeSearchClickNearLeftEdgeDoesNotShowFileTree(t *testing.T) {
 	m.width = 100
 	m.height = 40
 	m.isShowingFileTree = false
-	m.searching = true
+	m.searchingFiles = true
 
 	updated, _ := m.handleMouse(tea.MouseClickMsg(tea.Mouse{X: 1, Y: 1, Button: tea.MouseLeft}))
 
@@ -114,7 +114,7 @@ func TestHiddenSidebarGrabStillShowsFileTreeWhenNotSearching(t *testing.T) {
 	m.width = 100
 	m.height = 40
 	m.isShowingFileTree = false
-	m.searching = false
+	m.searchingFiles = false
 
 	updated, _ := m.handleMouse(tea.MouseClickMsg(tea.Mouse{X: 1, Y: 1, Button: tea.MouseLeft}))
 
@@ -132,7 +132,7 @@ func TestSearchSidebarBorderClickDoesNotStartDragging(t *testing.T) {
 	m.width = 100
 	m.height = 40
 	m.isShowingFileTree = true
-	m.searching = true
+	m.searchingFiles = true
 	m.fileTree.SetSize(m.config.UI.FileTreeWidth, m.mainContentHeight()-searchHeight)
 
 	updated, _ := m.handleMouse(tea.MouseClickMsg(tea.Mouse{
@@ -155,7 +155,7 @@ func TestSearchSidebarDragMotionIsIgnored(t *testing.T) {
 	m.width = 100
 	m.height = 40
 	m.isShowingFileTree = true
-	m.searching = true
+	m.searchingFiles = true
 	m.draggingSidebar = true
 	m.fileTree.SetSize(m.config.UI.FileTreeWidth, m.mainContentHeight()-searchHeight)
 

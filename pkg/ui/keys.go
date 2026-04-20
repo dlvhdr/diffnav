@@ -3,31 +3,36 @@ package ui
 import "charm.land/bubbles/v2/key"
 
 type KeyMap struct {
-	ExpandNode      key.Binding
-	CollapseNode    key.Binding
-	ToggleNode      key.Binding
-	Up              key.Binding
-	Down            key.Binding
-	Bottom          key.Binding
-	Top             key.Binding
-	NextFile        key.Binding
-	PrevFile        key.Binding
-	CtrlD           key.Binding
-	CtrlU           key.Binding
-	CtrlE           key.Binding
-	CtrlY           key.Binding
-	ScrollLeft      key.Binding
-	ScrollRight     key.Binding
-	ToggleFileTree  key.Binding
-	Search          key.Binding
-	Quit            key.Binding
-	Copy            key.Binding
-	SwitchPanel     key.Binding
-	OpenInEditor    key.Binding
-	ToggleDiffView  key.Binding
-	ToggleIconStyle key.Binding
-	ToggleHelp      key.Binding
-	ToggleMessage   key.Binding
+	ExpandNode            key.Binding
+	CollapseNode          key.Binding
+	ToggleNode            key.Binding
+	Up                    key.Binding
+	Down                  key.Binding
+	Bottom                key.Binding
+	Top                   key.Binding
+	NextFile              key.Binding
+	PrevFile              key.Binding
+	CtrlD                 key.Binding
+	CtrlU                 key.Binding
+	CtrlE                 key.Binding
+	CtrlY                 key.Binding
+	ScrollLeft            key.Binding
+	ScrollRight           key.Binding
+	ToggleFileTree        key.Binding
+	SearchFiles           key.Binding
+	SearchDiffExact       key.Binding
+	SearchDiffInsensitive key.Binding
+	SearchDiffRegex       key.Binding
+	SearchDiffFuzzy       key.Binding
+	Quit                  key.Binding
+	Copy                  key.Binding
+	SwitchPanel           key.Binding
+	OpenInEditor          key.Binding
+	ToggleDiffView        key.Binding
+	ToggleIconStyle       key.Binding
+	ToggleHelp            key.Binding
+	ToggleMessage         key.Binding
+	ToggleSelection       key.Binding
 }
 
 var keys = &KeyMap{
@@ -95,9 +100,25 @@ var keys = &KeyMap{
 		key.WithKeys("e"),
 		key.WithHelp("e", "toggle file tree"),
 	),
-	Search: key.NewBinding(
+	SearchFiles: key.NewBinding(
 		key.WithKeys("t"),
 		key.WithHelp("t", "search files"),
+	),
+	SearchDiffExact: key.NewBinding(
+		key.WithKeys("/"),
+		key.WithHelp("/", "search diff (exact)"),
+	),
+	SearchDiffInsensitive: key.NewBinding(
+		key.WithKeys("ctrl+s"),
+		key.WithHelp("ctrl+s", "search diff (case insensitive)"),
+	),
+	SearchDiffRegex: key.NewBinding(
+		key.WithKeys("ctrl+r"),
+		key.WithHelp("ctrl+r", "search diff (regex)"),
+	),
+	SearchDiffFuzzy: key.NewBinding(
+		key.WithKeys("ctrl+f"),
+		key.WithHelp("ctrl+f", "search diff (fuzzy)"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
@@ -131,6 +152,10 @@ var keys = &KeyMap{
 		key.WithKeys("m"),
 		key.WithHelp("m", "commit info"),
 	),
+	ToggleSelection: key.NewBinding(
+		key.WithKeys("v"),
+		key.WithHelp("v", "toggle selection"),
+	),
 }
 
 func KeyGroups() [][]key.Binding {
@@ -148,11 +173,16 @@ func KeyGroups() [][]key.Binding {
 		keys.ScrollRight,
 	}, {
 		keys.ToggleFileTree,
-		keys.Search,
+		keys.SearchFiles,
+		keys.SearchDiffExact,
+		keys.SearchDiffInsensitive,
+		keys.SearchDiffRegex,
+		keys.SearchDiffFuzzy,
 		keys.Copy,
 		keys.OpenInEditor,
 		keys.ToggleDiffView,
 		keys.ToggleIconStyle,
+		keys.ToggleSelection,
 	}, {
 		keys.ToggleMessage,
 		keys.ToggleHelp,
