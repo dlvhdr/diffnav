@@ -131,6 +131,14 @@ func (m *Model) Up() {
 	m.t.Up()
 }
 
+func (m *Model) GoToBottom() {
+	m.t.GoToBottom()
+}
+
+func (m *Model) GoToTop() {
+	m.t.GoToTop()
+}
+
 // NextFile moves the cursor to the next file node, skipping directories.
 func (m *Model) NextFile() bool {
 	curr := m.t.NodeAtCurrentOffset()

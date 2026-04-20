@@ -281,6 +281,16 @@ func (m *Model) ScrollDown(lines int) {
 	m.vp.ScrollDown(lines)
 }
 
+// ScrollBottom scrolls the viewport to the bottom.
+func (m *Model) ScrollBottom() {
+	m.vp.GotoBottom()
+}
+
+// ScrollTop scrolls the viewport to its top.
+func (m *Model) ScrollTop() {
+	m.vp.GotoTop()
+}
+
 func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 	if width == 0 || node == nil || len(node.files) != 1 {
 		return nil

@@ -277,17 +277,31 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		case key.Matches(msg, keys.Up):
 			if m.activePanel == FileTreePanel {
-				m, cmd = m.moveCursor(-1)
+				m, cmd = m.moveCursor(moveUp)
 				cmds = append(cmds, cmd)
 			} else {
 				m.diffViewer.ScrollUp(1)
 			}
 		case key.Matches(msg, keys.Down):
 			if m.activePanel == FileTreePanel {
-				m, cmd = m.moveCursor(1)
+				m, cmd = m.moveCursor(moveDown)
 				cmds = append(cmds, cmd)
 			} else {
 				m.diffViewer.ScrollDown(1)
+			}
+		case key.Matches(msg, keys.Bottom):
+			if m.activePanel == FileTreePanel {
+				m, cmd = m.moveCursor(moveBottom)
+				cmds = append(cmds, cmd)
+			} else {
+				m.diffViewer.ScrollBottom()
+			}
+		case key.Matches(msg, keys.Top):
+			if m.activePanel == FileTreePanel {
+				m, cmd = m.moveCursor(moveTop)
+				cmds = append(cmds, cmd)
+			} else {
+				m.diffViewer.ScrollTop()
 			}
 		case key.Matches(msg, keys.Copy):
 			cmd = m.fileTree.CopyCurrNodePath()
@@ -1293,13 +1307,26 @@ func (m mainModel) moveToFile(movement int) (mainModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m mainModel) moveCursor(movement int) (mainModel, tea.Cmd) {
+type movement int
+
+const (
+	moveUp movement = iota
+	moveDown
+	moveBottom
+	moveTop
+)
+
+func (m mainModel) moveCursor(move movement) (mainModel, tea.Cmd) {
 	var cmd tea.Cmd
-	switch movement {
-	case -1:
+	switch move {
+	case moveUp:
 		m.fileTree.Up()
-	case 1:
+	case moveDown:
 		m.fileTree.Down()
+	case moveBottom:
+		m.fileTree.GoToBottom()
+	case moveTop:
+		m.fileTree.GoToTop()
 	}
 
 	node := m.fileTree.GetCurrNode()
