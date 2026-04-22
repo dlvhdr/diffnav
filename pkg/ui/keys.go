@@ -80,7 +80,7 @@ var keys = &KeyMap{
 		key.WithHelp("t", "search files"),
 	),
 	Quit: key.NewBinding(
-		key.WithKeys("q", "ctrl+c"),
+		key.WithKeys("q", "ctrl+c", "esc"),
 		key.WithHelp("q", "quit"),
 	),
 	Copy: key.NewBinding(
