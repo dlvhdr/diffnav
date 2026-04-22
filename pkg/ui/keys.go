@@ -81,7 +81,7 @@ var keys = &KeyMap{
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c", "esc"),
-		key.WithHelp("q", "quit"),
+		key.WithHelp("q/esc", "quit"),
 	),
 	Copy: key.NewBinding(
 		key.WithKeys("y"),
