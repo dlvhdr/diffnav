@@ -1,8 +1,7 @@
 package filetree
 
 import (
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -241,8 +240,13 @@ func buildFullFileTree(files []*gitdiff.File, cfg config.Config) *tree.Node {
 		subTree := t
 
 		name := filenode.GetFileName(file)
-		dir := filepath.Dir(name)
-		parts := strings.Split(dir, string(os.PathSeparator))
+		// git diff always emits forward-slash paths regardless of host OS, so
+		// use the path package (forward-slash) rather than filepath /
+		// os.PathSeparator. On Windows the latter would split on `\\` and
+		// never find the `/` separators, leaving every file as a flat root
+		// child with no directory hierarchy. See #121.
+		dir := path.Dir(name)
+		parts := strings.Split(dir, "/")
 		existingPath := ""
 
 		// walk the tree to find existing path
@@ -252,7 +256,7 @@ func buildFullFileTree(files []*gitdiff.File, cfg config.Config) *tree.Node {
 			for _, child := range children {
 				if dir, ok := child.GivenValue().(*dirnode.DirNode); ok && dir.Name == part {
 					subTree = child
-					existingPath = existingPath + part + string(os.PathSeparator)
+					existingPath = existingPath + part + "/"
 					found = true
 					// found a part of the path, continue to the subtree
 					break
@@ -265,7 +269,7 @@ func buildFullFileTree(files []*gitdiff.File, cfg config.Config) *tree.Node {
 
 		// path does not exist from this point, need to create it
 		leftover := strings.TrimPrefix(name, existingPath)
-		parts = strings.Split(leftover, string(os.PathSeparator))
+		parts = strings.Split(leftover, "/")
 		for i, part := range parts {
 			var c *tree.Node
 			if i == len(parts)-1 {
@@ -277,7 +281,7 @@ func buildFullFileTree(files []*gitdiff.File, cfg config.Config) *tree.Node {
 			} else {
 				dirNode := dirnode.DirNode{
 					Name:     part,
-					FullPath: filepath.Join(existingPath, filepath.Join(parts[:i]...), part),
+					FullPath: path.Join(existingPath, path.Join(parts[:i]...), part),
 				}
 				c = tree.Root(&dirNode)
 				subTree.Child(c)
@@ -341,8 +345,8 @@ func collapseTree(t *tree.Node) *tree.Node {
 			}
 
 			newDir := dirnode.DirNode{
-				FullPath: filepath.Join(rootDir.FullPath, dir.Name),
-				Name:     filepath.Join(rootDir.Name, dir.Name),
+				FullPath: path.Join(rootDir.FullPath, dir.Name),
+				Name:     path.Join(rootDir.Name, dir.Name),
 			}
 			children := make([]any, 0)
 			for _, c := range child.ChildNodes() {
