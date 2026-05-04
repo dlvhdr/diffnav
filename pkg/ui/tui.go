@@ -836,7 +836,7 @@ func (m mainModel) footerView() string {
 	}
 
 	if m.mouseDisabled {
-		mouseLabel := base.Foreground(lipgloss.Yellow).Render("mouse off")
+		mouseLabel := base.Foreground(lipgloss.Yellow).Render("visual select")
 		parts = append(parts, sep, mouseLabel)
 		usedWidth += lipgloss.Width(sep) + lipgloss.Width(mouseLabel)
 	}

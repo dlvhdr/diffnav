@@ -113,8 +113,8 @@ var keys = &KeyMap{
 		key.WithHelp("m", "commit info"),
 	),
 	ToggleMouse: key.NewBinding(
-		key.WithKeys("M"),
-		key.WithHelp("M", "toggle mouse (text select)"),
+		key.WithKeys("v"),
+		key.WithHelp("v", "visual select"),
 	),
 }
 
