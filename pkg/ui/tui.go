@@ -95,6 +95,7 @@ type mainModel struct {
 	pendingCursorPath string
 	watchInFlight     bool
 	repoRoot          string
+	mouseDisabled     bool
 }
 
 func New(input string, cfg config.Config) mainModel {
@@ -255,6 +256,10 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.search.SetWidth(m.searchWidth())
 			dfCmd := m.diffViewer.SetSize(m.width-sidebarWidth, h)
 			cmds = append(cmds, dfCmd)
+		case key.Matches(msg, keys.ToggleMouse):
+			m.mouseDisabled = !m.mouseDisabled
+			m.draggingSidebar = false
+			return m, tea.Batch(cmds...)
 		case key.Matches(msg, keys.ToggleIconStyle):
 			m.cycleIconStyle()
 		case key.Matches(msg, keys.ToggleDiffView):
@@ -488,7 +493,11 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 func (m mainModel) View() tea.View {
 	var view tea.View
 	view.AltScreen = true
-	view.MouseMode = tea.MouseModeAllMotion
+	if m.mouseDisabled {
+		view.MouseMode = tea.MouseModeNone
+	} else {
+		view.MouseMode = tea.MouseModeAllMotion
+	}
 
 	view.KeyboardEnhancements.ReportEventTypes = true
 	// Determine colors based on active panel.
@@ -824,6 +833,12 @@ func (m mainModel) footerView() string {
 		watchLabel := base.Foreground(lipgloss.Yellow).Render("watching: " + m.watchCmd)
 		parts = append(parts, sep, watchLabel)
 		usedWidth += lipgloss.Width(sep) + lipgloss.Width(watchLabel)
+	}
+
+	if m.mouseDisabled {
+		mouseLabel := base.Foreground(lipgloss.Yellow).Render("mouse off")
+		parts = append(parts, sep, mouseLabel)
+		usedWidth += lipgloss.Width(sep) + lipgloss.Width(mouseLabel)
 	}
 
 	spacing := base.Render(strings.Repeat(" ", max(0, m.width-usedWidth)))
