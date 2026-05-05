@@ -181,6 +181,30 @@ func TestSearchSidebarDragMotionIsIgnored(t *testing.T) {
 	}
 }
 
+func TestInitialActivePanelWhenFileTreeIsHidden(t *testing.T) {
+	zone.NewGlobal()
+
+	cfg := config.DefaultConfig()
+	cfg.UI.ShowFileTree = false
+
+	data, err := os.ReadFile("../../examples/multiple_files.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := New(string(data), cfg)
+
+	if m.activePanel != DiffViewerPanel {
+		t.Fatalf(
+			"expected activePanel to be DiffViewerPanel when showFileTree is false, got %v",
+			m.activePanel,
+		)
+	}
+	if m.isShowingFileTree {
+		t.Fatal("expected file tree to be hidden when showFileTree is false")
+	}
+}
+
 func newTestMainModel(t *testing.T) mainModel {
 	t.Helper()
 	zone.NewGlobal()

@@ -98,10 +98,15 @@ type mainModel struct {
 }
 
 func New(input string, cfg config.Config) mainModel {
+	initialPanel := FileTreePanel
+	if !cfg.UI.ShowFileTree {
+		initialPanel = DiffViewerPanel
+	}
+
 	m := mainModel{
 		input:             input,
 		isShowingFileTree: cfg.UI.ShowFileTree,
-		activePanel:       FileTreePanel,
+		activePanel:       initialPanel,
 		config:            cfg,
 		iconStyle:         cfg.UI.Icons,
 		sideBySide:        cfg.UI.SideBySide,
