@@ -80,11 +80,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case diffContentMsg:
-		// Truncate lines to viewport width to prevent ANSI escape overflow.
+		// Clip lines that exceed the viewport width and use a visible tail
+		// marker so users can see content was cut off rather than failing
+		// silently. In side-by-side mode delta wraps long lines for us; in
+		// unified mode delta passes them through as-is, so this clip-with-
+		// marker is the only signal that there's more to the right.
 		lines := strings.Split(msg.text, "\n")
 		for i, line := range lines {
 			if lipgloss.Width(line) > m.vp.Width() && m.vp.Width() > 0 {
-				lines[i] = ansi.Truncate(line, m.vp.Width(), "")
+				lines[i] = ansi.Truncate(line, m.vp.Width(), "…")
 			}
 		}
 		diff := strings.Join(lines, "\n")
@@ -304,7 +308,14 @@ func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 		args := []string{
 			"--paging=never",
 			fmt.Sprintf("-w=%d", width),
-			fmt.Sprintf("--max-line-length=%d", width),
+			// Disable hard truncation and let delta's own line-wrapping (active
+			// in side-by-side mode) carry the full line through. With
+			// `--max-line-length=<width>` and the default `--wrap-max-lines=2`,
+			// long lines were being clipped at the viewport before we saw
+			// them. Anything still wider than the viewport gets clipped with
+			// a visible "…" marker in the `diffContentMsg` handler.
+			"--max-line-length=0",
+			"--wrap-max-lines=unlimited",
 		}
 		if useSideBySide {
 			args = append(args, "--side-by-side")
@@ -340,7 +351,9 @@ func diffDir(dir *cachedNode, width int, sideBySide bool, preamble string) tea.C
 			fmt.Sprintf("--file-style='%s bold %s'", c, c),
 			fmt.Sprintf("--file-decoration-style='%s box %s'", c, c),
 			fmt.Sprintf("-w=%d", width),
-			fmt.Sprintf("--max-line-length=%d", width),
+			// See `diffFile` for why these are set this way.
+			"--max-line-length=0",
+			"--wrap-max-lines=unlimited",
 		}
 		if useSideBySide {
 			args = append(args, "--side-by-side")
