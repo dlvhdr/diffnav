@@ -202,6 +202,24 @@ func init() {
 				fmt.Println("No input provided, exiting")
 				os.Exit(0)
 			}
+
+			// When configured as `pager.diff`, git pipes the output of every
+			// `git diff` invocation here, including non-unified-diff variants
+			// like `git diff --stat`, `--shortstat`, `--name-only`, and
+			// `--name-status`. Those produce summary text with no `diff --git`
+			// markers, which (a) gives the TUI zero files and panics with a
+			// divide-by-zero in the scrollbar renderer, and (b) leaks
+			// terminal-capability query bytes from bubbletea init back to the
+			// user's prompt. Pass such input straight through to stdout so the
+			// caller sees the same output they would have without diffnav as
+			// the configured pager.
+			if !isUnifiedDiff(input) {
+				fmt.Print(input)
+				if !strings.HasSuffix(input, "\n") {
+					fmt.Println()
+				}
+				os.Exit(0)
+			}
 		}
 
 		cfg := config.Load()
