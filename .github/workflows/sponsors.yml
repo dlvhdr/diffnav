@@ -1,13 +1,13 @@
-name: generate
+name: sponsors
 on:
   workflow_dispatch: {}
   schedule:
     - cron: "0 8 * * *"
 permissions: read-all
 jobs:
-  docs:
+  write-readme:
     permissions:
-      contents: read
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -15,13 +15,11 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: ./go.mod
+          go-version: "1.26"
       - name: Install Task
         uses: go-task/setup-task@v2
         with:
           repo-token: ${{ secrets.GH_DIFFNAV_PAT }}
-      - name: Download Go modules
-        run: go mod download
       - run: task docs-sponsors
         env:
           GITHUB_TOKEN: ${{ secrets.SPONSORS_TOKEN }}
