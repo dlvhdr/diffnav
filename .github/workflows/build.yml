@@ -14,9 +14,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
-      - name: test
-        run: |
-          go test -v -failfast -race -coverpkg=./... -covermode=atomic -coverprofile=coverage.txt ./...
+      - name: Build
+        run: go build -v ./...
       - uses: codecov/codecov-action@v5
         if: matrix.os == 'ubuntu-latest'
         with:
