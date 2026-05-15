@@ -313,6 +313,17 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
+		case key.Matches(msg, keys.CtrlD, keys.CtrlU):
+			m.diffViewer, cmd = m.diffViewer.Update(msg)
+			cmds = append(cmds, cmd)
+		default:
+			if m.activePanel == DiffViewerPanel {
+				m.diffViewer, cmd = m.diffViewer.Update(msg)
+				cmds = append(cmds, cmd)
+			} else {
+				m.fileTree.Update(msg)
+				cmds = append(cmds, cmd)
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -381,31 +392,16 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case common.ErrMsg:
 		fmt.Printf("Error: %v\n", msg.Err)
 		log.Fatal(msg.Err)
-	}
 
-	// Route messages: key messages go only to active panel, other messages go to both.
-	// Exception: ctrl+d/ctrl+u go to diffViewer for scrolling (unless an overlay is open).
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+d", "ctrl+u":
-			m.diffViewer, cmd = m.diffViewer.Update(msg)
-			cmds = append(cmds, cmd)
-		default:
-			if m.activePanel == DiffViewerPanel {
-				m.diffViewer, cmd = m.diffViewer.Update(msg)
-				cmds = append(cmds, cmd)
-			} else {
-				m.fileTree.Update(msg)
-				cmds = append(cmds, cmd)
-			}
-		}
 	default:
 		m.diffViewer, cmd = m.diffViewer.Update(msg)
 		cmds = append(cmds, cmd)
 		m.fileTree.Update(msg)
 		cmds = append(cmds, cmd)
 	}
+
+	// Route messages: key messages go only to active panel, other messages go to both.
+	// Exception: ctrl+d/ctrl+u go to diffViewer for scrolling (unless an overlay is open).
 
 	return m, tea.Batch(cmds...)
 }
@@ -1338,6 +1334,10 @@ func (m mainModel) moveCursor(move movement) (mainModel, tea.Cmd) {
 
 func (m mainModel) setNodeDiff(node *tree.Node) (mainModel, tea.Cmd) {
 	var cmd tea.Cmd
+	if node == nil {
+		return m, nil
+	}
+
 	switch val := node.GivenValue().(type) {
 	case *filenode.FileNode:
 		m.diffViewer, cmd = m.diffViewer.SetFilePatch(val.File)
