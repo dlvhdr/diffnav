@@ -10,7 +10,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/dlvhdr/diffnav/pkg/filenode"
 	"github.com/dlvhdr/diffnav/pkg/icons"
@@ -45,8 +44,6 @@ type Model struct {
 	cache      nodeCache
 	sideBySide bool
 	preamble   string
-	rawText    string
-	xOffset    int
 }
 
 // SetPreamble stores the preamble text (e.g. commit metadata from git show).
@@ -85,9 +82,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if _, ok := m.cache[msg.cacheKey]; ok {
 			m.cache[msg.cacheKey].diff = msg.text
 		}
-		m.rawText = msg.text
-		m.xOffset = 0
-		m.renderViewport()
+		m.vp.SetContent(msg.text)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -122,9 +117,7 @@ func (m *Model) diff() tea.Cmd {
 		key := cacheKey(m.file.path, m.sideBySide)
 		if cached, ok := m.cache[key]; ok && cached.diff != "" {
 			m.file = cached
-			m.rawText = cached.diff
-			m.xOffset = 0
-			m.renderViewport()
+			m.vp.SetContent(cached.diff)
 			return nil
 		}
 		node := &cachedNode{
@@ -140,9 +133,7 @@ func (m *Model) diff() tea.Cmd {
 		key := cacheKey(m.dir.path, m.sideBySide)
 		if cached, ok := m.cache[key]; ok && cached.diff != "" {
 			m.dir = cached
-			m.rawText = cached.diff
-			m.xOffset = 0
-			m.renderViewport()
+			m.vp.SetContent(cached.diff)
 			return nil
 		}
 		node := &cachedNode{
@@ -213,9 +204,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	key := cacheKey(fname, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
 		m.file = cached
-		m.rawText = cached.diff
-		m.xOffset = 0
-		m.renderViewport()
+		m.vp.SetContent(cached.diff)
 		return m, nil
 	}
 
@@ -239,9 +228,7 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 	key := cacheKey(dirPath, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
 		m.dir = cached
-		m.rawText = cached.diff
-		m.xOffset = 0
-		m.renderViewport()
+		m.vp.SetContent(cached.diff)
 		return m, nil
 	}
 
@@ -295,83 +282,14 @@ func (m *Model) ScrollTop() {
 	m.vp.GotoTop()
 }
 
-func (m *Model) scrollStep() int {
-	step := m.vp.Width() / 2
-	if step < 1 {
-		step = 1
-	}
-	return step
-}
-
-// ScrollLeft scrolls the viewport horizontally toward column 0.
+// ScrollLeft scrolls the viewport one column toward column 0.
 func (m *Model) ScrollLeft() {
-	if m.xOffset == 0 {
-		return
-	}
-	m.xOffset -= m.scrollStep()
-	if m.xOffset < 0 {
-		m.xOffset = 0
-	}
-	m.renderViewport()
+	m.vp.ScrollLeft(1)
 }
 
-// ScrollRight advances xOffset only if at least one line still has content
-// past the visible window.
+// ScrollRight scrolls the viewport one column away from column 0.
 func (m *Model) ScrollRight() {
-	if m.rawText == "" {
-		return
-	}
-	vpW := m.vp.Width()
-	if vpW <= 0 {
-		return
-	}
-	limit := m.xOffset + vpW
-	for _, line := range strings.Split(m.rawText, "\n") {
-		if lipgloss.Width(line) > limit {
-			m.xOffset += m.scrollStep()
-			m.renderViewport()
-			return
-		}
-	}
-}
-
-func (m *Model) renderViewport() {
-	if m.rawText == "" {
-		return
-	}
-	vpW := m.vp.Width()
-	if vpW <= 0 {
-		m.vp.SetContent(m.rawText)
-		return
-	}
-	lines := strings.Split(m.rawText, "\n")
-	for i, line := range lines {
-		lw := lipgloss.Width(line)
-		if m.xOffset == 0 && lw <= vpW {
-			continue
-		}
-		leftMark := m.xOffset > 0 && lw > m.xOffset
-		rightMark := lw > m.xOffset+vpW
-		budget := vpW
-		if leftMark {
-			budget--
-		}
-		if rightMark {
-			budget--
-		}
-		if budget < 0 {
-			budget = 0
-		}
-		sliced := ansi.Cut(line, m.xOffset, m.xOffset+budget)
-		if leftMark {
-			sliced = "…" + sliced
-		}
-		if rightMark {
-			sliced = sliced + "…"
-		}
-		lines[i] = sliced
-	}
-	m.vp.SetContent(strings.Join(lines, "\n"))
+	m.vp.ScrollRight(1)
 }
 
 func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
