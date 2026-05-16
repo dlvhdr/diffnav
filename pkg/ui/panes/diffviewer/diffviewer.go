@@ -45,6 +45,8 @@ type Model struct {
 	cache      nodeCache
 	sideBySide bool
 	preamble   string
+	rawText    string
+	xOffset    int
 }
 
 // SetPreamble stores the preamble text (e.g. commit metadata from git show).
@@ -80,22 +82,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case diffContentMsg:
-		// Clip lines that exceed the viewport width and use a visible tail
-		// marker so users can see content was cut off rather than failing
-		// silently. In side-by-side mode delta wraps long lines for us; in
-		// unified mode delta passes them through as-is, so this clip-with-
-		// marker is the only signal that there's more to the right.
-		lines := strings.Split(msg.text, "\n")
-		for i, line := range lines {
-			if lipgloss.Width(line) > m.vp.Width() && m.vp.Width() > 0 {
-				lines[i] = ansi.Truncate(line, m.vp.Width(), "…")
-			}
-		}
-		diff := strings.Join(lines, "\n")
 		if _, ok := m.cache[msg.cacheKey]; ok {
-			m.cache[msg.cacheKey].diff = diff
+			m.cache[msg.cacheKey].diff = msg.text
 		}
-		m.vp.SetContent(diff)
+		m.rawText = msg.text
+		m.xOffset = 0
+		m.renderViewport()
 	}
 
 	return m, tea.Batch(cmds...)
@@ -130,7 +122,9 @@ func (m *Model) diff() tea.Cmd {
 		key := cacheKey(m.file.path, m.sideBySide)
 		if cached, ok := m.cache[key]; ok && cached.diff != "" {
 			m.file = cached
-			m.vp.SetContent(cached.diff)
+			m.rawText = cached.diff
+			m.xOffset = 0
+			m.renderViewport()
 			return nil
 		}
 		node := &cachedNode{
@@ -146,7 +140,9 @@ func (m *Model) diff() tea.Cmd {
 		key := cacheKey(m.dir.path, m.sideBySide)
 		if cached, ok := m.cache[key]; ok && cached.diff != "" {
 			m.dir = cached
-			m.vp.SetContent(cached.diff)
+			m.rawText = cached.diff
+			m.xOffset = 0
+			m.renderViewport()
 			return nil
 		}
 		node := &cachedNode{
@@ -217,7 +213,9 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	key := cacheKey(fname, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
 		m.file = cached
-		m.vp.SetContent(cached.diff)
+		m.rawText = cached.diff
+		m.xOffset = 0
+		m.renderViewport()
 		return m, nil
 	}
 
@@ -241,7 +239,9 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 	key := cacheKey(dirPath, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
 		m.dir = cached
-		m.vp.SetContent(cached.diff)
+		m.rawText = cached.diff
+		m.xOffset = 0
+		m.renderViewport()
 		return m, nil
 	}
 
@@ -293,6 +293,85 @@ func (m *Model) ScrollBottom() {
 // ScrollTop scrolls the viewport to its top.
 func (m *Model) ScrollTop() {
 	m.vp.GotoTop()
+}
+
+func (m *Model) scrollStep() int {
+	step := m.vp.Width() / 2
+	if step < 1 {
+		step = 1
+	}
+	return step
+}
+
+// ScrollLeft scrolls the viewport horizontally toward column 0.
+func (m *Model) ScrollLeft() {
+	if m.xOffset == 0 {
+		return
+	}
+	m.xOffset -= m.scrollStep()
+	if m.xOffset < 0 {
+		m.xOffset = 0
+	}
+	m.renderViewport()
+}
+
+// ScrollRight advances xOffset only if at least one line still has content
+// past the visible window.
+func (m *Model) ScrollRight() {
+	if m.rawText == "" {
+		return
+	}
+	vpW := m.vp.Width()
+	if vpW <= 0 {
+		return
+	}
+	limit := m.xOffset + vpW
+	for _, line := range strings.Split(m.rawText, "\n") {
+		if lipgloss.Width(line) > limit {
+			m.xOffset += m.scrollStep()
+			m.renderViewport()
+			return
+		}
+	}
+}
+
+func (m *Model) renderViewport() {
+	if m.rawText == "" {
+		return
+	}
+	vpW := m.vp.Width()
+	if vpW <= 0 {
+		m.vp.SetContent(m.rawText)
+		return
+	}
+	lines := strings.Split(m.rawText, "\n")
+	for i, line := range lines {
+		lw := lipgloss.Width(line)
+		if m.xOffset == 0 && lw <= vpW {
+			continue
+		}
+		leftMark := m.xOffset > 0 && lw > m.xOffset
+		rightMark := lw > m.xOffset+vpW
+		budget := vpW
+		if leftMark {
+			budget--
+		}
+		if rightMark {
+			budget--
+		}
+		if budget < 0 {
+			budget = 0
+		}
+		sliced := ansi.Cut(line, m.xOffset, m.xOffset+budget)
+		if leftMark {
+			sliced = "…" + sliced
+		}
+		if rightMark {
+			sliced = sliced + "…"
+		}
+		lines[i] = sliced
+	}
+	m.vp.SetContent(strings.Join(lines, "\n"))
 }
 
 func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {

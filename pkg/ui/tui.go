@@ -303,6 +303,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.diffViewer.ScrollTop()
 			}
+		case key.Matches(msg, keys.ScrollLeft):
+			if m.activePanel != FileTreePanel {
+				m.diffViewer.ScrollLeft()
+			}
+		case key.Matches(msg, keys.ScrollRight):
+			if m.activePanel != FileTreePanel {
+				m.diffViewer.ScrollRight()
+			}
 		case key.Matches(msg, keys.Copy):
 			cmd = m.fileTree.CopyCurrNodePath()
 			if cmd != nil {

@@ -14,6 +14,8 @@ type KeyMap struct {
 	PrevFile        key.Binding
 	CtrlD           key.Binding
 	CtrlU           key.Binding
+	ScrollLeft      key.Binding
+	ScrollRight     key.Binding
 	ToggleFileTree  key.Binding
 	Search          key.Binding
 	Quit            key.Binding
@@ -71,6 +73,14 @@ var keys = &KeyMap{
 		key.WithKeys("ctrl+u"),
 		key.WithHelp("ctrl+u", "diff up"),
 	),
+	ScrollLeft: key.NewBinding(
+		key.WithKeys("left"),
+		key.WithHelp("←", "scroll left"),
+	),
+	ScrollRight: key.NewBinding(
+		key.WithKeys("right"),
+		key.WithHelp("→", "scroll right"),
+	),
 	ToggleFileTree: key.NewBinding(
 		key.WithKeys("e"),
 		key.WithHelp("e", "toggle file tree"),
@@ -124,6 +134,8 @@ func KeyGroups() [][]key.Binding {
 		keys.PrevFile,
 		keys.CtrlD,
 		keys.CtrlU,
+		keys.ScrollLeft,
+		keys.ScrollRight,
 	}, {
 		keys.ToggleFileTree,
 		keys.Search,
