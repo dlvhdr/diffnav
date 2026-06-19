@@ -2,7 +2,6 @@
 <p align="center">
   <img width="504" height="96" alt="output-onlinepngtools" src="https://github.com/user-attachments/assets/b932225f-7f49-4274-886d-61e640f4ef8b" />  
 </p>
-
 <p align="center">
   A git diff pager based on <a href="https://github.com/dandavison/delta">delta</a> but with a file tree, à la GitHub.
   <br />
