@@ -214,8 +214,10 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>k</kbd>                | Previous node                    |
 | <kbd>n</kbd>                | Next file                        |
 | <kbd>p</kbd> / <kbd>N</kbd> | Previous file                    |
-| <kbd>Ctrl-d</kbd>           | Scroll the diff down             |
-| <kbd>Ctrl-u</kbd>           | Scroll the diff up               |
+| <kbd>Ctrl-d</kbd>           | Scroll the diff half page down   |
+| <kbd>Ctrl-u</kbd>           | Scroll the diff half page up     |
+| <kbd>Ctrl-e</kbd>           | Scroll the diff one line down    |
+| <kbd>Ctrl-y</kbd>           | Scroll the diff one line up      |
 | <kbd>e</kbd>                | Toggle the file tree             |
 | <kbd>t</kbd>                | Search/go-to file                |
 | <kbd>y</kbd>                | Copy file path                   |

@@ -326,7 +326,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
-		case key.Matches(msg, keys.CtrlD, keys.CtrlU):
+
+		case key.Matches(msg, keys.CtrlE):
+			m.diffViewer.ScrollDown(1)
+
+		case key.Matches(msg, keys.CtrlY):
+			m.diffViewer.ScrollUp(1)
+
+		case key.Matches(msg, keys.CtrlD, keys.CtrlU, keys.CtrlE, keys.CtrlY):
 			m.diffViewer, cmd = m.diffViewer.Update(msg)
 			cmds = append(cmds, cmd)
 		default:

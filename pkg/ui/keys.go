@@ -14,6 +14,8 @@ type KeyMap struct {
 	PrevFile        key.Binding
 	CtrlD           key.Binding
 	CtrlU           key.Binding
+	CtrlE           key.Binding
+	CtrlY           key.Binding
 	ScrollLeft      key.Binding
 	ScrollRight     key.Binding
 	ToggleFileTree  key.Binding
@@ -67,11 +69,19 @@ var keys = &KeyMap{
 	),
 	CtrlD: key.NewBinding(
 		key.WithKeys("ctrl+d"),
-		key.WithHelp("ctrl+d", "diff down"),
+		key.WithHelp("ctrl+d", "diff half page down"),
 	),
 	CtrlU: key.NewBinding(
 		key.WithKeys("ctrl+u"),
-		key.WithHelp("ctrl+u", "diff up"),
+		key.WithHelp("ctrl+u", "diff half page up"),
+	),
+	CtrlE: key.NewBinding(
+		key.WithKeys("ctrl+e"),
+		key.WithHelp("ctrl+e", "diff line down"),
+	),
+	CtrlY: key.NewBinding(
+		key.WithKeys("ctrl+y"),
+		key.WithHelp("ctrl+y", "diff line up"),
 	),
 	ScrollLeft: key.NewBinding(
 		key.WithKeys("left"),
