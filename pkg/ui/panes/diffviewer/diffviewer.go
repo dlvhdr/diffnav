@@ -10,7 +10,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/dlvhdr/diffnav/pkg/filenode"
 	"github.com/dlvhdr/diffnav/pkg/icons"
@@ -68,18 +67,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 	switch msg := msg.(type) {
 	case diffContentMsg:
-		// Truncate lines to viewport width to prevent ANSI escape overflow.
-		lines := strings.Split(msg.text, "\n")
-		for i, line := range lines {
-			if lipgloss.Width(line) > m.vp.Width() && m.vp.Width() > 0 {
-				lines[i] = ansi.Truncate(line, m.vp.Width(), "")
-			}
-		}
-		diff := strings.Join(lines, "\n")
 		if _, ok := m.cache[msg.cacheKey]; ok {
-			m.cache[msg.cacheKey].diff = diff
+			m.cache[msg.cacheKey].diff = msg.text
 		}
-		m.vp.SetContent(diff)
+		m.vp.SetContent(msg.text)
 	}
 
 	vp, vpCmd := m.vp.Update(msg)
@@ -283,6 +274,16 @@ func (m *Model) ScrollTop() {
 	m.vp.GotoTop()
 }
 
+// ScrollLeft scrolls the viewport one column toward column 0.
+func (m *Model) ScrollLeft() {
+	m.vp.ScrollLeft(1)
+}
+
+// ScrollRight scrolls the viewport one column away from column 0.
+func (m *Model) ScrollRight() {
+	m.vp.ScrollRight(1)
+}
+
 func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 	if width == 0 || node == nil || len(node.files) != 1 {
 		return nil
@@ -296,7 +297,14 @@ func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 		args := []string{
 			"--paging=never",
 			fmt.Sprintf("-w=%d", width),
-			fmt.Sprintf("--max-line-length=%d", width),
+			// Disable hard truncation and let delta's own line-wrapping (active
+			// in side-by-side mode) carry the full line through. With
+			// `--max-line-length=<width>` and the default `--wrap-max-lines=2`,
+			// long lines were being clipped at the viewport before we saw
+			// them. Anything still wider than the viewport gets clipped with
+			// a visible "…" marker in the `diffContentMsg` handler.
+			"--max-line-length=0",
+			"--wrap-max-lines=unlimited",
 		}
 		if useSideBySide {
 			args = append(args, "--side-by-side")
@@ -332,7 +340,9 @@ func diffDir(dir *cachedNode, width int, sideBySide bool, preamble string) tea.C
 			fmt.Sprintf("--file-style='%s bold %s'", c, c),
 			fmt.Sprintf("--file-decoration-style='%s box %s'", c, c),
 			fmt.Sprintf("-w=%d", width),
-			fmt.Sprintf("--max-line-length=%d", width),
+			// See `diffFile` for why these are set this way.
+			"--max-line-length=0",
+			"--wrap-max-lines=unlimited",
 		}
 		if useSideBySide {
 			args = append(args, "--side-by-side")
