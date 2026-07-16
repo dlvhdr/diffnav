@@ -223,8 +223,13 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>i</kbd>                | Cycle icon style                 |
 | <kbd>o</kbd>                | Open file in $EDITOR             |
 | <kbd>s</kbd>                | Toggle side-by-side/unified view |
+| <kbd>v</kbd>                | Visual select mode (release mouse for native text selection / copy) |
 | <kbd>Tab</kbd>              | Switch focus between the panes   |
 | <kbd>q</kbd>                | Quit                             |
+
+While mouse capture is on, your terminal can't do its native click-and-drag selection. Press <kbd>v</kbd> to enter visual select mode — this releases the mouse so you can select and copy lines from the diff (the footer shows `visual select`); press <kbd>v</kbd> again to restore mouse scroll/click. Tip: in side-by-side mode the selection spans both columns — switch to unified with <kbd>s</kbd> first, or use your terminal's block-select modifier (Option+drag in iTerm2 / Terminal.app, Alt+drag in many Linux terminals).
+
+Most terminals (iTerm2, Terminal.app, Alacritty, kitty, WezTerm, GNOME Terminal) also let you hold <kbd>Shift</kbd> while dragging to bypass mouse capture without toggling.
 
 ## Discord
 

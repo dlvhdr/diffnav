@@ -28,6 +28,7 @@ type KeyMap struct {
 	ToggleIconStyle key.Binding
 	ToggleHelp      key.Binding
 	ToggleMessage   key.Binding
+	ToggleMouse     key.Binding
 }
 
 var keys = &KeyMap{
@@ -131,6 +132,10 @@ var keys = &KeyMap{
 		key.WithKeys("m"),
 		key.WithHelp("m", "commit info"),
 	),
+	ToggleMouse: key.NewBinding(
+		key.WithKeys("v"),
+		key.WithHelp("v", "visual select"),
+	),
 }
 
 func KeyGroups() [][]key.Binding {
@@ -155,6 +160,7 @@ func KeyGroups() [][]key.Binding {
 		keys.ToggleIconStyle,
 	}, {
 		keys.ToggleMessage,
+		keys.ToggleMouse,
 		keys.ToggleHelp,
 		keys.Quit,
 	}}
