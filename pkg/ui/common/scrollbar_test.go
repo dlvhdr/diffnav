@@ -205,7 +205,6 @@ func Test_Scrollbar(t *testing.T) {
 				if len(lines) < 2 || i < len(lines)-2 {
 					want = want + "\n"
 				}
-
 			}
 			got := sb.View(tt.trackHeight, tt.totalItems, tt.firstItemIdx, tt.lastItemIdx)
 			if want != got {
