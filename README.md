@@ -70,6 +70,12 @@ donation at the [sponsors page](https://github.com/sponsors/dlvhdr).
 Homebrew:
 
 ```sh
+brew install diffnav
+```
+
+or from my tap directly:
+
+```sh 
 brew install dlvhdr/formulae/diffnav
 ```
 
