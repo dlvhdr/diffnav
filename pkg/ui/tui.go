@@ -66,6 +66,7 @@ const (
 
 type mainModel struct {
 	input             string
+	prURL             string
 	files             []*gitdiff.File
 	fileTree          filetree.Model
 	diffViewer        diffviewer.Model
@@ -97,14 +98,20 @@ type mainModel struct {
 	repoRoot          string
 }
 
-func New(input string, cfg config.Config) mainModel {
+type ModelOpts struct {
+	Input string
+	PRUrl string
+}
+
+func New(opts ModelOpts, cfg config.Config) mainModel {
 	initialPanel := FileTreePanel
 	if !cfg.UI.ShowFileTree {
 		initialPanel = DiffViewerPanel
 	}
 
 	m := mainModel{
-		input:             input,
+		input:             opts.Input,
+		prURL:             opts.PRUrl,
 		isShowingFileTree: cfg.UI.ShowFileTree,
 		activePanel:       initialPanel,
 		config:            cfg,
@@ -148,6 +155,14 @@ func (m mainModel) fetchRepoRoot() tea.Msg {
 	return repoRootMsg(strings.TrimSpace(string(out)))
 }
 
+func (m mainModel) fetchPRComments() tea.Msg {
+	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return repoRootMsg("")
+	}
+	return repoRootMsg(strings.TrimSpace(string(out)))
+}
+
 type watchTickMsg struct{ time.Time }
 
 type watchResultMsg struct {
@@ -159,6 +174,9 @@ func (m mainModel) Init() tea.Cmd {
 	cmds := []tea.Cmd{m.fetchFileTree, m.diffViewer.Init(), m.fetchRepoRoot}
 	if m.watchEnabled {
 		cmds = append(cmds, m.scheduleWatchTick())
+	}
+	if m.prURL != "" {
+		cmds = append(cmds, m.fetchPRComments)
 	}
 	return tea.Batch(cmds...)
 }

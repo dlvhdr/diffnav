@@ -53,6 +53,9 @@ git config --global pager.diff diffnav
 # watch mode: auto-refresh a diff command
 diffnav --watch
 diffnav --watch --watch-cmd "git diff HEAD" --watch-interval 5s
+
+# review a PR
+diffnav --review https://github.com/dlvhdr/gh-dash/pull/447
 	`,
 }
 
@@ -88,6 +91,7 @@ func init() {
 		BoolP("watch", "w", false, "Watch mode: periodically re-run a diff command and refresh")
 	rootCmd.Flags().String("watch-cmd", "git diff", "Command to run in watch mode")
 	rootCmd.Flags().Duration("watch-interval", 2*time.Second, "Interval between watch refreshes")
+	rootCmd.Flags().String("review", "r", "review a PR")
 
 	rootCmd.SetVersionTemplate("\n" + logo + "\n" + `{{printf "version %s\n" .Version}}`)
 
@@ -121,6 +125,10 @@ func init() {
 		}
 		if cmd.Flags().Changed("watch-cmd") {
 			watchFlag = true
+		}
+		reviewFlag, err := cmd.Flags().GetString("review")
+		if err != nil {
+			log.Fatal("Cannot parse the review flag", err)
 		}
 
 		zone.NewGlobal()
@@ -198,12 +206,12 @@ func init() {
 			}
 
 			input = ansi.Strip(b.String())
-			if strings.TrimSpace(input) == "" {
+			if strings.TrimSpace(input) == "" && reviewFlag == "" {
 				fmt.Println("No input provided, exiting")
 				os.Exit(0)
 			}
 
-			if !isUnifiedDiff(input) {
+			if reviewFlag == "" && !isUnifiedDiff(input) {
 				fmt.Print(input)
 				if !strings.HasSuffix(input, "\n") {
 					fmt.Println()
@@ -231,7 +239,10 @@ func init() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		p := tea.NewProgram(ui.New(input, cfg), tea.WithInput(ttyIn))
+		p := tea.NewProgram(
+			ui.New(ui.ModelOpts{Input: input, PRUrl: reviewFlag}, cfg),
+			tea.WithInput(ttyIn),
+		)
 
 		if _, err := p.Run(); err != nil {
 			log.Fatal(err)
