@@ -21,10 +21,15 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
+const (
+	widthStep = 5
+)
+
 type Model struct {
-	t     tree.Model
-	files []*gitdiff.File
-	cfg   config.Config
+	t            tree.Model
+	files        []*gitdiff.File
+	cfg          config.Config
+	currentWidth int
 }
 
 func New(cfg config.Config) Model {
@@ -59,6 +64,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		case key.Matches(msg, keys.ToggleNode):
 			m.t.ToggleCurrentNode()
+
+		case key.Matches(msg, keys.IncreaseFileTreeWidth):
+			m.SetSize(m.Width()+widthStep, 0)
+
+		case key.Matches(msg, keys.DecreaseFileTreeWidth):
+			m.SetSize(m.Width()-widthStep, 0)
 		}
 	}
 	return m, nil
@@ -411,8 +422,10 @@ var indenter = func(children ltree.Children, index int) string {
 
 // SetSize implements the Component interface.
 func (m *Model) SetSize(width, height int) {
-	m.t.SetSize(width, height)
-	m.rebuildTree()
+	if width > 0 {
+		m.t.SetSize(width, height)
+		m.rebuildTree()
+	}
 }
 
 func (m *Model) Width() int {
