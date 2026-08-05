@@ -1,10 +1,15 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
 
+	"charm.land/log/v2"
 	gh "github.com/cli/go-gh/v2/pkg/api"
+	"github.com/shurcooL/githubv4"
 )
 
 type API struct {
@@ -46,7 +51,7 @@ func (a *API) getGraphQLClient() (*gh.GraphQLClient, error) {
 	}
 
 	level := os.Getenv("LOG_LEVEL")
-	opts := gh.ClientOptions{}
+	opts := gh.ClientOptions{Host: a.url}
 	if level == "debug" {
 		logger := NewHTTPLogger(0)
 		opts.Log = &logger
@@ -63,7 +68,7 @@ func (a *API) getHTTPClient() (*http.Client, error) {
 		return a.httpClient, nil
 	}
 	level := os.Getenv("LOG_LEVEL")
-	opts := gh.ClientOptions{}
+	opts := gh.ClientOptions{Host: a.url}
 	if level == "debug" {
 		logger := NewHTTPLogger(0)
 		opts.Log = &logger
@@ -73,4 +78,80 @@ func (a *API) getHTTPClient() (*http.Client, error) {
 
 	a.httpClient, err = gh.NewHTTPClient(opts)
 	return a.httpClient, err
+}
+
+const (
+	DiffSideLeft  = "LEFT"
+	DiffSideRight = "RIGHT"
+)
+
+type ReviewThread struct {
+	Id           string
+	IsResolved   bool
+	IsOutdated   bool
+	Path         string
+	Line         int
+	OriginalLine int
+	DiffSide     string
+	Comments     struct {
+		Nodes []ReviewThreadComment
+	} `graphql:"comments(first: 100)"`
+}
+
+type ReviewThreadComment struct {
+	Id        string
+	Body      string
+	Author    struct{ Login string }
+	CreatedAt time.Time
+	Url       string
+	ReplyTo   struct{ Id string }
+}
+
+type PR struct {
+	Title      string
+	Number     int
+	Url        string
+	Repository struct {
+		NameWithOwner string
+	}
+	Merged        bool
+	IsDraft       bool
+	Closed        bool
+	HeadRefName   string
+	ReviewThreads struct {
+		Nodes []ReviewThread
+	} `graphql:"reviewThreads(first: 10)"`
+}
+
+type PRQuery struct {
+	Resource struct {
+		PullRequest PR `graphql:"... on PullRequest"`
+	} `graphql:"resource(url: $url)"`
+}
+
+func (a *API) FetchPR(repo string, prNumber string) (PRQuery, error) {
+	var err error
+	var res PRQuery
+	c, err := a.getGraphQLClient()
+	if err != nil {
+		return res, err
+	}
+
+	prURL, err := url.Parse(fmt.Sprintf("https://github.com/%s/pull/%s", repo, prNumber))
+	if err != nil {
+		return res, err
+	}
+	variables := map[string]any{
+		"url": githubv4.URI{URL: prURL},
+	}
+
+	startTime := time.Now()
+	err = c.Query("FetchPRComments", &res, variables)
+	if err != nil {
+		log.Error("error fetching PR", "err", err)
+		return res, err
+	}
+
+	log.Debug("FetchPR request completed", "duration", time.Since(startTime))
+	return res, nil
 }
