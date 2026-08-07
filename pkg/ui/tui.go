@@ -184,7 +184,7 @@ func (m mainModel) fetchPRDiff() tea.Msg {
 		return ghDiffFetchedMsg{err: err}
 	}
 
-	log.Debug("successfuly fetched pr diff", "len", len(res))
+	log.Debug("successfully fetched pr diff", "len", len(res))
 	return ghDiffFetchedMsg{diff: res}
 }
 

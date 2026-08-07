@@ -159,6 +159,7 @@ func (a *API) FetchPRDiff(prURL string) (string, error) {
 		return "", err
 	}
 
+	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
