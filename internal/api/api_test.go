@@ -2,49 +2,44 @@ package api
 
 import (
 	"io"
+	"iter"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
-
-	gh "github.com/cli/go-gh/v2/pkg/api"
 )
 
 func TestFetchPRComments(t *testing.T) {
-	gqlClient, err := gh.NewGraphQLClient(gh.ClientOptions{
-		Transport: localRoundTripper{
-			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path != "/api/graphql" {
-					t.Fatalf("Incorrect path %s", r.URL.Path)
-				}
+	transport := localRoundTripper{
+		handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/graphql" {
+				t.Fatalf("Incorrect path %s", r.URL.Path)
+			}
 
-				body := mustRead(t, r.Body)
-				switch {
-				case strings.Contains(body, "query FetchPRComments"):
-					t.Log("matched query FetchPRComments")
-					d, err := os.ReadFile("./testdata/prComments.json")
-					if err != nil {
-						t.Errorf("failed reading mock data file %v", err)
-					}
-					mustWrite(t, w, string(d))
-				default:
-					t.Log("unexpected url", r.URL)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
+			body := mustRead(t, r.Body)
+			switch {
+			case strings.Contains(body, "query FetchPRComments"):
+				t.Log("matched query FetchPRComments")
+				d, err := os.ReadFile("./testdata/prComments.json")
+				if err != nil {
+					t.Errorf("failed reading mock data file %v", err)
 				}
-				w.WriteHeader(http.StatusOK)
-				w.Header().Set("Content-Type", "application/json")
-			}),
-		},
-		Host:      "localhost:3000",
-		AuthToken: "fake-token",
-	})
+				mustWrite(t, w, string(d))
+			default:
+				t.Log("unexpected url", r.URL)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+		}),
+	}
 	api := API{
-		gqlClient: gqlClient,
+		defaultTransport: transport,
 	}
 
-	res, err := api.FetchPR("some/repo", "12345")
+	res, err := api.FetchPR("https://github.com/some/repo/pull/12345")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,6 +56,44 @@ func TestFetchPRComments(t *testing.T) {
 		t.Fatalf(
 			`expected a PR with 10 review threads but got %d`,
 			len(res.Resource.PullRequest.ReviewThreads.Nodes),
+		)
+	}
+}
+
+func TestFetchPRDiff(t *testing.T) {
+	transport := localRoundTripper{
+		handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/repos/some/repo/pulls/12345" {
+				t.Fatalf("Incorrect path %s", r.URL.Path)
+			}
+
+			d, err := os.ReadFile("./testdata/prDiff.diff")
+			if err != nil {
+				t.Errorf("failed reading mock pr diff %v", err)
+			}
+			val := string(d)
+			mustWrite(t, w, val)
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/vnd.github.v3.diff")
+		}),
+	}
+
+	api := API{
+		defaultTransport: transport,
+	}
+
+	res, err := api.FetchPRDiff("https://github.com/some/repo/pull/12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	next, stop := iter.Pull(strings.Lines(res))
+	defer stop()
+	line, _ := next()
+	if line != "diff --git a/.github/actions/setup/action.yml b/.github/actions/setup/action.yml\n" {
+		t.Fatalf(
+			`expected a PR diff that starts with "diff --git a/.github/actions/setup/action.yml b/.github/actions/setup/action.yml" but got "%s"`,
+			line,
 		)
 	}
 }

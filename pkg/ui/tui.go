@@ -19,6 +19,7 @@ import (
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	zone "github.com/lrstanley/bubblezone/v2"
 
+	"github.com/dlvhdr/diffnav/internal/api"
 	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/dirnode"
 	"github.com/dlvhdr/diffnav/pkg/filenode"
@@ -65,8 +66,10 @@ const (
 )
 
 type mainModel struct {
-	input             string
+	apiClient         api.API
+	diff              string
 	prURL             string
+	pr                api.PRQuery
 	files             []*gitdiff.File
 	fileTree          filetree.Model
 	diffViewer        diffviewer.Model
@@ -110,7 +113,8 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	}
 
 	m := mainModel{
-		input:             opts.Input,
+		apiClient:         api.New(),
+		diff:              opts.Input,
 		prURL:             opts.PRUrl,
 		isShowingFileTree: cfg.UI.ShowFileTree,
 		activePanel:       initialPanel,
@@ -155,12 +159,33 @@ func (m mainModel) fetchRepoRoot() tea.Msg {
 	return repoRootMsg(strings.TrimSpace(string(out)))
 }
 
-func (m mainModel) fetchPRComments() tea.Msg {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+type prFetchedMsg struct {
+	res api.PRQuery
+	err error
+}
+
+func (m mainModel) fetchPR() tea.Msg {
+	res, err := m.apiClient.FetchPR(m.prURL)
 	if err != nil {
-		return repoRootMsg("")
+		return prFetchedMsg{err: err}
 	}
-	return repoRootMsg(strings.TrimSpace(string(out)))
+	return prFetchedMsg{res: res}
+}
+
+type ghDiffFetchedMsg struct {
+	diff string
+	err  error
+}
+
+func (m mainModel) fetchPRDiff() tea.Msg {
+	res, err := m.apiClient.FetchPRDiff(m.prURL)
+	if err != nil {
+		log.Error("failed fetching pr diff", "err", err)
+		return ghDiffFetchedMsg{err: err}
+	}
+
+	log.Debug("successfuly fetched pr diff", "len", len(res))
+	return ghDiffFetchedMsg{diff: res}
 }
 
 type watchTickMsg struct{ time.Time }
@@ -171,12 +196,14 @@ type watchResultMsg struct {
 }
 
 func (m mainModel) Init() tea.Cmd {
-	cmds := []tea.Cmd{m.fetchFileTree, m.diffViewer.Init(), m.fetchRepoRoot}
+	cmds := []tea.Cmd{m.diffViewer.Init(), m.fetchRepoRoot}
 	if m.watchEnabled {
 		cmds = append(cmds, m.scheduleWatchTick())
 	}
 	if m.prURL != "" {
-		cmds = append(cmds, m.fetchPRComments)
+		cmds = append(cmds, m.fetchPR, m.fetchPRDiff)
+	} else {
+		cmds = append(cmds, m.parseDiff)
 	}
 	return tea.Batch(cmds...)
 }
@@ -405,6 +432,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateMessageVp()
 		}
 
+	case prFetchedMsg:
+		m.pr = msg.res
+
+	case ghDiffFetchedMsg:
+		m.diff = msg.diff
+		cmds = append(cmds, m.parseDiff)
+
 	case watchTickMsg:
 		if m.watchInFlight {
 			return m, nil
@@ -422,17 +456,17 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.scheduleWatchTick())
 			return m, tea.Batch(cmds...)
 		}
-		if msg.output == m.input {
+		if msg.output == m.diff {
 			cmds = append(cmds, m.scheduleWatchTick())
 			return m, tea.Batch(cmds...)
 		}
 		m.pendingCursorPath = m.fileTree.CurrNodePath()
 		m.diffViewer.ClearCache()
-		m.input = msg.output
-		cmds = append(cmds, m.fetchFileTree, m.scheduleWatchTick())
+		m.diff = msg.output
+		cmds = append(cmds, m.parseDiff, m.scheduleWatchTick())
 		return m, tea.Batch(cmds...)
 
-	case fileTreeMsg:
+	case parsedDiffMsg:
 		m.files = msg.files
 		if len(m.files) == 0 && !m.watchEnabled {
 			return m, tea.Quit
@@ -649,22 +683,22 @@ func (m mainModel) View() tea.View {
 	return view
 }
 
-type fileTreeMsg struct {
+type parsedDiffMsg struct {
 	files    []*gitdiff.File
 	preamble string
 	branch   string
 }
 
-func (m mainModel) fetchFileTree() tea.Msg {
+func (m mainModel) parseDiff() tea.Msg {
 	// TODO: handle error
-	files, preamble, err := gitdiff.Parse(strings.NewReader(m.input + "\n"))
+	files, preamble, err := gitdiff.Parse(strings.NewReader(m.diff + "\n"))
 	if err != nil {
 		return common.ErrMsg{Err: err}
 	}
 	sortFiles(files)
 
 	branch := resolveBranch(preamble)
-	return fileTreeMsg{files: files, preamble: preamble, branch: branch}
+	return parsedDiffMsg{files: files, preamble: preamble, branch: branch}
 }
 
 // resolveBranch finds branches pointing at the preamble commit.

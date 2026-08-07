@@ -2,9 +2,11 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"time"
 
 	"charm.land/log/v2"
@@ -13,14 +15,17 @@ import (
 )
 
 type API struct {
-	url        string
-	gqlClient  *gh.GraphQLClient
-	httpClient *http.Client
+	Host             string
+	defaultTransport http.RoundTripper
 }
 
 const (
 	defaultAPIURL    = "https://api.github.com"
 	defaultServerURL = "https://github.com"
+)
+
+var prURLPattern = regexp.MustCompile(
+	`^/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)`,
 )
 
 func New() API {
@@ -29,46 +34,39 @@ func New() API {
 		apiURL = defaultAPIURL
 	}
 
-	a := API{}
-
-	// initialize singletons
-	a.getHTTPClient()
-	a.getGraphQLClient()
-
-	a.url = apiURL
+	a := API{
+		Host: apiURL,
+	}
 
 	return a
 }
 
-func (a *API) SetClient(c *gh.GraphQLClient) {
-	a.gqlClient = c
+func (a *API) setDefaultTransport(transport *http.Transport) {
+	a.defaultTransport = transport
 }
 
-func (a *API) getGraphQLClient() (*gh.GraphQLClient, error) {
-	var err error
-	if a.gqlClient != nil {
-		return a.gqlClient, nil
+func (a *API) getGraphQLClient(opts gh.ClientOptions) (*gh.GraphQLClient, error) {
+	if a.defaultTransport != nil {
+		opts.Transport = a.defaultTransport
 	}
+	opts.Host = a.Host
 
 	level := os.Getenv("LOG_LEVEL")
-	opts := gh.ClientOptions{Host: a.url}
 	if level == "debug" {
 		logger := NewHTTPLogger(0)
 		opts.Log = &logger
 		opts.LogVerboseHTTP = true
 		opts.LogColorize = true
 	}
-	a.gqlClient, err = gh.NewGraphQLClient(opts)
-	return a.gqlClient, err
+	return gh.NewGraphQLClient(opts)
 }
 
-func (a *API) getHTTPClient() (*http.Client, error) {
-	var err error
-	if a.httpClient != nil {
-		return a.httpClient, nil
+func (a *API) getRESTClient(opts gh.ClientOptions) (*gh.RESTClient, error) {
+	if a.defaultTransport != nil {
+		opts.Transport = a.defaultTransport
 	}
+
 	level := os.Getenv("LOG_LEVEL")
-	opts := gh.ClientOptions{Host: a.url}
 	if level == "debug" {
 		logger := NewHTTPLogger(0)
 		opts.Log = &logger
@@ -76,14 +74,101 @@ func (a *API) getHTTPClient() (*http.Client, error) {
 		opts.LogColorize = true
 	}
 
-	a.httpClient, err = gh.NewHTTPClient(opts)
-	return a.httpClient, err
+	return gh.NewRESTClient(opts)
+}
+
+func (a *API) getClient(opts gh.ClientOptions) (*http.Client, error) {
+	if a.defaultTransport != nil {
+		opts.Transport = a.defaultTransport
+	}
+
+	level := os.Getenv("LOG_LEVEL")
+	if level == "debug" {
+		logger := NewHTTPLogger(0)
+		opts.Log = &logger
+		opts.LogVerboseHTTP = true
+		opts.LogColorize = true
+	}
+
+	return gh.NewHTTPClient(opts)
 }
 
 const (
 	DiffSideLeft  = "LEFT"
 	DiffSideRight = "RIGHT"
 )
+
+func (a *API) FetchPR(prURL string) (PRQuery, error) {
+	var err error
+	var res PRQuery
+	c, err := a.getGraphQLClient(gh.ClientOptions{})
+	if err != nil {
+		return res, err
+	}
+
+	parsedPRURL, err := url.Parse(prURL)
+	if err != nil {
+		return res, err
+	}
+	variables := map[string]any{
+		"url": githubv4.URI{URL: parsedPRURL},
+	}
+
+	startTime := time.Now()
+	err = c.Query("FetchPRComments", &res, variables)
+	if err != nil {
+		log.Error("error fetching PR", "err", err)
+		return res, err
+	}
+
+	log.Debug("FetchPR request completed", "duration", time.Since(startTime))
+	return res, nil
+}
+
+type diffResp struct{ Body string }
+
+func (a *API) FetchPRDiff(prURL string) (string, error) {
+	c, err := a.getClient(gh.ClientOptions{Headers: map[string]string{
+		"Accept": "application/vnd.github.v3.diff",
+	}})
+	if err != nil {
+		return "", err
+	}
+
+	parsedPRURL, err := url.Parse(prURL)
+	if err != nil {
+		return "", err
+	}
+
+	// PRURL to diff url
+	// https://github.com/neovim/neovim/pull/39773 ->
+	// https://api.github.com/repos/neovim/neovim/pulls/7
+	match := prURLPattern.FindStringSubmatch(parsedPRURL.Path)
+	if match == nil {
+		return "", fmt.Errorf("failed parsing pr url %s", prURL)
+	}
+
+	repo := match[prURLPattern.SubexpIndex("owner")] + "/" +
+		match[prURLPattern.SubexpIndex("repo")]
+	prNumber := match[prURLPattern.SubexpIndex("number")]
+
+	u := fmt.Sprintf("%s/repos/%s/pulls/%s", a.Host, repo, prNumber)
+	log.Debug("fetching", "url", u)
+	resp, err := c.Get(u)
+	if err != nil {
+		return "", err
+	}
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed fetching pr diff: %s", resp.Status)
+	}
+
+	return string(b), nil
+}
 
 type ReviewThread struct {
 	Id           string
@@ -127,31 +212,4 @@ type PRQuery struct {
 	Resource struct {
 		PullRequest PR `graphql:"... on PullRequest"`
 	} `graphql:"resource(url: $url)"`
-}
-
-func (a *API) FetchPR(repo string, prNumber string) (PRQuery, error) {
-	var err error
-	var res PRQuery
-	c, err := a.getGraphQLClient()
-	if err != nil {
-		return res, err
-	}
-
-	prURL, err := url.Parse(fmt.Sprintf("https://github.com/%s/pull/%s", repo, prNumber))
-	if err != nil {
-		return res, err
-	}
-	variables := map[string]any{
-		"url": githubv4.URI{URL: prURL},
-	}
-
-	startTime := time.Now()
-	err = c.Query("FetchPRComments", &res, variables)
-	if err != nil {
-		log.Error("error fetching PR", "err", err)
-		return res, err
-	}
-
-	log.Debug("FetchPR request completed", "duration", time.Since(startTime))
-	return res, nil
 }

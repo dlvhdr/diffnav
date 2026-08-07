@@ -192,7 +192,7 @@ func TestInitialActivePanelWhenFileTreeIsHidden(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := New(string(data), cfg)
+	m := New(ModelOpts{Input: string(data)}, cfg)
 
 	if m.activePanel != DiffViewerPanel {
 		t.Fatalf(
@@ -220,7 +220,7 @@ func newTestMainModel(t *testing.T) mainModel {
 		t.Fatal(err)
 	}
 
-	m := New(string(data), cfg)
+	m := New(ModelOpts{Input: string(data)}, cfg)
 	m.files = files
 	m.fileTree = m.fileTree.SetFiles(files)
 

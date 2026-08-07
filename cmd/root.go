@@ -54,8 +54,8 @@ git config --global pager.diff diffnav
 diffnav --watch
 diffnav --watch --watch-cmd "git diff HEAD" --watch-interval 5s
 
-# review a PR
-diffnav --review https://github.com/dlvhdr/gh-dash/pull/447
+# load a PR
+diffnav --pr https://github.com/dlvhdr/gh-dash/pull/447
 	`,
 }
 
@@ -91,7 +91,7 @@ func init() {
 		BoolP("watch", "w", false, "Watch mode: periodically re-run a diff command and refresh")
 	rootCmd.Flags().String("watch-cmd", "git diff", "Command to run in watch mode")
 	rootCmd.Flags().Duration("watch-interval", 2*time.Second, "Interval between watch refreshes")
-	rootCmd.Flags().String("review", "r", "review a PR")
+	rootCmd.Flags().String("pr", "", "load a PR")
 
 	rootCmd.SetVersionTemplate("\n" + logo + "\n" + `{{printf "version %s\n" .Version}}`)
 
@@ -126,9 +126,9 @@ func init() {
 		if cmd.Flags().Changed("watch-cmd") {
 			watchFlag = true
 		}
-		reviewFlag, err := cmd.Flags().GetString("review")
+		prURL, err := cmd.Flags().GetString("pr")
 		if err != nil {
-			log.Fatal("Cannot parse the review flag", err)
+			log.Fatal("Cannot parse the pr flag", err)
 		}
 
 		zone.NewGlobal()
@@ -179,7 +179,7 @@ func init() {
 				log.Warn("initial watch command failed, starting with empty diff", "err", wErr)
 			}
 			input = output
-		} else {
+		} else if prURL == "" {
 			stat, sErr := os.Stdin.Stat()
 			if sErr != nil {
 				panic(sErr)
@@ -206,16 +206,8 @@ func init() {
 			}
 
 			input = ansi.Strip(b.String())
-			if strings.TrimSpace(input) == "" && reviewFlag == "" {
+			if strings.TrimSpace(input) == "" {
 				fmt.Println("No input provided, exiting")
-				os.Exit(0)
-			}
-
-			if reviewFlag == "" && !isUnifiedDiff(input) {
-				fmt.Print(input)
-				if !strings.HasSuffix(input, "\n") {
-					fmt.Println()
-				}
 				os.Exit(0)
 			}
 		}
@@ -240,7 +232,7 @@ func init() {
 			log.Fatal(err)
 		}
 		p := tea.NewProgram(
-			ui.New(ui.ModelOpts{Input: input, PRUrl: reviewFlag}, cfg),
+			ui.New(ui.ModelOpts{Input: input, PRUrl: prURL}, cfg),
 			tea.WithInput(ttyIn),
 		)
 
