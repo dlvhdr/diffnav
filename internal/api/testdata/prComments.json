@@ -1,0 +1,406 @@
+{
+  "data": {
+    "resource": {
+      "title": "feat(terminal): replace `libvterm` with `libghostty-vt`",
+      "number": 39773,
+      "url": "https://github.com/neovim/neovim/pull/39773",
+      "repository": {
+        "nameWithOwner": "neovim/neovim"
+      },
+      "merged": false,
+      "isDraft": true,
+      "closed": false,
+      "headRefName": "libvterm-to-libghostty",
+      "reviewThreads": {
+        "nodes": [
+          {
+            "id": "PRRT_kwDOAPphoM6B3n0V",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "src/nvim/terminal.c",
+            "line": null,
+            "originalLine": 498,
+            "diffSide": "RIGHT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7A77J7",
+                  "body": "Maybe make this a macro instead?\n\n```c\n#define GHOSTTY_ASSERT(res) assert((res) == GHOSTTY_SUCCESS)\n```",
+                  "author": {
+                    "login": "gpanders"
+                  },
+                  "createdAt": "2026-05-13T19:32:28Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3236934267",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7A9Yao",
+                  "body": "That would cause the wrapped function call to be compiled away in release builds.",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-13T20:40:33Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3237316264",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A77J7"
+                  }
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BMi6M",
+                  "body": "Ah that’s right. I’m too used to Lua",
+                  "author": {
+                    "login": "gpanders"
+                  },
+                  "createdAt": "2026-05-14T12:23:57Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3241291404",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A77J7"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6B3uQ9",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "src/nvim/tui/tui.c",
+            "line": null,
+            "originalLine": 728,
+            "diffSide": "RIGHT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7A8DvK",
+                  "body": "This shouldn't be related to vterm or libghostty. Can you separate this change out into a separate PR (and describe the problem and solution)?",
+                  "author": {
+                    "login": "gpanders"
+                  },
+                  "createdAt": "2026-05-13T19:39:19Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3236969418",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BkjVj",
+                  "body": "It's not related to the transition, but it was a fix for a bug that was discovered by it. I pulled that out into https://github.com/neovim/neovim/pull/39803 where I explain the problem and solution.",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-15T10:39:32Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3247584611",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A8DvK"
+                  }
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7akR5H",
+                  "body": "Removed the fix, see https://github.com/neovim/neovim/pull/39803#issuecomment-5105850368",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-07-28T15:34:33Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3666943559",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A8DvK"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6B3wbA",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "runtime/lua/vim/_core/defaults.lua",
+            "line": null,
+            "originalLine": 681,
+            "diffSide": "LEFT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7A8Gpm",
+                  "body": "Nice",
+                  "author": {
+                    "login": "gpanders"
+                  },
+                  "createdAt": "2026-05-13T19:41:31Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3236981350",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BLPzz",
+                  "body": "what allows us to delete this?",
+                  "author": {
+                    "login": "justinmk"
+                  },
+                  "createdAt": "2026-05-14T11:16:41Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3240951027",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A8Gpm"
+                  }
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BLSdP",
+                  "body": "OSC 10/11 queries are handled by libghostty, see https://github.com/ghostty-org/ghostty/pull/12631.",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-14T11:19:01Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3240961871",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A8Gpm"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6B6J7l",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "test/functional/terminal/scrollback_spec.lua",
+            "line": null,
+            "originalLine": 233,
+            "diffSide": "RIGHT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7A_ZAO",
+                  "body": "This doesn't look correct.",
+                  "author": {
+                    "login": "zeertzjq"
+                  },
+                  "createdAt": "2026-05-13T22:37:03Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3237842958",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BqJFr",
+                  "body": "fixed in 0b1bf57bd86766ced77003bd8947a46db2262934",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-15T14:58:33Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3249049963",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A_ZAO"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6B6a16",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "test/functional/terminal/buffer_spec.lua",
+            "line": 1111,
+            "originalLine": 1100,
+            "diffSide": "LEFT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7A_wZ-",
+                  "body": "Why is this test deleted?",
+                  "author": {
+                    "login": "zeertzjq"
+                  },
+                  "createdAt": "2026-05-13T23:03:33Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3237938814",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BHC8e",
+                  "body": "libghostty treats U+FEFF as non-printing, so the screen would be empty.",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-14T07:39:47Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3239849758",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A_wZ-"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6B6bno",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "test/functional/terminal/tui_spec.lua",
+            "line": null,
+            "originalLine": 907,
+            "diffSide": "RIGHT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7A_xkR",
+                  "body": "This doesn't look right.",
+                  "author": {
+                    "login": "zeertzjq"
+                  },
+                  "createdAt": "2026-05-13T23:04:42Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3237943569",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BqJbz",
+                  "body": "fixed in d8d8512b8ff2261d503a5cbb6a2f3a2b5c99db56",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-15T14:58:47Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3249051379",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7A_xkR"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6CCsqp",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "cmake.deps/deps.txt",
+            "line": null,
+            "originalLine": 55,
+            "diffSide": "RIGHT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7BLKdu",
+                  "body": "is `noib3` the right upstream for us to depend on ...?\n\n",
+                  "author": {
+                    "login": "justinmk"
+                  },
+                  "createdAt": "2026-05-14T11:11:59Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3240929134",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BLO1O",
+                  "body": "It is until the PRs I mentioned are merged upstream, then we can switch.",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-14T11:15:51Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3240947022",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7BLKdu"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6CCuKn",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "runtime/doc/dev_tools.txt",
+            "line": null,
+            "originalLine": 146,
+            "diffSide": "RIGHT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7BLMa7",
+                  "body": "these notes are still relevant, don't think any changes are needed in this doc file. though with ghostty \"inspector\" they are becoming less relevant.",
+                  "author": {
+                    "login": "justinmk"
+                  },
+                  "createdAt": "2026-05-14T11:13:45Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3240937147",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7Bqaie",
+                  "body": "brought those back in 5191c48f65c4.",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-15T15:10:05Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3249121438",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7BLMa7"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6CCwCo",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "runtime/doc/terminal.txt",
+            "line": 213,
+            "originalLine": 201,
+            "diffSide": "LEFT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7BLO4w",
+                  "body": "it looks like code changes might support this now, but do we need a test for it? ",
+                  "author": {
+                    "login": "justinmk"
+                  },
+                  "createdAt": "2026-05-14T11:15:54Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3240947248",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7Bqbtr",
+                  "body": "let Codex add a test for it in d8988c7f1b46",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-15T15:10:47Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3249126251",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7BLO4w"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "PRRT_kwDOAPphoM6CC_XC",
+            "isResolved": true,
+            "isOutdated": true,
+            "path": "src/nvim/terminal.c",
+            "line": null,
+            "originalLine": 503,
+            "diffSide": "RIGHT",
+            "comments": {
+              "nodes": [
+                {
+                  "id": "PRRC_kwDOAPphoM7BLjF7",
+                  "body": "```suggestion\nstatic void assert_ok(GhosttyResult res)\n```",
+                  "author": {
+                    "login": "justinmk"
+                  },
+                  "createdAt": "2026-05-14T11:33:29Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3241030011",
+                  "replyTo": null
+                },
+                {
+                  "id": "PRRC_kwDOAPphoM7BqcK9",
+                  "body": "done in 3c057fc8e5cf",
+                  "author": {
+                    "login": "noib3"
+                  },
+                  "createdAt": "2026-05-15T15:11:05Z",
+                  "url": "https://github.com/neovim/neovim/pull/39773#discussion_r3249128125",
+                  "replyTo": {
+                    "id": "PRRC_kwDOAPphoM7BLjF7"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
