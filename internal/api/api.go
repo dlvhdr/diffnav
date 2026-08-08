@@ -17,6 +17,7 @@ import (
 type API struct {
 	Host             string
 	defaultTransport http.RoundTripper
+	authToken        string
 }
 
 const (
@@ -45,9 +46,16 @@ func (a *API) setDefaultTransport(transport *http.Transport) {
 	a.defaultTransport = transport
 }
 
+func (a *API) setAuthToken(token string) {
+	a.authToken = token
+}
+
 func (a *API) getGraphQLClient(opts gh.ClientOptions) (*gh.GraphQLClient, error) {
 	if a.defaultTransport != nil {
 		opts.Transport = a.defaultTransport
+	}
+	if a.authToken != "" {
+		opts.AuthToken = a.authToken
 	}
 	opts.Host = a.Host
 
@@ -65,6 +73,9 @@ func (a *API) getRESTClient(opts gh.ClientOptions) (*gh.RESTClient, error) {
 	if a.defaultTransport != nil {
 		opts.Transport = a.defaultTransport
 	}
+	if a.authToken != "" {
+		opts.AuthToken = a.authToken
+	}
 
 	level := os.Getenv("LOG_LEVEL")
 	if level == "debug" {
@@ -80,6 +91,9 @@ func (a *API) getRESTClient(opts gh.ClientOptions) (*gh.RESTClient, error) {
 func (a *API) getClient(opts gh.ClientOptions) (*http.Client, error) {
 	if a.defaultTransport != nil {
 		opts.Transport = a.defaultTransport
+	}
+	if a.authToken != "" {
+		opts.AuthToken = a.authToken
 	}
 
 	level := os.Getenv("LOG_LEVEL")

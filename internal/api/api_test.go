@@ -13,7 +13,7 @@ import (
 func TestFetchPRComments(t *testing.T) {
 	transport := localRoundTripper{
 		handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/graphql" {
+			if r.URL.Path != "/api/graphql" {
 				t.Fatalf("Incorrect path %s", r.URL.Path)
 			}
 
@@ -36,7 +36,9 @@ func TestFetchPRComments(t *testing.T) {
 		}),
 	}
 	api := API{
+		Host:             "localhost:3000",
 		defaultTransport: transport,
+		authToken:        "fake-token",
 	}
 
 	res, err := api.FetchPR("https://github.com/some/repo/pull/12345")
@@ -63,8 +65,8 @@ func TestFetchPRComments(t *testing.T) {
 func TestFetchPRDiff(t *testing.T) {
 	transport := localRoundTripper{
 		handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/repos/some/repo/pulls/12345" {
-				t.Fatalf("Incorrect path %s", r.URL.Path)
+			if r.URL.String() != "localhost:3000/repos/some/repo/pulls/12345" {
+				t.Fatalf(`Incorrect URL %s`, r.URL)
 			}
 
 			d, err := os.ReadFile("./testdata/prDiff.diff")
@@ -79,7 +81,9 @@ func TestFetchPRDiff(t *testing.T) {
 	}
 
 	api := API{
+		Host:             "localhost:3000",
 		defaultTransport: transport,
+		authToken:        "fake-token",
 	}
 
 	res, err := api.FetchPRDiff("https://github.com/some/repo/pull/12345")
