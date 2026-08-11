@@ -3,11 +3,9 @@ package filetree
 import "charm.land/bubbles/v2/key"
 
 type KeyMap struct {
-	ExpandNode            key.Binding
-	CollapseNode          key.Binding
-	ToggleNode            key.Binding
-	IncreaseFileTreeWidth key.Binding
-	DecreaseFileTreeWidth key.Binding
+	ExpandNode   key.Binding
+	CollapseNode key.Binding
+	ToggleNode   key.Binding
 }
 
 var keys = &KeyMap{
@@ -22,13 +20,5 @@ var keys = &KeyMap{
 	ToggleNode: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "toggle"),
-	),
-	IncreaseFileTreeWidth: key.NewBinding(
-		key.WithKeys(">"),
-		key.WithHelp(">", "increase file tree width"),
-	),
-	DecreaseFileTreeWidth: key.NewBinding(
-		key.WithKeys("<"),
-		key.WithHelp("<", "decrease file tree width"),
 	),
 }
