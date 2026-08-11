@@ -33,6 +33,8 @@ type KeyMap struct {
 	ToggleHelp            key.Binding
 	ToggleMessage         key.Binding
 	ToggleSelection       key.Binding
+	IncreaseFileTreeWidth key.Binding
+	DecreaseFileTreeWidth key.Binding
 }
 
 var keys = &KeyMap{
@@ -156,6 +158,14 @@ var keys = &KeyMap{
 		key.WithKeys("v"),
 		key.WithHelp("v", "toggle selection"),
 	),
+	IncreaseFileTreeWidth: key.NewBinding(
+		key.WithKeys(">"),
+		key.WithHelp(">", "increase file tree width"),
+	),
+	DecreaseFileTreeWidth: key.NewBinding(
+		key.WithKeys("<"),
+		key.WithHelp("<", "decrease file tree width"),
+	),
 }
 
 func KeyGroups() [][]key.Binding {
@@ -171,6 +181,7 @@ func KeyGroups() [][]key.Binding {
 		keys.CtrlU,
 		keys.ScrollLeft,
 		keys.ScrollRight,
+		keys.IncreaseFileTreeWidth,
 	}, {
 		keys.ToggleFileTree,
 		keys.SearchFiles,
@@ -183,6 +194,7 @@ func KeyGroups() [][]key.Binding {
 		keys.ToggleDiffView,
 		keys.ToggleIconStyle,
 		keys.ToggleSelection,
+		keys.DecreaseFileTreeWidth,
 	}, {
 		keys.ToggleMessage,
 		keys.ToggleHelp,

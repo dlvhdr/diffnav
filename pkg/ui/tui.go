@@ -361,6 +361,15 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.CtrlD, keys.CtrlU, keys.CtrlE, keys.CtrlY):
 			m.diffViewer, cmd = m.diffViewer.Update(msg)
 			cmds = append(cmds, cmd)
+
+		case key.Matches(msg, keys.IncreaseFileTreeWidth):
+			m, cmd = m.handleSidebarResize(minResizeStep)
+			cmds = append(cmds, cmd)
+
+		case key.Matches(msg, keys.DecreaseFileTreeWidth):
+			m, cmd = m.handleSidebarResize(-minResizeStep)
+			cmds = append(cmds, cmd)
+
 		default:
 			if m.activePanel == DiffViewerPanel {
 				m.diffViewer, cmd = m.diffViewer.Update(msg)
@@ -1308,6 +1317,38 @@ func (m mainModel) handleSidebarDrag(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	minWidth := sidebarMinWidth
 	maxWidth := m.width / 2
 	newWidth := max(minWidth, min(maxWidth, msg.Mouse().X))
+
+	// TODO: for some reason setting a value smaller than minResizeStep
+	// will garble up the output when resizing. I have no idea why.
+	if abs(newWidth-m.sidebarWidth()) < minResizeStep {
+		return m, nil
+	}
+
+	// Resize components.
+	cmds := []tea.Cmd{}
+
+	cmds = append(cmds, m.diffViewer.SetSize(m.width-newWidth, m.mainContentHeight()))
+	m.fileTree.SetSize(newWidth-1, m.mainContentHeight()-searchHeight-1)
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m mainModel) handleSidebarResize(resize int) (mainModel, tea.Cmd) {
+	if m.searchingFiles {
+		return m, nil
+	}
+
+	// Clamp to reasonable bounds.
+	minWidth := sidebarMinWidth
+	maxWidth := m.width / 2
+	newWidth := max(minWidth, min(maxWidth, m.sidebarWidth()+resize))
+
+	// Hide sidebar if resized below threshold.
+	if newWidth < sidebarHideWidth {
+		m.isShowingFileTree = false
+		cmd := m.diffViewer.SetSize(m.width, m.mainContentHeight())
+		return m, cmd
+	}
 
 	// TODO: for some reason setting a value smaller than minResizeStep
 	// will garble up the output when resizing. I have no idea why.
