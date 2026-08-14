@@ -238,3 +238,43 @@ func updateMainModel(t *testing.T, m mainModel, msg tea.Msg) mainModel {
 
 	return result
 }
+
+func TestWrapTextFollowsConfig(t *testing.T) {
+	zone.NewGlobal()
+
+	cfg := config.DefaultConfig()
+	cfg.UI.WrapText = true
+
+	data, err := os.ReadFile("../../examples/multiple_files.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := New(ModelOpts{Input: string(data)}, cfg)
+
+	if !m.diffViewer.GetWrapText() {
+		t.Fatal("expected wrapText to be enabled when ui.wrapText is true")
+	}
+}
+
+func TestToggleWrapKeyTogglesWrapText(t *testing.T) {
+	m := newTestMainModel(t)
+	m.width = 100
+	m.height = 40
+
+	if m.diffViewer.GetWrapText() {
+		t.Fatal("expected wrapText to start disabled")
+	}
+
+	updated, _ := m.Update(tea.KeyPressMsg(tea.Key{Code: 'w', Text: "w"}))
+	m = updated.(mainModel)
+	if !m.diffViewer.GetWrapText() {
+		t.Fatal("expected w to enable wrapText")
+	}
+
+	updated, _ = m.Update(tea.KeyPressMsg(tea.Key{Code: 'w', Text: "w"}))
+	m = updated.(mainModel)
+	if m.diffViewer.GetWrapText() {
+		t.Fatal("expected w to disable wrapText")
+	}
+}

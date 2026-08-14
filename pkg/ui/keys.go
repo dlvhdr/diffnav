@@ -33,6 +33,7 @@ type KeyMap struct {
 	ToggleHelp            key.Binding
 	ToggleMessage         key.Binding
 	ToggleSelection       key.Binding
+	ToggleWrap            key.Binding
 }
 
 var keys = &KeyMap{
@@ -156,6 +157,10 @@ var keys = &KeyMap{
 		key.WithKeys("v"),
 		key.WithHelp("v", "toggle selection"),
 	),
+	ToggleWrap: key.NewBinding(
+		key.WithKeys("w"),
+		key.WithHelp("w", "toggle line wrap"),
+	),
 }
 
 func KeyGroups() [][]key.Binding {
@@ -183,6 +188,7 @@ func KeyGroups() [][]key.Binding {
 		keys.ToggleDiffView,
 		keys.ToggleIconStyle,
 		keys.ToggleSelection,
+		keys.ToggleWrap,
 	}, {
 		keys.ToggleMessage,
 		keys.ToggleHelp,

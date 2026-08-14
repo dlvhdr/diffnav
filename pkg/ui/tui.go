@@ -127,7 +127,7 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	}
 	m.fileTree = filetree.New(cfg)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
-	m.diffViewer = diffviewer.New(cfg.UI.SideBySide)
+	m.diffViewer = diffviewer.New(cfg.UI.SideBySide, cfg.UI.WrapText)
 	m.help = help.New()
 	m.help.SetKeys(KeyGroups())
 
@@ -322,6 +322,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.filesSearch.SetWidth(m.searchWidth())
 			dfCmd := m.diffViewer.SetSize(m.width-sidebarWidth, h)
 			cmds = append(cmds, dfCmd)
+		case key.Matches(msg, keys.ToggleWrap):
+			m.diffViewer.ToggleWrapText()
 		case key.Matches(msg, keys.ToggleIconStyle):
 			m.cycleIconStyle()
 		case key.Matches(msg, keys.ToggleDiffView):

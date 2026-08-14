@@ -99,7 +99,7 @@ func (m *Model) SetPreamble(preamble string) {
 	m.preamble = preamble
 }
 
-func New(sideBySide bool) Model {
+func New(sideBySide bool, wrapText bool) Model {
 	sb := common.Scrollbar{
 		Styles: common.ScrollbarStyles{
 			Thumb: lipgloss.NewStyle().Foreground(lipgloss.Blue),
@@ -147,7 +147,7 @@ func New(sideBySide bool) Model {
 		Background(lipgloss.Color("#3D59A1")).
 		Foreground(lipgloss.White)
 
-	return Model{
+	m := Model{
 		sb: sb,
 		fvp: filterableviewport.New(
 			vp,
@@ -197,6 +197,8 @@ func New(sideBySide bool) Model {
 		sideBySide: sideBySide,
 		cache:      map[string]*cachedNode{},
 	}
+	m.fvp.SetWrapText(wrapText)
+	return m
 }
 
 func (m Model) Init() tea.Cmd {
@@ -396,6 +398,14 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	m.sideBySide = sideBySide
 	return m.diff()
+}
+
+func (m *Model) ToggleWrapText() {
+	m.fvp.SetWrapText(!m.fvp.GetWrapText())
+}
+
+func (m *Model) GetWrapText() bool {
+	return m.fvp.GetWrapText()
 }
 
 // ScrollUp scrolls the viewport up by the given number of lines.

@@ -177,6 +177,9 @@ ui:
   # Use side-by-side diff view (default: true, set false for unified)
   sideBySide: true
 
+  # Wrap long lines instead of scrolling horizontally (default: false, toggle with 'w')
+  wrapText: true
+
   # How many levels of folders to open on start (-1 = all, 0 = none, 1 = first level, etc.)
   startFoldersOpenDepth: 1
 ```
@@ -192,6 +195,7 @@ ui:
 | `ui.colorFileNames`        | bool   | `true`              | Color filenames by git status                             |
 | `ui.showDiffStats`         | bool   | `true`              | Show the amount of lines added / removed next to the file |
 | `ui.sideBySide`            | bool   | `true`              | Use side-by-side diff view (false for unified)            |
+| `ui.wrapText`              | bool   | `false`             | Wrap long lines instead of scrolling horizontally         |
 | `ui.startFoldersOpenDepth` | int    | `-1`                | Folder open depth on start (-1 = all, 0 = none)           |
 
 ### Icon Styles
@@ -229,6 +233,7 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>i</kbd>                | Cycle icon style                 |
 | <kbd>o</kbd>                | Open file in $EDITOR             |
 | <kbd>s</kbd>                | Toggle side-by-side/unified view |
+| <kbd>w</kbd>                | Toggle line wrap                 |
 | <kbd>Tab</kbd>              | Switch focus between the panes   |
 | <kbd>q</kbd>                | Quit                             |
 
