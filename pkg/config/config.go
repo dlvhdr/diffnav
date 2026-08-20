@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"time"
 
+	tint "github.com/lrstanley/bubbletint/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,6 +21,7 @@ type UIConfig struct {
 	ShowDiffStats         bool   `yaml:"showDiffStats"`         // Show the amount of lines added / removed next to the file
 	SideBySide            bool   `yaml:"sideBySide"`            // Side-by-side diff view (default: true)
 	StartFoldersOpenDepth int    `yaml:"startFoldersOpenDepth"` // How many levels of folders to open on start (-1 = all, 0 = none)
+	Theme                 string `yaml:"theme"`                 // The theme to use (default: "tokyo_night")
 }
 
 type WatchConfig struct {
@@ -46,6 +48,7 @@ func DefaultConfig() Config {
 			SideBySide:            true,
 			ShowDiffStats:         true,
 			StartFoldersOpenDepth: -1,
+			Theme:                 tint.TintTokyoNight.ID,
 		},
 	}
 }

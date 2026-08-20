@@ -32,6 +32,7 @@ type KeyMap struct {
 	ToggleIconStyle       key.Binding
 	ToggleHelp            key.Binding
 	ToggleMessage         key.Binding
+	OpenThemePicker       key.Binding
 	ToggleSelection       key.Binding
 }
 
@@ -152,6 +153,10 @@ var keys = &KeyMap{
 		key.WithKeys("m"),
 		key.WithHelp("m", "commit info"),
 	),
+	OpenThemePicker: key.NewBinding(
+		key.WithKeys("T"),
+		key.WithHelp("T", "theme picker"),
+	),
 	ToggleSelection: key.NewBinding(
 		key.WithKeys("v"),
 		key.WithHelp("v", "toggle selection"),
@@ -184,6 +189,7 @@ func KeyGroups() [][]key.Binding {
 		keys.ToggleIconStyle,
 		keys.ToggleSelection,
 	}, {
+		keys.OpenThemePicker,
 		keys.ToggleMessage,
 		keys.ToggleHelp,
 		keys.Quit,

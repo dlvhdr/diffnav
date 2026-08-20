@@ -17,6 +17,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
+	tint "github.com/lrstanley/bubbletint/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/diffnav/internal/api"
@@ -27,6 +28,7 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/diffviewer"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetree"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/help"
+	themepicker "github.com/dlvhdr/diffnav/pkg/ui/theme_picker"
 	"github.com/dlvhdr/diffnav/pkg/utils"
 	"github.com/dlvhdr/diffnav/pkg/watch"
 	"github.com/lrstanley/go-nf/glyphs/md"
@@ -73,6 +75,8 @@ type mainModel struct {
 	files             []*gitdiff.File
 	fileTree          filetree.Model
 	diffViewer        diffviewer.Model
+	themePicker       themepicker.Model
+	lastTheme         *tint.Tint
 	width             int
 	height            int
 	isShowingFileTree bool
@@ -89,6 +93,7 @@ type mainModel struct {
 	help              help.Model
 	helpOpen          bool
 	messageOpen       bool
+	themePickerOpen   bool
 	messageVp         viewport.Model
 	preamble          string
 	commitBranch      string
@@ -99,6 +104,7 @@ type mainModel struct {
 	pendingCursorPath string
 	watchInFlight     bool
 	repoRoot          string
+	styles            common.Styles
 }
 
 type ModelOpts struct {
@@ -107,6 +113,13 @@ type ModelOpts struct {
 }
 
 func New(opts ModelOpts, cfg config.Config) mainModel {
+	common.RegisterSupportedTints()
+	theme := cfg.UI.Theme
+	if envTheme := os.Getenv("DIFFNAV_THEME"); envTheme != "" {
+		theme = envTheme
+	}
+	common.Themes.SetTintID(theme)
+
 	initialPanel := FileTreePanel
 	if !cfg.UI.ShowFileTree {
 		initialPanel = DiffViewerPanel
@@ -124,10 +137,13 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 		watchEnabled:      cfg.Watch.Enabled,
 		watchCmd:          cfg.Watch.Cmd,
 		watchInterval:     cfg.Watch.Interval,
+		styles:            common.MakeStyles(),
+		lastTheme:         common.Themes.Current(),
 	}
-	m.fileTree = filetree.New(cfg)
+	m.fileTree = filetree.New(cfg, &m.styles)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
-	m.diffViewer = diffviewer.New(cfg.UI.SideBySide)
+	m.diffViewer = diffviewer.New(cfg.UI.SideBySide, &m.styles)
+	m.themePicker = themepicker.New(&m.styles)
 	m.help = help.New()
 	m.help.SetKeys(KeyGroups())
 
@@ -138,8 +154,8 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	m.filesSearch.Placeholder = "Filter files 󰬛 "
 	m.filesSearch.SetStyles(textinput.Styles{
 		Focused: textinput.StyleState{
-			Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("8")),
-			Prompt:      lipgloss.NewStyle().Foreground(lipgloss.Color("8")),
+			Placeholder: lipgloss.NewStyle().Foreground(m.styles.Tint.Black),
+			Prompt:      lipgloss.NewStyle().Foreground(m.styles.Tint.Black),
 		},
 	})
 	m.filesSearch.SetWidth(cfg.UI.FileTreeWidth - 2)
@@ -245,9 +261,22 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		if m.themePickerOpen && !key.Matches(msg, keys.Quit) && msg.Key().Code != tea.KeyEscape {
+			tCmd := m.themePicker.Update(msg)
+			cmds = append(cmds, tCmd)
+			return m, tea.Batch(cmds...)
+		}
 		switch {
+		case key.Matches(msg, keys.OpenThemePicker):
+			m.lastTheme = common.Themes.Current()
+			cmds = append(cmds, m.themePicker.Open())
+			m.themePickerOpen = true
+			m.helpOpen = false
+			m.messageOpen = false
+			return m, tea.Batch(cmds...)
 		case key.Matches(msg, keys.ToggleHelp):
 			m.helpOpen = !m.helpOpen
+			m.themePickerOpen = false
 			m.messageOpen = false
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, keys.ToggleSelection):
@@ -258,13 +287,19 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.preamble != "" {
 				m.messageOpen = !m.messageOpen
 				m.helpOpen = false
+				m.themePickerOpen = false
 				if m.messageOpen {
 					m.updateMessageVp()
 					m.messageVp.GotoTop()
 				}
 			}
 			return m, tea.Batch(cmds...)
-		case (m.helpOpen || m.messageOpen) && (key.Matches(msg, keys.Quit) || msg.Key().Code == tea.KeyEscape):
+		case (m.themePickerOpen || m.helpOpen || m.messageOpen) && (key.Matches(msg, keys.Quit) || msg.Key().Code == tea.KeyEscape):
+			if m.themePickerOpen {
+				cmds = append(cmds, m.onThemeChanged(m.lastTheme.ID))
+			}
+
+			m.themePickerOpen = false
 			m.helpOpen = false
 			m.messageOpen = false
 			return m, tea.Batch(cmds...)
@@ -416,12 +451,22 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case themepicker.ThemePreviewMsg:
+		cmds = append(cmds, m.onThemeChanged(msg.Theme.ID))
+
+	case themepicker.ThemeChosenMsg:
+		m.themePickerOpen = false
+		m.lastTheme = msg.Theme
+		cmds = append(cmds, m.onThemeChanged(msg.Theme.ID))
+		return m, tea.Batch(cmds...)
+
 	case tea.WindowSizeMsg:
 		log.Info("got tea.WindowSizeMsg", "width", msg.Width, "height", msg.Height)
 		m.help.Update(msg)
 		m.width = msg.Width
 		m.height = msg.Height
 		dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.mainContentHeight())
+		m.themePicker.SetSize(msg.Width/3, int(float32(msg.Height)*(2.0/3.0)))
 		cmds = append(cmds, dfCmd)
 
 		tWidth, tHeight := m.sidebarWidth(), m.mainContentHeight()-searchHeight
@@ -488,6 +533,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case common.ErrMsg:
 		fmt.Printf("Error: %v\n", msg.Err)
+		log.Error("Crashing", "err", msg.Err, "message", msg.Message)
 		log.Fatal(msg.Err)
 
 	default:
@@ -501,6 +547,15 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Exception: ctrl+d/ctrl+u go to diffViewer for scrolling (unless an overlay is open).
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m *mainModel) onThemeChanged(themeId string) tea.Cmd {
+	if ok := common.Themes.SetTintID(themeId); ok {
+		m.styles = common.MakeStyles()
+		m.fileTree.SetStyles(&m.styles)
+		return m.diffViewer.UpdateTheme()
+	}
+	return nil
 }
 
 func (m *mainModel) mainContentHeight() int {
@@ -583,12 +638,12 @@ func (m mainModel) View() tea.View {
 
 	view.KeyboardEnhancements.ReportEventTypes = true
 	// Determine colors based on active panel.
-	leftColor := lipgloss.Color("8")
-	rightColor := lipgloss.Color("8")
+	leftColor := m.styles.Tint.Black
+	rightColor := m.styles.Tint.Black
 	if m.activePanel == FileTreePanel && !m.searchingFiles {
-		leftColor = lipgloss.Color("4")
+		leftColor = m.styles.Tint.Blue
 	} else if m.activePanel == DiffViewerPanel {
-		rightColor = lipgloss.Color("4")
+		rightColor = m.styles.Tint.Blue
 	}
 
 	// Build T-shaped separator line.
@@ -616,7 +671,7 @@ func (m mainModel) View() tea.View {
 	if m.isSidebarVisible() {
 		searchBox := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("8")).
+			BorderForeground(m.styles.Tint.Black).
 			Width(m.sidebarWidth()).
 			Render(m.filesSearch.View())
 		searchBox = zone.Mark(zoneSearchBox, searchBox)
@@ -640,7 +695,7 @@ func (m mainModel) View() tea.View {
 			Width(0).
 			Height(m.mainContentHeight()-1).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
-			BorderForeground(lipgloss.Color("8")).
+			BorderForeground(m.styles.Tint.Black).
 			Render("")
 		sidebar = grabLine
 	}
@@ -673,6 +728,11 @@ func (m mainModel) View() tea.View {
 
 	if m.messageOpen {
 		o := m.renderOverlay(m.messageViewContent())
+		layers = append(layers, lipgloss.NewLayer(o.rendered).X(o.col).Y(o.row))
+	}
+
+	if m.themePickerOpen {
+		o := m.renderOverlay(m.themePicker.View())
 		layers = append(layers, lipgloss.NewLayer(o.rendered).X(o.col).Y(o.row))
 	}
 
@@ -827,15 +887,15 @@ func (m mainModel) commitSubject() string {
 
 func (m mainModel) viewHeader() string {
 	title := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("6")).
+		Foreground(m.styles.Tint.Cyan).
 		Bold(true).
 		Render("DIFFNAV")
 
-	sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
-	hashStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("132"))
-	dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("172"))
-	authorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("109"))
-	refStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("072"))
+	sep := lipgloss.NewStyle().Foreground(m.styles.Tint.BrightBlack).Render(" • ")
+	hashStyle := lipgloss.NewStyle().Foreground(m.styles.Tint.Red)
+	dateStyle := lipgloss.NewStyle().Foreground(m.styles.Tint.Red)
+	authorStyle := lipgloss.NewStyle().Foreground(m.styles.Tint.Green)
+	refStyle := lipgloss.NewStyle().Foreground(m.styles.Tint.Green)
 
 	headerParts := title
 	meta := m.cachedMeta
@@ -891,13 +951,16 @@ func (m mainModel) viewHeader() string {
 }
 
 func (m mainModel) footerView() string {
-	base := lipgloss.NewStyle().Background(common.Colors[common.DarkerSelected])
+	base := lipgloss.NewStyle().Background(m.styles.Colors.DarkerSelectionBg)
 	files := fmt.Sprintf(" %d files", len(m.files))
-	sep := base.Foreground(lipgloss.BrightBlack).Render(" • ")
+	sep := base.Foreground(m.styles.Tint.BrightBlack).Render(" • ")
 	added, deleted := m.diffViewer.RootDiffStats()
 	help := zone.Mark(
 		zoneHelp,
-		base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("F1/? help"),
+		base.Background(m.styles.Tint.BrightBlack).
+			PaddingLeft(1).
+			PaddingRight(1).
+			Render("F1/? help"),
 	)
 	stats := filenode.ViewDiffStats(added, deleted, base)
 	parts := []string{files, sep, stats}
@@ -932,8 +995,8 @@ func (m mainModel) footerView() string {
 }
 
 func (m *mainModel) messageView() string {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	yellow := lipgloss.NewStyle().Foreground(lipgloss.Yellow)
+	dim := lipgloss.NewStyle().Foreground(m.styles.Tint.Black)
+	yellow := lipgloss.NewStyle().Foreground(m.styles.Tint.Yellow)
 
 	var out []string
 
@@ -987,8 +1050,8 @@ func (m mainModel) renderScrollbar() string {
 		}
 	}
 
-	track := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	thumb := lipgloss.NewStyle().Foreground(lipgloss.Blue)
+	track := lipgloss.NewStyle().Foreground(m.styles.Tint.Black)
+	thumb := lipgloss.NewStyle().Foreground(m.styles.Tint.Blue)
 
 	var sb strings.Builder
 	for i := range trackHeight {
@@ -1006,8 +1069,8 @@ func (m mainModel) renderScrollbar() string {
 
 func (m mainModel) resultsView() string {
 	sb := strings.Builder{}
-	baseStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#F7F7F7"))
-	dirStyle := lipgloss.NewStyle().Bold(false).Foreground(lipgloss.Color("#B8B8B8"))
+	baseStyle := lipgloss.NewStyle().Foreground(lipgloss.Lighten(m.styles.Tint.BrightWhite, 0.2))
+	dirStyle := lipgloss.NewStyle().Bold(false).Foreground(m.styles.Tint.White)
 	for i, f := range m.filtered {
 		icon := neo.ByPath(f)
 		if icon == nil {
@@ -1024,8 +1087,9 @@ func (m mainModel) resultsView() string {
 			dir = ""
 		}
 		if i == m.resultsCursor {
-			bg := lipgloss.NewStyle().Background(lipgloss.Color("#1b1b33"))
-			fName := lipgloss.NewStyle().
+			bg := baseStyle.Background(m.styles.Colors.SelectionBg)
+			fName := baseStyle.
+				Foreground(lipgloss.Lighten(m.styles.Tint.BrightWhite, 0.2)).
 				Bold(true).
 				Render(bg.Render(base)) +
 				bg.Render(

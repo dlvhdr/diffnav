@@ -22,12 +22,13 @@ import (
 )
 
 type Model struct {
+	common.Common
 	t     tree.Model
 	files []*gitdiff.File
 	cfg   config.Config
 }
 
-func New(cfg config.Config) Model {
+func New(cfg config.Config, styles *common.Styles) Model {
 	t := tree.New(nil, constants.OpenFileTreeWidth, 0)
 	t.SetCursorCharacter("")
 	t.SetShowHelp(false)
@@ -35,8 +36,9 @@ func New(cfg config.Config) Model {
 	t.SetScrollOff(3)
 
 	m := Model{
-		t:   t,
-		cfg: cfg,
+		t:      t,
+		cfg:    cfg,
+		Common: common.Common{Styles: styles},
 	}
 
 	open, closed := getDirIcons(m.cfg.UI.Icons)
@@ -83,27 +85,26 @@ func getDirIcons(iconStyle string) (string, string) {
 }
 
 func (m *Model) updateStyles() {
-	dimmed := common.Colors[common.Selected]
 	base := lipgloss.NewStyle()
 	m.t.SetStyles(tree.Styles{
 		TreeStyle:       base,
-		RootNodeStyle:   base.Foreground(lipgloss.BrightBlue),
-		ParentNodeStyle: base.Foreground(lipgloss.BrightBlue),
+		RootNodeStyle:   base.Foreground(m.Styles.Tint.BrightBlue),
+		ParentNodeStyle: base.Foreground(m.Styles.Tint.BrightBlue),
 		SelectedNodeStyleFunc: func(children tree.Nodes, i int) lipgloss.Style {
-			base := base.Bold(true).Background(dimmed)
+			base := base.Bold(true).Background(m.Styles.Colors.SelectionBg)
 			child := children.At(i)
 			switch child.GivenValue().(type) {
 			case *filenode.FileNode:
 				return base
 			case string, *dirnode.DirNode:
-				return base.Foreground(lipgloss.BrightBlue)
+				return base.Foreground(m.Styles.Tint.BrightBlue)
 			}
 			return base
 		},
 		HelpStyle:               base.MarginTop(1),
-		EnumeratorStyle:         base.Foreground(dimmed),
-		SelectedEnumeratorStyle: base.Bold(true).Foreground(lipgloss.BrightBlue),
-		IndenterStyle:           base.Foreground(dimmed),
+		EnumeratorStyle:         base.Foreground(m.Styles.Colors.SelectionFg),
+		SelectedEnumeratorStyle: base.Bold(true).Foreground(m.Styles.Tint.BrightBlue),
+		IndenterStyle:           base.Foreground(m.Styles.Colors.SelectionFg),
 	})
 
 	open, closed := getDirIcons(m.cfg.UI.Icons)
@@ -216,18 +217,18 @@ func (m *Model) rebuildTree() {
 	t, _ = truncateTree(t, 0, 0, 0, m.cfg, m.t.Width())
 	m.t.SetNodes(t)
 	if m.cfg.UI.StartFoldersOpenDepth >= 0 {
-		closeDirsBelow(m.t.Root(), m.cfg.UI.StartFoldersOpenDepth)
+		closeDirsBelow(m.t.Root(), 0, m.cfg.UI.StartFoldersOpenDepth)
 	}
 	m.t.SetWidth(m.t.Width())
 	m.updateStyles()
 }
 
-func closeDirsBelow(node *tree.Node, maxOpenDepth int) {
+func closeDirsBelow(node *tree.Node, currDepth int, maxOpenDepth int) {
 	for _, child := range node.ChildNodes() {
-		closeDirsBelow(child, maxOpenDepth)
+		closeDirsBelow(child, currDepth+1, maxOpenDepth)
 	}
 	if _, ok := node.GivenValue().(*dirnode.DirNode); ok {
-		if node.Depth() > maxOpenDepth {
+		if currDepth > maxOpenDepth {
 			node.Close()
 		}
 	}
@@ -497,4 +498,9 @@ func (m *Model) SetIconStyle(iconStyle string) {
 		m.rebuildTree()
 	}
 	m.updateStyles()
+}
+
+func (m *Model) SetStyles(styles *common.Styles) {
+	m.Styles = styles
+	m.rebuildTree()
 }

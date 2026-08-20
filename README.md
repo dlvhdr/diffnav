@@ -75,7 +75,7 @@ brew install diffnav
 
 or from my tap directly:
 
-```sh 
+```sh
 brew install dlvhdr/formulae/diffnav
 ```
 
@@ -179,6 +179,10 @@ ui:
 
   # How many levels of folders to open on start (-1 = all, 0 = none, 1 = first level, etc.)
   startFoldersOpenDepth: 1
+
+  # The ID of the theme to use. Press `T` to see available themes - IDs are
+  shown below each theme name. (default: tokyo_night)
+  theme: gruvbox_dark
 ```
 
 | Option                     | Type   | Default             | Description                                               |
@@ -193,6 +197,7 @@ ui:
 | `ui.showDiffStats`         | bool   | `true`              | Show the amount of lines added / removed next to the file |
 | `ui.sideBySide`            | bool   | `true`              | Use side-by-side diff view (false for unified)            |
 | `ui.startFoldersOpenDepth` | int    | `-1`                | Folder open depth on start (-1 = all, 0 = none)           |
+| `ui.theme`                 | string | `tokyo_night`       | The ID of the theme to use                                |
 
 ### Icon Styles
 
@@ -230,6 +235,7 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>o</kbd>                | Open file in $EDITOR             |
 | <kbd>s</kbd>                | Toggle side-by-side/unified view |
 | <kbd>Tab</kbd>              | Switch focus between the panes   |
+| <kbd>T</kbd>                | Open the theme picker            |
 | <kbd>q</kbd>                | Quit                             |
 
 ## Discord
@@ -245,6 +251,7 @@ See the contribution guide at [https://www.gh-dash.dev/contributing](https://www
 `diffnav` uses:
 
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) for the TUI
+- [Bubbletint](https://github.com/lrstanley/bubbletint/v2) for the theming
 - [`delta`](https://github.com/dandavison/delta) for viewing the diffed file
 
 Screenshots use:

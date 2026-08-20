@@ -34,10 +34,11 @@ type cachedNode struct {
 type nodeCache map[string]*cachedNode
 
 func cacheKey(path string, sideBySide bool) string {
+	key := path + ":" + common.Themes.Current().ID
 	if sideBySide {
-		return path + ":sbs"
+		return key + ":sbs"
 	}
-	return path
+	return key
 }
 
 type diffLine struct {
@@ -99,32 +100,33 @@ func (m *Model) SetPreamble(preamble string) {
 	m.preamble = preamble
 }
 
-func New(sideBySide bool) Model {
-	sb := common.Scrollbar{
-		Styles: common.ScrollbarStyles{
-			Thumb: lipgloss.NewStyle().Foreground(lipgloss.Blue),
-			Track: lipgloss.NewStyle().Foreground(lipgloss.Color("8")),
-		},
-	}
+func New(sideBySide bool, styles *common.Styles) Model {
 	vp := viewport.New(
 		0,
 		0,
 		viewport.WithKeyMap[diffLine](ViewportKeyMap),
 		viewport.WithStyles[diffLine](
 			viewport.Styles{
-				SelectionPrefix: lipgloss.NewStyle().Foreground(lipgloss.Blue).Render("▐"),
+				SelectionPrefix: lipgloss.NewStyle().Foreground(styles.Tint.Blue).Render("▐"),
 				SelectedItemStyle: lipgloss.NewStyle().
-					Background(common.Colors[common.Selected]).
-					Foreground(lipgloss.BrightWhite),
+					Background(styles.Colors.SelectionBg).
+					Foreground(styles.Tint.BrightWhite),
 				FooterStyle: lipgloss.NewStyle().
-					BorderForeground(lipgloss.BrightBlack).
-					Background(lipgloss.BrightBlack).
+					BorderForeground(styles.Tint.BrightBlack).
+					Background(styles.Tint.BrightBlack).
 					Border(lipgloss.Border{Left: "", Right: ""}, false, true, false, true).
-					Foreground(lipgloss.White).
+					Foreground(styles.Tint.White).
 					Italic(true),
 			},
 		),
 	)
+
+	sb := common.Scrollbar{
+		Styles: common.ScrollbarStyles{
+			Thumb: lipgloss.NewStyle().Foreground(styles.Tint.Blue),
+			Track: lipgloss.NewStyle().Foreground(styles.Tint.Black),
+		},
+	}
 
 	filterableViewportKeyMap := filterableviewport.DefaultKeyMap()
 	filterableViewportKeyMap.CancelFilterKey = key.NewBinding(
@@ -134,20 +136,23 @@ func New(sideBySide bool) Model {
 
 	filterableViewportStyles := filterableviewport.DefaultStyles()
 	filterableViewportStyles.Filter.Focused.TextInput.Text = lipgloss.NewStyle().
-		Foreground(lipgloss.BrightWhite)
+		Foreground(styles.Tint.BrightWhite)
 	filterableViewportStyles.Filter.Unfocused.TextInput.Text = lipgloss.NewStyle().
-		Foreground(lipgloss.White)
-	filterableViewportStyles.Filter.Empty = lipgloss.NewStyle().Foreground(lipgloss.White)
+		Foreground(styles.Tint.White)
+	filterableViewportStyles.Filter.Empty = lipgloss.NewStyle().Foreground(styles.Tint.White)
 	filterableViewportStyles.MatchesCount.Matches = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FF9E65"))
+		Foreground(styles.Tint.BrightYellow)
 	filterableViewportStyles.Match.Focused = lipgloss.NewStyle().
-		Background(lipgloss.Color("#FF9E65")).
-		Foreground(lipgloss.Color("#1E202F"))
+		Background(lipgloss.Darken(styles.Tint.Yellow, 0.2)).
+		Foreground(lipgloss.Lighten(styles.Tint.Yellow, 0.5))
 	filterableViewportStyles.Match.Unfocused = lipgloss.NewStyle().
-		Background(lipgloss.Color("#3D59A1")).
-		Foreground(lipgloss.White)
+		Background(lipgloss.Lighten(styles.Colors.SelectionBg, 0.1)).
+		Foreground(lipgloss.Lighten(styles.Tint.BrightWhite, 0.5))
 
 	return Model{
+		Common: common.Common{
+			Styles: styles,
+		},
 		sb: sb,
 		fvp: filterableviewport.New(
 			vp,
@@ -247,6 +252,11 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 	return m.diff()
 }
 
+func (m *Model) UpdateTheme() tea.Cmd {
+	m.ClearCache()
+	return m.diff()
+}
+
 func (m Model) contentWidth() int {
 	return m.Width - scrollbarWidth
 }
@@ -267,7 +277,7 @@ func (m *Model) diff() tea.Cmd {
 		}
 		m.file = node
 		m.cache[key] = node
-		return diffFile(node, m.contentWidth(), m.sideBySide)
+		return m.diffFile(node, m.contentWidth(), m.sideBySide)
 	} else if m.dir != nil {
 		key := cacheKey(m.dir.path, m.sideBySide)
 		if cached, ok := m.cache[key]; ok && len(cached.diff) != 0 {
@@ -287,7 +297,7 @@ func (m *Model) diff() tea.Cmd {
 		if m.dir.path == "/" {
 			preamble = m.preamble
 		}
-		return diffDir(node, m.contentWidth(), m.sideBySide, preamble)
+		return m.diffDir(node, m.contentWidth(), m.sideBySide, preamble)
 	}
 
 	return nil
@@ -316,12 +326,12 @@ func (m Model) headerView() string {
 		Height(dirHeaderHeight - 1).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
-		BorderForeground(lipgloss.Color("8")).
+		BorderForeground(m.Styles.Tint.Black).
 		Render(lipgloss.JoinVertical(lipgloss.Left, top, bottom))
 }
 
 func (m Model) dirHeaderView() string {
-	base := lipgloss.NewStyle().Foreground(lipgloss.Blue)
+	base := lipgloss.NewStyle().Foreground(m.Styles.Tint.Blue)
 	prefix := base.Render(" ")
 	name := utils.TruncateString(m.dir.path, m.contentWidth()-lipgloss.Width(prefix))
 
@@ -332,7 +342,7 @@ func (m Model) dirHeaderView() string {
 		Height(dirHeaderHeight - 1).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
-		BorderForeground(lipgloss.Color("8")).
+		BorderForeground(m.Styles.Tint.Black).
 		Render(lipgloss.JoinVertical(lipgloss.Left, top, bottom))
 }
 
@@ -358,8 +368,9 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 		deletions: deletions,
 	}
 	m.cache[key] = m.file
+
 	m.updateHeader()
-	return m, diffFile(m.file, m.contentWidth(), m.sideBySide)
+	return m, m.diffFile(m.file, m.contentWidth(), m.sideBySide)
 }
 
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
@@ -390,9 +401,8 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 	if dirPath == "/" {
 		preamble = m.preamble
 	}
-
 	m.updateHeader()
-	return m, diffDir(m.dir, m.contentWidth(), m.sideBySide, preamble)
+	return m, m.diffDir(m.dir, m.contentWidth(), m.sideBySide, preamble)
 }
 
 func (m *Model) updateHeader() {
@@ -435,7 +445,7 @@ func (m *Model) ScrollRight(cols int) {
 	m.fvp.ScrollRight(cols)
 }
 
-func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
+func (m *Model) diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 	if width == 0 || node == nil || len(node.files) != 1 {
 		return nil
 	}
@@ -444,22 +454,25 @@ func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 	key := cacheKey(node.path, sideBySide)
 	return func() tea.Msg {
 		// Only use side-by-side if preference is true AND file is not new/deleted
-		useSideBySide := sideBySide && !file.IsNew && !file.IsDelete
-		args := []string{
-			"--paging=never",
-			fmt.Sprintf("-w=%d", width),
-			// Disable hard truncation and let delta's own line-wrapping (active
-			// in side-by-side mode) carry the full line through. With
-			// `--max-line-length=<width>` and the default `--wrap-max-lines=2`,
-			// long lines were being clipped at the viewport before we saw
-			// them. Anything still wider than the viewport gets clipped with
-			// a visible "…" marker in the `diffContentMsg` handler.
-			"--max-line-length=0",
-			"--wrap-max-lines=unlimited",
-		}
-		if useSideBySide {
-			args = append(args, "--side-by-side")
-		}
+		// useSideBySide := sideBySide && !file.IsNew && !file.IsDelete
+		// args := []string{
+		// 	"--paging=never",
+		// 	fmt.Sprintf("-w=%d", width),
+		// 	// Disable hard truncation and let delta's own line-wrapping (active
+		// 	// in side-by-side mode) carry the full line through. With
+		// 	// `--max-line-length=<width>` and the default `--wrap-max-lines=2`,
+		// 	// long lines were being clipped at the viewport before we saw
+		// 	// them. Anything still wider than the viewport gets clipped with
+		// 	// a visible "…" marker in the `diffContentMsg` handler.
+		// 	"--max-line-length=0",
+		// 	"--wrap-max-lines=unlimited",
+		// 	fmt.Sprintf(`--syntax-theme="%s"`, common.Themes.Current().DisplayName),
+		// }
+		// if useSideBySide {
+		// 	args = append(args, "--side-by-side")
+		// }
+		args := m.makeDeltaArgs(sideBySide, width)
+		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
 		deltac.Env = os.Environ()
 		deltac.Stdin = strings.NewReader(file.String() + "\n")
@@ -472,35 +485,17 @@ func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 	}
 }
 
-func diffDir(dir *cachedNode, width int, sideBySide bool, preamble string) tea.Cmd {
+func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble string) tea.Cmd {
 	if width == 0 || dir == nil {
 		return nil
 	}
 	key := cacheKey(dir.path, sideBySide)
 	return func() tea.Msg {
-		s := common.BgStyles[common.Selected]
-		c := common.LipglossColorToHex(common.Colors[common.Selected])
-		useSideBySide := sideBySide
-		args := []string{
-			"--paging=never",
-			fmt.Sprintf("--file-modified-label=%s",
-				utils.RemoveReset(s.Foreground(lipgloss.Yellow).Render(" "))),
-			fmt.Sprintf("--file-removed-label=%s",
-				utils.RemoveReset(s.Foreground(lipgloss.Red).Render(" "))),
-			fmt.Sprintf("--file-added-label=%s",
-				utils.RemoveReset(s.Foreground(lipgloss.Green).Render(" "))),
-			fmt.Sprintf("--file-style='%s bold %s'", c, c),
-			fmt.Sprintf("--file-decoration-style='%s box %s'", c, c),
-			fmt.Sprintf("-w=%d", width),
-			// See `diffFile` for why these are set this way.
-			"--max-line-length=0",
-			"--wrap-max-lines=unlimited",
-		}
-		if useSideBySide {
-			args = append(args, "--side-by-side")
-		}
+		args := m.makeDeltaArgs(sideBySide, width)
+		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
+		// TODO?
+		// deltac.Env = os.Environ()
 		strs := strings.Builder{}
 		for _, file := range dir.files {
 			strs.WriteString(file.String())
@@ -508,25 +503,30 @@ func diffDir(dir *cachedNode, width int, sideBySide bool, preamble string) tea.C
 		deltac.Stdin = strings.NewReader(strs.String() + "\n")
 		out, err := deltac.Output()
 		if err != nil {
+			if stdErr, ok := err.(*exec.ExitError); ok {
+				return common.ErrMsg{Err: err, Message: string(stdErr.Stderr)}
+			}
+			log.Warn("delta error", "err", err)
 			return common.ErrMsg{Err: err}
+		} else {
 		}
 
 		text := string(out)
 		if preamble != "" {
-			text = renderPreamble(preamble) + "\n" + text
+			text = m.renderPreamble(preamble) + "\n" + text
 		}
 		return diffContentMsg{cacheKey: key, lines: stringToDiffLines(text)}
 	}
 }
 
-func renderPreamble(preamble string) string {
+func (m Model) renderPreamble(preamble string) string {
 	preamble = strings.TrimSpace(preamble)
 	if preamble == "" {
 		return ""
 	}
 
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	yellow := lipgloss.NewStyle().Foreground(lipgloss.Yellow)
+	dim := lipgloss.NewStyle().Foreground(m.Styles.Tint.Black)
+	yellow := lipgloss.NewStyle().Foreground(m.Styles.Tint.Yellow)
 
 	var out []string
 	for line := range strings.SplitSeq(preamble, "\n") {
@@ -601,4 +601,77 @@ func stringToDiffLines(val string) []diffLine {
 		objects[i] = diffLine{item: item.NewItem(line)}
 	}
 	return objects
+}
+
+func (m *Model) makeDeltaArgs(sideBySide bool, width int) []string {
+	sSelection := lipgloss.NewStyle().Background(m.Styles.Colors.SelectionBg)
+	selectionColor := common.LipglossColorToHex(m.Styles.Colors.SelectionBg)
+	white := common.LipglossColorToHex(common.Themes.Current().White)
+	green := common.LipglossColorToHex(lipgloss.Darken(common.Themes.Current().Green, 0.8))
+	brightGreen := common.LipglossColorToHex(
+		lipgloss.Darken(common.Themes.Current().BrightGreen, 0.5),
+	)
+	red := common.LipglossColorToHex(lipgloss.Darken(common.Themes.Current().Red, 0.8))
+	brightRed := common.LipglossColorToHex(lipgloss.Darken(common.Themes.Current().BrightRed, 0.5))
+	args := []string{
+		"--paging=never",
+		"--line-numbers",
+		"--tabs=2",
+		"--wrap-left-symbol= ",
+		"--wrap-right-symbol= ",
+		"--wrap-right-prefix-symbol= ",
+		"--hunk-label=  󰡏 ",
+		"--line-numbers-left-format='{nm:>4} '",
+		"--line-numbers-right-format='{nm:>4} '",
+		fmt.Sprintf(
+			"--syntax-theme=%s",
+			common.SupportedThemeToDeltaSyntax[common.Themes.Current().ID],
+		),
+		fmt.Sprintf("--file-modified-label=%s",
+			utils.RemoveReset(sSelection.Foreground(m.Styles.Tint.BrightYellow).Render(" "))),
+		fmt.Sprintf("--file-removed-label=%s",
+			utils.RemoveReset(sSelection.Foreground(m.Styles.Tint.BrightRed).Render(" "))),
+		fmt.Sprintf("--file-added-label=%s",
+			utils.RemoveReset(sSelection.Foreground(m.Styles.Tint.BrightGreen).Render(" "))),
+		fmt.Sprintf("--file-style='\"%s\" bold \"%s\"'", selectionColor, selectionColor),
+		fmt.Sprintf("--file-decoration-style='\"%s\" box %s'", selectionColor, selectionColor),
+		fmt.Sprintf("-w=%d", width),
+		// See `diffFile` for why these are set this way.
+		"--max-line-length=0",
+		"--wrap-max-lines=unlimited",
+		fmt.Sprintf(
+			"--line-numbers-right-style='\"%s\" dim'",
+			common.LipglossColorToHex(m.Styles.Colors.FaintBlue()),
+		),
+		fmt.Sprintf("--line-numbers-plus-style='\"%s\" dim'", white),
+		fmt.Sprintf("--line-numbers-minus-style='\"%s\" dim'", white),
+		fmt.Sprintf("--line-numbers-zero-style='\"%s\" dim'", white),
+		fmt.Sprintf("--plus-style='syntax \"%s\"'", green),
+		fmt.Sprintf("--plus-emph-style='syntax \"%s\"'", brightGreen),
+		fmt.Sprintf("--minus-style='syntax \"%s\"'", red),
+		fmt.Sprintf("--minus-emph-style='syntax \"%s\"'", brightRed),
+		fmt.Sprintf(
+			"--hunk-header-line-number-style='%s'",
+			common.LipglossColorToHex(m.Styles.Colors.FaintBlue()),
+		),
+		fmt.Sprintf(
+			"--hunk-header-style='%s'",
+			white,
+		),
+		fmt.Sprintf("--hunk-header-file-style='\"%s\" dim'", white),
+		fmt.Sprintf(
+			"--hunk-header-decoration-style='\"%s\" ol ul'",
+			common.LipglossColorToHex(m.Styles.Colors.FaintBlue()),
+		),
+	}
+	if sideBySide {
+		args = append(args, "--side-by-side")
+	}
+	if common.Themes.Current().Dark {
+		args = append(args, "--dark")
+	} else {
+		args = append(args, "--light")
+	}
+
+	return args
 }

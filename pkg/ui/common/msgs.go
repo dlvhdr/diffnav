@@ -1,5 +1,6 @@
 package common
 
 type ErrMsg struct {
-	Err error
+	Err     error
+	Message string
 }
