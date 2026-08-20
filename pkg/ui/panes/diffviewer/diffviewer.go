@@ -214,7 +214,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.fvp.SetObjects(msg.lines)
 	}
 
-	m.fvp.SetHeader(strings.Split(m.headerView(), "\n"))
 	fvp, fvpCmd := m.fvp.Update(msg)
 	cmds = append(cmds, fvpCmd)
 	m.fvp = fvp
@@ -344,6 +343,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	key := cacheKey(fname, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
 		m.file = cached
+		m.updateHeader()
 		m.fvp.SetObjects(cached.diff)
 		return m, nil
 	}
@@ -358,7 +358,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 		deletions: deletions,
 	}
 	m.cache[key] = m.file
-
+	m.updateHeader()
 	return m, diffFile(m.file, m.contentWidth(), m.sideBySide)
 }
 
@@ -368,6 +368,7 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 	key := cacheKey(dirPath, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
 		m.dir = cached
+		m.updateHeader()
 		m.fvp.SetObjects(cached.diff)
 		return m, nil
 	}
@@ -389,7 +390,13 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 	if dirPath == "/" {
 		preamble = m.preamble
 	}
+
+	m.updateHeader()
 	return m, diffDir(m.dir, m.contentWidth(), m.sideBySide, preamble)
+}
+
+func (m *Model) updateHeader() {
+	m.fvp.SetHeader(strings.Split(m.headerView(), "\n"))
 }
 
 // SetSideBySide updates the diff view mode and re-renders.
