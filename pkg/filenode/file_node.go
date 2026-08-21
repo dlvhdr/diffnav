@@ -11,6 +11,7 @@ import (
 
 	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/icons"
+	"github.com/dlvhdr/diffnav/pkg/ui/common"
 	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
@@ -168,11 +169,11 @@ func (f *FileNode) getStatusIcon() string {
 // StatusColor returns the color for this file based on its git status.
 func (f *FileNode) StatusColor() color.Color {
 	if f.File.IsNew {
-		return lipgloss.Green
+		return common.Themes.Current().BrightGreen
 	} else if f.File.IsDelete {
-		return lipgloss.Red
+		return common.Themes.Current().BrightRed
 	}
-	return lipgloss.Yellow
+	return common.Themes.Current().BrightYellow
 }
 
 func (f *FileNode) String() string {
@@ -210,7 +211,8 @@ func ViewDiffStats(added, deleted int64, base lipgloss.Style) string {
 	deletedView := ""
 
 	if added > 0 {
-		addedView = base.Foreground(lipgloss.Green).Render(fmt.Sprintf("+%d", added))
+		addedView = base.Foreground(common.Themes.Current().BrightGreen).
+			Render(fmt.Sprintf("+%d", added))
 	}
 
 	if added > 0 && deleted > 0 {
@@ -218,7 +220,8 @@ func ViewDiffStats(added, deleted int64, base lipgloss.Style) string {
 	}
 
 	if deleted > 0 {
-		deletedView = base.Foreground(lipgloss.Red).Render(fmt.Sprintf("-%d", deleted))
+		deletedView = base.Foreground(common.Themes.Current().BrightRed).
+			Render(fmt.Sprintf("-%d", deleted))
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, addedView, deletedView)

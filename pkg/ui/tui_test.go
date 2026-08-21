@@ -187,7 +187,7 @@ func TestInitialActivePanelWhenFileTreeIsHidden(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.UI.ShowFileTree = false
 
-	data, err := os.ReadFile("../../examples/multiple_files.txt")
+	data, err := os.ReadFile("../../examples/multiple_files.diff")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func newTestMainModel(t *testing.T) mainModel {
 	zone.NewGlobal()
 
 	cfg := config.DefaultConfig()
-	data, err := os.ReadFile("../../examples/multiple_files.txt")
+	data, err := os.ReadFile("../../examples/multiple_files.diff")
 	if err != nil {
 		t.Fatal(err)
 	}
