@@ -484,8 +484,7 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 		args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
-		// TODO?
-		// deltac.Env = os.Environ()
+		deltac.Env = os.Environ()
 		strs := strings.Builder{}
 		for _, file := range dir.files {
 			strs.WriteString(file.String())
