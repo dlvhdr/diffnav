@@ -628,6 +628,8 @@ func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []stri
 			utils.RemoveReset(sSelection.Foreground(m.Styles.Tint.BrightRed).Render(" "))),
 		fmt.Sprintf("--file-added-label=%s",
 			utils.RemoveReset(sSelection.Foreground(m.Styles.Tint.BrightGreen).Render(" "))),
+		fmt.Sprintf("--file-renamed-label=%s",
+			utils.RemoveReset(sSelection.Foreground(m.Styles.Tint.Blue).Render("renamed:"))),
 		fmt.Sprintf("--file-style='\"%s\" bold \"%s\"'", selectionColor, selectionColor),
 		fmt.Sprintf("--file-decoration-style='\"%s\" box %s'", selectionColor, selectionColor),
 		fmt.Sprintf("-w=%d", width),
