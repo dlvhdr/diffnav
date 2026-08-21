@@ -10,6 +10,7 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/constants"
 	"github.com/dlvhdr/diffnav/pkg/dirnode"
 	"github.com/dlvhdr/diffnav/pkg/filenode"
+	"github.com/dlvhdr/diffnav/pkg/ui/common"
 )
 
 // .
@@ -27,6 +28,7 @@ func TestBuildFullFileTree(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	common.RegisterSupportedTints()
 	tr := buildFullFileTree(files, config.Config{})
 	allNodes := tr.AllNodes()
 	if len(allNodes) != 5 {
@@ -224,9 +226,9 @@ func TestCloseDirsBelowDepthZero(t *testing.T) {
 
 	for _, node := range allNodesAfter {
 		if _, ok := node.GivenValue().(*dirnode.DirNode); ok {
-			// if node.Depth() > 0 && node.IsOpen() {
-			// 	t.Fatalf("expected directory at depth %d to be closed", node.Depth())
-			// }
+			if node.Depth() > 0 && node.IsOpen() {
+				t.Fatalf("expected directory at depth %d to be closed", node.Depth())
+			}
 		}
 	}
 }

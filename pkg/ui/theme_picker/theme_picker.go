@@ -30,9 +30,7 @@ func New(styles *common.Styles) Model {
 
 	lsItems := make([]list.FilterableItem, 0)
 	sorted := make([]string, 0)
-	for _, ti := range common.Themes.TintIDs() {
-		sorted = append(sorted, ti)
-	}
+	sorted = append(sorted, common.Themes.TintIDs()...)
 	sort.Strings(sorted)
 
 	for _, ti := range sorted {

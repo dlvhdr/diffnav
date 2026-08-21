@@ -61,7 +61,6 @@ require (
 	golang.org/x/term v0.30.0 // indirect
 )
 
-// replace charm.land/bubbles/v2 v2.1.0 => github.com/dlvhdr/bubbles/v2 v2.1.0-rc-dlvhdr
-replace charm.land/bubbles/v2 v2.1.0 => ../../charm/bubbles
+replace charm.land/bubbles/v2 v2.1.0 => github.com/dlvhdr/bubbles/v2 v2.1.0-rc-dlvhdr
 
 replace charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251114164805-d267651963ad => charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251205162909-7869489d8971
