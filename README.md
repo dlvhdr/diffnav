@@ -210,12 +210,6 @@ ui:
 | `unicode`             | Unicode symbols (+/⛌/●)                                          |
 | `ascii`               | Plain ASCII characters (+/x/\*)                                  |
 
-### Delta
-
-You can also configure the diff rendering through delta. Check out [their docs](https://dandavison.github.io/delta/configuration.html).
-
-If you want the exact delta configuration I'm using - [it can be found here](https://github.com/dlvhdr/diffnav/blob/main/cfg/delta.conf).
-
 ## Keys
 
 | Key                         | Description                      |
