@@ -1,12 +1,12 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.14.0/.schema/devbox.schema.json",
   "packages": {
-    "go": "1.26.5",
-    "gopls": "latest",
-    "golangci-lint": "2.11.3",
-    "svu": "latest",
-    "git": "latest",
-    "go-task": "latest"
+    "go":            "1.26.5",
+    "gopls":         "latest",
+    "svu":           "latest",
+    "git":           "latest",
+    "go-task":       "latest",
+    "golangci-lint": "2.12.2"
   },
   "shell": {
     "scripts": {
