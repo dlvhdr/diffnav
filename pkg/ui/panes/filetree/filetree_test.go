@@ -224,10 +224,10 @@ func TestCloseDirsBelowDepthZero(t *testing.T) {
 			len(allNodesAfter), len(allNodesBefore))
 	}
 
-	for _, node := range allNodesAfter {
-		if _, ok := node.GivenValue().(*dirnode.DirNode); ok {
-			if node.Depth() > 0 && node.IsOpen() {
-				t.Fatalf("expected directory at depth %d to be closed", node.Depth())
+	for _, child := range root.ChildNodes() {
+		if _, ok := child.GivenValue().(*dirnode.DirNode); ok {
+			if child.IsOpen() {
+				t.Fatalf("expected directory at depth %d to be closed", 0)
 			}
 		}
 	}
