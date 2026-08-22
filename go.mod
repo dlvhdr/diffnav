@@ -3,21 +3,21 @@ module github.com/dlvhdr/diffnav
 go 1.26
 
 require (
-	charm.land/bubbles/v2 v2.1.0
-	charm.land/bubbletea/v2 v2.0.7
+	charm.land/bubbles/v2 v2.2.0
+	charm.land/bubbletea/v2 v2.0.8
 	charm.land/fang/v2 v2.0.1
-	charm.land/lipgloss/v2 v2.0.4
+	charm.land/lipgloss/v2 v2.0.5
 	charm.land/log/v2 v2.0.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/bluekeyes/go-gitdiff v0.8.1
 	github.com/charmbracelet/colorprofile v0.4.3
-	github.com/charmbracelet/ultraviolet v0.0.0-20260615092913-2399af76d5b1
+	github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/lrstanley/bubbletint/v2 v2.0.2
 	github.com/lrstanley/bubblezone/v2 v2.0.0
 	github.com/lrstanley/go-nf v0.0.0-20260418212552-215ab243b591
-	github.com/mattn/go-runewidth v0.0.24
+	github.com/mattn/go-runewidth v0.0.27
 	github.com/muesli/reflow v0.3.0
 	github.com/rivo/uniseg v0.4.7
 	github.com/robinovitch61/viewport v0.14.1-0.20260718213438-0e7e3ee636f2
@@ -60,7 +60,3 @@ require (
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 )
-
-replace charm.land/bubbles/v2 v2.1.0 => github.com/dlvhdr/bubbles/v2 v2.1.0-rc-dlvhdr
-
-replace charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251114164805-d267651963ad => charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251205162909-7869489d8971
