@@ -201,6 +201,7 @@ ui:
 | `ui.colorFileNames`        | bool   | `true`              | Color filenames by git status                             |
 | `ui.showDiffStats`         | bool   | `true`              | Show the amount of lines added / removed next to the file |
 | `ui.sideBySide`            | bool   | `true`              | Use side-by-side diff view (false for unified)            |
+| `ui.wrapLines`             | bool   | `true`              | Wrap long diff lines (false for unified view with horizontal scrolling) |
 | `ui.startFoldersOpenDepth` | int    | `-1`                | Folder open depth on start (-1 = all, 0 = none)           |
 | `ui.theme`                 | string | `tokyo_night`       | The ID of the theme to use                                |
 
@@ -233,6 +234,7 @@ ui:
 | <kbd>i</kbd>                | Cycle icon style                 |
 | <kbd>o</kbd>                | Open file in $EDITOR             |
 | <kbd>s</kbd>                | Toggle side-by-side/unified view |
+| <kbd>w</kbd>                | Toggle line wrap (off = scroll horizontally with ←/→) |
 | <kbd>Tab</kbd>              | Switch focus between the panes   |
 | <kbd>T</kbd>                | Open the theme picker            |
 | <kbd>q</kbd>                | Quit                             |
