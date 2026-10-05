@@ -17,6 +17,11 @@ tasks:
     interactive: true
     desc: Run in debug mode. Run `task logs` to watch the logs.
 
+  uninstall:
+    desc: Uninstall the locally installed application
+    cmds:
+      - if [[ -f $GOPATH/bin/diffnav ]]; then rm $GOPATH/bin/diffnav; fi
+
   install:
     desc: Install the application
     vars:
@@ -26,6 +31,14 @@ tasks:
     sources:
       - ./**/*.go
       - go.mod
+
+  install:prod:
+    desc: Install the latest available version
+    cmds:
+      - task: uninstall
+      - echo "🕐 Installing latest version..."
+      - brew install diffnav
+      - diffnav --version
 
   diff:
     cmds:
