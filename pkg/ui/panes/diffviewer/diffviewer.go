@@ -163,10 +163,10 @@ func New(sideBySide bool, styles *common.Styles) Model {
 			),
 			filterableviewport.WithFilterModes[diffLine](
 				[]filterableviewport.FilterMode{
-					filterableviewport.ExactFilterMode(
+					filterableviewport.CaseInsensitiveFilterMode(
 						key.NewBinding(
 							key.WithKeys("/"),
-							key.WithHelp("/", "exact fitler mode"),
+							key.WithHelp("/", "case insensitive"),
 						),
 					), filterableviewport.RegexFilterMode(
 						key.NewBinding(
@@ -180,9 +180,9 @@ func New(sideBySide bool, styles *common.Styles) Model {
 							key.WithHelp("ctrl+f", "fuzzy fitler mode"),
 						),
 					),
-					filterableviewport.CaseInsensitiveFilterMode(key.NewBinding(
+					filterableviewport.ExactFilterMode(key.NewBinding(
 						key.WithKeys("ctrl+s"),
-						key.WithHelp("ctrl+s", "case insensitive filter"),
+						key.WithHelp("ctrl+s", "exact"),
 					)),
 				},
 			),
@@ -191,7 +191,7 @@ func New(sideBySide bool, styles *common.Styles) Model {
 			filterableviewport.WithEmptyText[diffLine](
 				"Search… "+lipgloss.NewStyle().
 					Faint(true).
-					Render("(/ exact ⋅ ⌃+s insensitive ⋅ ⌃+r regex ⋅ ⌃+f fuzzy)"),
+					Render("(/ insensitive ⋅ ⌃+s exact ⋅ ⌃+r regex ⋅ ⌃+f fuzzy)"),
 			),
 			filterableviewport.WithFilterLinePosition[diffLine](filterableviewport.FilterLineTop),
 			filterableviewport.WithMatchingItemsOnly[diffLine](false),

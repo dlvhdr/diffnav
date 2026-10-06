@@ -372,16 +372,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, keys.PrevFile):
-			if m.diffViewer.Filtering() {
-				m.diffViewer, cmd = m.diffViewer.Update(msg)
-			} else {
+			if !m.diffViewer.Searching() && !m.diffViewer.Filtering() {
 				m, cmd = m.moveToFile(-1)
 			}
 			cmds = append(cmds, cmd)
 		case key.Matches(msg, keys.NextFile):
-			if m.diffViewer.Filtering() {
-				m.diffViewer, cmd = m.diffViewer.Update(msg)
-			} else {
+			if !m.diffViewer.Searching() && !m.diffViewer.Filtering() {
 				m, cmd = m.moveToFile(1)
 			}
 			cmds = append(cmds, cmd)
@@ -445,9 +441,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activePanel == DiffViewerPanel {
 				m.diffViewer, cmd = m.diffViewer.Update(msg)
 				cmds = append(cmds, cmd)
+				return m, tea.Batch(cmds...)
 			} else {
 				m.fileTree.Update(msg)
 				cmds = append(cmds, cmd)
+				return m, tea.Batch(cmds...)
 			}
 		}
 
@@ -585,7 +583,7 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 	var cmds []tea.Cmd
 	if m.filesSearch.Focused() {
 		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			switch msg.String() {
 			case "esc":
 				m.stopSearch()

@@ -105,13 +105,13 @@ var keys = &KeyMap{
 		key.WithKeys("t"),
 		key.WithHelp("t", "search files"),
 	),
-	SearchDiffExact: key.NewBinding(
+	SearchDiffInsensitive: key.NewBinding(
 		key.WithKeys("/"),
 		key.WithHelp("/", "search diff (exact)"),
 	),
-	SearchDiffInsensitive: key.NewBinding(
+	SearchDiffExact: key.NewBinding(
 		key.WithKeys("ctrl+s"),
-		key.WithHelp("ctrl+s", "search diff (case insensitive)"),
+		key.WithHelp("ctrl+s", "search diff (case sensitive)"),
 	),
 	SearchDiffRegex: key.NewBinding(
 		key.WithKeys("ctrl+r"),
