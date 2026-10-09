@@ -90,6 +90,7 @@ type mainModel struct {
 	draggingSidebar   bool
 	iconStyle         string
 	sideBySide        bool
+	wrapLines         bool
 	help              help.Model
 	helpOpen          bool
 	messageOpen       bool
@@ -134,6 +135,7 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 		config:            cfg,
 		iconStyle:         cfg.UI.Icons,
 		sideBySide:        cfg.UI.SideBySide,
+		wrapLines:         cfg.UI.WrapLines,
 		watchEnabled:      cfg.Watch.Enabled,
 		watchCmd:          cfg.Watch.Cmd,
 		watchInterval:     cfg.Watch.Interval,
@@ -142,7 +144,7 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	}
 	m.fileTree = filetree.New(cfg, &m.styles)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
-	m.diffViewer = diffviewer.New(cfg.UI.SideBySide, &m.styles)
+	m.diffViewer = diffviewer.New(cfg.UI.SideBySide, cfg.UI.WrapLines, &m.styles)
 	m.themePicker = themepicker.New(&m.styles)
 	m.help = help.New()
 	m.help.SetKeys(KeyGroups())
@@ -361,8 +363,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cycleIconStyle()
 		case key.Matches(msg, keys.ToggleDiffView):
 			m.sideBySide = !m.sideBySide
-			cmd = m.diffViewer.SetSideBySide(m.sideBySide)
-			cmds = append(cmds, cmd)
+			cmds = append(cmds, m.diffViewer.SetSideBySide(m.sideBySide))
+			if m.sideBySide && !m.wrapLines {
+				// side-by-side needs wrapping; delta truncates overflow otherwise
+				m.wrapLines = true
+				cmds = append(cmds, m.diffViewer.SetWrapLines(true))
+			}
 		case key.Matches(msg, keys.SwitchPanel):
 			if m.isShowingFileTree {
 				if m.activePanel == FileTreePanel {
@@ -410,13 +416,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.diffViewer.ScrollTop()
 			}
 		case key.Matches(msg, keys.ScrollLeft):
-			if m.activePanel != FileTreePanel {
-				m.diffViewer.ScrollLeft(1)
-			}
+			// the file tree binds h/l for expand/collapse, so the arrows are
+			// free to pan the diff from either panel
+			m.diffViewer.ScrollLeft(m.hScrollStep())
 		case key.Matches(msg, keys.ScrollRight):
-			if m.activePanel != FileTreePanel {
-				m.diffViewer.ScrollRight(1)
-			}
+			m.diffViewer.ScrollRight(m.hScrollStep())
+		case key.Matches(msg, keys.ToggleWrapLines):
+			m.wrapLines = !m.wrapLines
+			cmds = append(cmds, m.diffViewer.SetWrapLines(m.wrapLines))
 		case key.Matches(msg, keys.Copy):
 			cmd = m.fileTree.CopyCurrNodePath()
 			if cmd != nil {
@@ -1108,6 +1115,11 @@ func (m mainModel) resultsView() string {
 	return sb.String()
 }
 
+// hScrollStep is how many columns the diff view pans per horizontal scroll keypress.
+func (m mainModel) hScrollStep() int {
+	return max(1, (m.width-m.sidebarWidth())/4)
+}
+
 func (m mainModel) sidebarWidth() int {
 	if m.searchingFiles {
 		return m.config.UI.SearchTreeWidth
@@ -1243,7 +1255,10 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Handle scroll wheel first.
-	if msg.Mouse().Button == tea.MouseWheelUp || msg.Mouse().Button == tea.MouseWheelDown {
+	if button := msg.Mouse().Button; button == tea.MouseWheelUp ||
+		button == tea.MouseWheelDown ||
+		button == tea.MouseWheelLeft ||
+		button == tea.MouseWheelRight {
 		return m.handleScroll(msg)
 	}
 
@@ -1374,16 +1389,18 @@ func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 func (m mainModel) handleScroll(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	lines := scrollLines
+	button := msg.Mouse().Button
 
 	// Check if scrolling in sidebar (file tree or search results).
 	if zone.Get(zoneFileTree).InBounds(msg) || zone.Get(zoneSearchResults).InBounds(msg) {
-		if msg.Mouse().Button == tea.MouseWheelUp {
+		switch button {
+		case tea.MouseWheelUp:
 			if m.searchingFiles {
 				m.resultsVp.ScrollUp(lines)
 			} else {
 				m.fileTree.ScrollUp(lines)
 			}
-		} else {
+		case tea.MouseWheelDown:
 			if m.searchingFiles {
 				m.resultsVp.ScrollDown(lines)
 			} else {
@@ -1395,10 +1412,15 @@ func (m mainModel) handleScroll(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 	// Check if scrolling in diff viewer.
 	if zone.Get(zoneDiffViewer).InBounds(msg) {
-		if msg.Mouse().Button == tea.MouseWheelUp {
+		switch button {
+		case tea.MouseWheelUp:
 			m.diffViewer.ScrollUp(lines)
-		} else {
+		case tea.MouseWheelDown:
 			m.diffViewer.ScrollDown(lines)
+		case tea.MouseWheelLeft:
+			m.diffViewer.ScrollLeft(lines)
+		case tea.MouseWheelRight:
+			m.diffViewer.ScrollRight(lines)
 		}
 	}
 	return m, nil
