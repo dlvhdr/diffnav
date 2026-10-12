@@ -122,8 +122,8 @@ var keys = &KeyMap{
 		key.WithHelp("ctrl+f", "search diff (fuzzy)"),
 	),
 	Quit: key.NewBinding(
-		key.WithKeys("q", "ctrl+c"),
-		key.WithHelp("q", "quit"),
+		key.WithKeys("q", "ctrl+c", "esc"),
+		key.WithHelp("q/esc", "quit"),
 	),
 	Copy: key.NewBinding(
 		key.WithKeys("y"),
