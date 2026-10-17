@@ -62,7 +62,6 @@ donation at the [sponsors page](https://github.com/sponsors/dlvhdr).
 <h3 align="center">TUI Backer</h3>
 
 <p align="center">
-<a href="https://jeffry.in?utm_source=dlvhdr&utm_medium=sponsor&utm_campaign=homepage&utm_content=github" target="_blank" rel="noopener sponsored" ><img src="https://avatars.githubusercontent.com/u/1074042?s=40&u=81cb6e662a6d3254850200c4498ed07e7d59061e&v=4" alt="Jeff Wainwright" width="40"/></a>&nbsp;&nbsp;
 <a href="https://purajit.com?utm_source=dlvhdr&utm_medium=sponsor&utm_campaign=homepage&utm_content=github" target="_blank" rel="noopener sponsored" ><img src="https://avatars.githubusercontent.com/u/7026198?s=40&u=5b76b661dba1677a00ae40a83f19c42250b81f5a&v=4" alt="purajit" width="40"/></a>&nbsp;&nbsp;
 </p>
 
