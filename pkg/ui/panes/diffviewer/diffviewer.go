@@ -216,10 +216,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 	switch msg := msg.(type) {
 	case diffContentMsg:
-		if _, ok := m.cache[msg.cacheKey]; ok {
-			m.cache[msg.cacheKey].diff = msg.lines
+		node, ok := m.cache[msg.cacheKey]
+		if !ok {
+			// Stale result from before a theme change or resize cleared the cache.
+			break
 		}
-		m.fvp.SetObjects(msg.lines)
+		node.diff = msg.lines
+		if node == m.file || node == m.dir {
+			m.fvp.SetObjects(msg.lines)
+		}
 	}
 
 	fvp, fvpCmd := m.fvp.Update(msg)
@@ -459,12 +464,12 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 	file := node.files[0]
 	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
 	key := cacheKey(node.path, sideBySide)
+	args := m.makeDeltaArgs(
+		sideBySide,
+		width,
+		deltaOpts{IsNew: file.IsNew, IsDelete: file.IsDelete},
+	)
 	return func() tea.Msg {
-		args := m.makeDeltaArgs(
-			sideBySide,
-			width,
-			deltaOpts{IsNew: file.IsNew, IsDelete: file.IsDelete},
-		)
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
 		deltac.Env = os.Environ()
@@ -483,8 +488,8 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 		return nil
 	}
 	key := cacheKey(dir.path, sideBySide)
+	args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
 	return func() tea.Msg {
-		args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
 		deltac.Env = os.Environ()

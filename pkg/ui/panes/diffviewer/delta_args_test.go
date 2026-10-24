@@ -60,3 +60,27 @@ func TestCacheKey_DiffersByDeltaMode(t *testing.T) {
 		t.Fatalf("expected different cache keys, both were %q", themed)
 	}
 }
+
+func TestDiffContentMsg_IgnoresStaleResults(t *testing.T) {
+	m := newTestModel(t, false)
+	m.SetSize(80, 10)
+	current := &cachedNode{path: "current.go"}
+	other := &cachedNode{path: "other.go"}
+	m.file = current
+	m.cache[cacheKey(current.path, false)] = current
+	m.cache[cacheKey(other.path, false)] = other
+
+	m, _ = m.Update(diffContentMsg{cacheKey: "gone.go", lines: stringToDiffLines("stale output")})
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey(other.path, false), lines: stringToDiffLines("other output")})
+	if view := m.View(); strings.Contains(view, "stale output") || strings.Contains(view, "other output") {
+		t.Fatalf("expected stale and non-current results to stay off screen, got:\n%s", view)
+	}
+	if len(other.diff) == 0 {
+		t.Fatal("expected the non-current result to still be cached")
+	}
+
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey(current.path, false), lines: stringToDiffLines("current output")})
+	if view := m.View(); !strings.Contains(view, "current output") {
+		t.Fatalf("expected current result on screen, got:\n%s", view)
+	}
+}

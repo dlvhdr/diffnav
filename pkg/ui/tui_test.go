@@ -243,6 +243,7 @@ func updateMainModel(t *testing.T, m mainModel, msg tea.Msg) mainModel {
 }
 
 func TestThemeNoneUsesOwnDeltaConfig(t *testing.T) {
+	t.Setenv("DIFFNAV_THEME", "")
 	zone.NewGlobal()
 	t.Cleanup(func() { common.DeltaOwnConfig = false })
 

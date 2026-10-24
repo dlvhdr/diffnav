@@ -119,9 +119,8 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	if envTheme := os.Getenv("DIFFNAV_THEME"); envTheme != "" {
 		theme = envTheme
 	}
-	if theme == common.NoTheme {
-		common.DeltaOwnConfig = true
-	} else {
+	common.DeltaOwnConfig = theme == common.NoTheme
+	if !common.DeltaOwnConfig {
 		common.Themes.SetTintID(theme)
 	}
 
