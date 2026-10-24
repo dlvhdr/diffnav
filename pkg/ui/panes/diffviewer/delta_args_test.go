@@ -116,7 +116,9 @@ func TestDelta_OwnConfigSideBySideKeepsUserLineNumbers(t *testing.T) {
 	}
 	diff := "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1 +1 @@\n-foo bar\n+foo baz\n"
 	run := func(sideBySide bool) string {
-		args := append([]string{"--config=" + config}, m.makeDeltaArgs(sideBySide, 80, deltaOpts{})...)
+		args := append(
+			[]string{"--config=" + config},
+			m.makeDeltaArgs(sideBySide, 80, deltaOpts{})...)
 		cmd := exec.Command("delta", args...)
 		cmd.Env = makeDeltaEnv(sideBySide)
 		cmd.Stdin = strings.NewReader(diff)
@@ -132,7 +134,8 @@ func TestDelta_OwnConfigSideBySideKeepsUserLineNumbers(t *testing.T) {
 		t.Errorf("expected side-by-side with the user's line numbers, got:\n%s", out)
 	}
 	// Unified: the user's side-by-side = true is turned off.
-	if out := run(false); !strings.Contains(out, "1L Rfoo bar") || !strings.Contains(out, " L1Rfoo baz") {
+	out := run(false)
+	if !strings.Contains(out, "1L Rfoo bar") || !strings.Contains(out, " L1Rfoo baz") {
 		t.Errorf("expected unified output, got:\n%s", out)
 	}
 }
@@ -172,15 +175,26 @@ func TestDiffContentMsg_IgnoresStaleResults(t *testing.T) {
 	m.cache[cacheKey(other.path, false)] = other
 
 	m, _ = m.Update(diffContentMsg{cacheKey: "gone.go", lines: stringToDiffLines("stale output")})
-	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey(other.path, false), lines: stringToDiffLines("other output")})
-	if view := m.View(); strings.Contains(view, "stale output") || strings.Contains(view, "other output") {
+	m, _ = m.Update(
+		diffContentMsg{
+			cacheKey: cacheKey(other.path, false),
+			lines:    stringToDiffLines("other output"),
+		},
+	)
+	if view := m.View(); strings.Contains(view, "stale output") ||
+		strings.Contains(view, "other output") {
 		t.Fatalf("expected stale and non-current results to stay off screen, got:\n%s", view)
 	}
 	if len(other.diff) == 0 {
 		t.Fatal("expected the non-current result to still be cached")
 	}
 
-	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey(current.path, false), lines: stringToDiffLines("current output")})
+	m, _ = m.Update(
+		diffContentMsg{
+			cacheKey: cacheKey(current.path, false),
+			lines:    stringToDiffLines("current output"),
+		},
+	)
 	if view := m.View(); !strings.Contains(view, "current output") {
 		t.Fatalf("expected current result on screen, got:\n%s", view)
 	}
