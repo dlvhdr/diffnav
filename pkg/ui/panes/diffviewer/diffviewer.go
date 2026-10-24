@@ -626,7 +626,9 @@ func makeDeltaEnv(sideBySide bool) []string {
 func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []string {
 	if common.DeltaOwnConfig {
 		// Side-by-side is set by makeDeltaEnv, everything else comes from the user's config.
-		return []string{"--paging=never", fmt.Sprintf("-w=%d", width)}
+		// Wrapping stays unlimited: the pane is narrower than the terminal and there is no
+		// horizontal scroll, so delta's default would cut long side-by-side lines.
+		return []string{"--paging=never", fmt.Sprintf("-w=%d", width), "--wrap-max-lines=unlimited"}
 	}
 
 	theme := common.Themes.Current()

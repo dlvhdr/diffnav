@@ -31,7 +31,7 @@ func hasArgPrefix(args []string, prefix string) bool {
 func TestMakeDeltaArgs_OwnConfigOnlyPassesLayoutFlags(t *testing.T) {
 	m := newTestModel(t, true)
 
-	want := []string{"--paging=never", "-w=80"}
+	want := []string{"--paging=never", "-w=80", "--wrap-max-lines=unlimited"}
 	for _, sideBySide := range []bool{false, true} {
 		got := m.makeDeltaArgs(sideBySide, 80, deltaOpts{})
 		if !slices.Equal(got, want) {
