@@ -7,9 +7,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
+	tint "github.com/lrstanley/bubbletint/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/diffnav/pkg/config"
+	"github.com/dlvhdr/diffnav/pkg/ui/common"
+	themepicker "github.com/dlvhdr/diffnav/pkg/ui/theme_picker"
 )
 
 func TestSearchUpdateEnterWithNoResultsDoesNotPanic(t *testing.T) {
@@ -237,4 +240,52 @@ func updateMainModel(t *testing.T, m mainModel, msg tea.Msg) mainModel {
 	}
 
 	return result
+}
+
+func TestThemeNoneUsesOwnDeltaConfig(t *testing.T) {
+	zone.NewGlobal()
+	t.Cleanup(func() { common.DeltaOwnConfig = false })
+
+	cfg := config.DefaultConfig()
+	cfg.UI.Theme = common.NoTheme
+	New(ModelOpts{}, cfg)
+
+	if !common.DeltaOwnConfig {
+		t.Fatal("expected theme none to enable DeltaOwnConfig")
+	}
+}
+
+func TestThemePickerCancelRestoresThemeNone(t *testing.T) {
+	t.Setenv("DIFFNAV_THEME", common.NoTheme)
+	t.Cleanup(func() { common.DeltaOwnConfig = false })
+	m := newTestMainModel(t)
+
+	m = updateMainModel(t, m, tea.KeyPressMsg{Code: 'T', Text: "T"})
+	if !m.themePickerOpen {
+		t.Fatal("expected theme picker to be open")
+	}
+
+	m = updateMainModel(t, m, themepicker.ThemePreviewMsg{Theme: tint.TintDracula})
+	if common.DeltaOwnConfig {
+		t.Fatal("expected previewing a theme to disable DeltaOwnConfig")
+	}
+
+	m = updateMainModel(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.themePickerOpen {
+		t.Fatal("expected theme picker to be closed")
+	}
+	if !common.DeltaOwnConfig {
+		t.Fatal("expected cancelling the picker to restore DeltaOwnConfig")
+	}
+}
+
+func TestThemePickerChooseLeavesThemeNone(t *testing.T) {
+	t.Setenv("DIFFNAV_THEME", common.NoTheme)
+	t.Cleanup(func() { common.DeltaOwnConfig = false })
+	m := newTestMainModel(t)
+
+	updateMainModel(t, m, themepicker.ThemeChosenMsg{Theme: tint.TintDracula})
+	if common.DeltaOwnConfig {
+		t.Fatal("expected choosing a theme to disable DeltaOwnConfig")
+	}
 }
