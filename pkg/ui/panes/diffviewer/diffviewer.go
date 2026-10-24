@@ -469,10 +469,11 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 		width,
 		deltaOpts{IsNew: file.IsNew, IsDelete: file.IsDelete},
 	)
+	env := makeDeltaEnv(sideBySide)
 	return func() tea.Msg {
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
+		deltac.Env = env
 		deltac.Stdin = strings.NewReader(file.String() + "\n")
 		out, err := deltac.Output()
 		if err != nil {
@@ -489,10 +490,11 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 	}
 	key := cacheKey(dir.path, sideBySide)
 	args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
+	env := makeDeltaEnv(sideBySide)
 	return func() tea.Msg {
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
+		deltac.Env = env
 		strs := strings.Builder{}
 		for _, file := range dir.files {
 			strs.WriteString(file.String())
@@ -604,18 +606,27 @@ type deltaOpts struct {
 	IsDelete bool
 }
 
+// makeDeltaEnv returns the environment delta runs with. With the user's own config,
+// side-by-side is set the way `git -c delta.side-by-side=...` sets it instead of with
+// --side-by-side: the flag ranks delta's builtin side-by-side feature above the user's
+// features, so its line-number formats and styles replace the user's, and it cannot turn
+// side-by-side off when the user's config turns it on.
+func makeDeltaEnv(sideBySide bool) []string {
+	env := os.Environ()
+	if !common.DeltaOwnConfig {
+		return env
+	}
+	param := fmt.Sprintf("'delta.side-by-side'='%t'", sideBySide)
+	if prev := os.Getenv("GIT_CONFIG_PARAMETERS"); prev != "" {
+		param = prev + " " + param
+	}
+	return append(env, "GIT_CONFIG_PARAMETERS="+param)
+}
+
 func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []string {
 	if common.DeltaOwnConfig {
-		args := []string{
-			"--paging=never",
-			fmt.Sprintf("-w=%d", width),
-			"--max-line-length=0",
-			"--wrap-max-lines=unlimited",
-		}
-		if sideBySide {
-			args = append(args, "--side-by-side")
-		}
-		return args
+		// Side-by-side is set by makeDeltaEnv, everything else comes from the user's config.
+		return []string{"--paging=never", fmt.Sprintf("-w=%d", width)}
 	}
 
 	theme := common.Themes.Current()
