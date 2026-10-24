@@ -35,6 +35,9 @@ type nodeCache map[string]*cachedNode
 
 func cacheKey(path string, sideBySide bool) string {
 	key := path + ":" + common.Themes.Current().ID
+	if common.DeltaOwnConfig {
+		key += ":" + common.NoTheme
+	}
 	if sideBySide {
 		return key + ":sbs"
 	}
@@ -597,6 +600,19 @@ type deltaOpts struct {
 }
 
 func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []string {
+	if common.DeltaOwnConfig {
+		args := []string{
+			"--paging=never",
+			fmt.Sprintf("-w=%d", width),
+			"--max-line-length=0",
+			"--wrap-max-lines=unlimited",
+		}
+		if sideBySide {
+			args = append(args, "--side-by-side")
+		}
+		return args
+	}
+
 	theme := common.Themes.Current()
 	sSelection := lipgloss.NewStyle().Background(m.Styles.Colors.SelectionBg)
 	selectionColor := common.LipglossColorToHex(m.Styles.Colors.SelectionBg)

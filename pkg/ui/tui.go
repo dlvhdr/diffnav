@@ -77,6 +77,7 @@ type mainModel struct {
 	diffViewer        diffviewer.Model
 	themePicker       themepicker.Model
 	lastTheme         *tint.Tint
+	lastOwnDelta      bool
 	width             int
 	height            int
 	isShowingFileTree bool
@@ -118,7 +119,11 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	if envTheme := os.Getenv("DIFFNAV_THEME"); envTheme != "" {
 		theme = envTheme
 	}
-	common.Themes.SetTintID(theme)
+	if theme == common.NoTheme {
+		common.DeltaOwnConfig = true
+	} else {
+		common.Themes.SetTintID(theme)
+	}
 
 	initialPanel := FileTreePanel
 	if !cfg.UI.ShowFileTree {
@@ -269,6 +274,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, keys.OpenThemePicker):
 			m.lastTheme = common.Themes.Current()
+			m.lastOwnDelta = common.DeltaOwnConfig
 			cmds = append(cmds, m.themePicker.Open())
 			m.themePickerOpen = true
 			m.helpOpen = false
@@ -296,7 +302,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		case (m.themePickerOpen || m.helpOpen || m.messageOpen) && (key.Matches(msg, keys.Quit) || msg.Key().Code == tea.KeyEscape):
 			if m.themePickerOpen {
-				cmds = append(cmds, m.onThemeChanged(m.lastTheme.ID))
+				cmds = append(cmds, m.onThemeChanged(m.lastTheme.ID, m.lastOwnDelta))
 			}
 
 			m.themePickerOpen = false
@@ -450,12 +456,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case themepicker.ThemePreviewMsg:
-		cmds = append(cmds, m.onThemeChanged(msg.Theme.ID))
+		cmds = append(cmds, m.onThemeChanged(msg.Theme.ID, false))
 
 	case themepicker.ThemeChosenMsg:
 		m.themePickerOpen = false
 		m.lastTheme = msg.Theme
-		cmds = append(cmds, m.onThemeChanged(msg.Theme.ID))
+		cmds = append(cmds, m.onThemeChanged(msg.Theme.ID, false))
 		return m, tea.Batch(cmds...)
 
 	case tea.WindowSizeMsg:
@@ -547,8 +553,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *mainModel) onThemeChanged(themeId string) tea.Cmd {
+func (m *mainModel) onThemeChanged(themeId string, ownDelta bool) tea.Cmd {
 	if ok := common.Themes.SetTintID(themeId); ok {
+		common.DeltaOwnConfig = ownDelta
 		m.styles = common.MakeStyles()
 		m.fileTree.SetStyles(&m.styles)
 		return m.diffViewer.UpdateTheme()
