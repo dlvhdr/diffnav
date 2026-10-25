@@ -242,23 +242,53 @@ func updateMainModel(t *testing.T, m mainModel, msg tea.Msg) mainModel {
 	return result
 }
 
-func TestThemeNoneUsesOwnDeltaConfig(t *testing.T) {
+func TestUseDeltaThemeKeepsUITheme(t *testing.T) {
 	t.Setenv("DIFFNAV_THEME", "")
+	t.Setenv("DIFFNAV_USE_DELTA_THEME", "")
 	zone.NewGlobal()
-	t.Cleanup(func() { common.DeltaOwnConfig = false })
+	t.Cleanup(func() { common.UseDeltaTheme = false })
 
 	cfg := config.DefaultConfig()
-	cfg.UI.Theme = common.NoTheme
+	cfg.UI.Theme = tint.TintCatppuccinFrappe.ID
+	cfg.UI.UseDeltaTheme = true
 	New(ModelOpts{}, cfg)
 
-	if !common.DeltaOwnConfig {
-		t.Fatal("expected theme none to enable DeltaOwnConfig")
+	if !common.UseDeltaTheme {
+		t.Fatal("expected ui.useDeltaTheme to enable UseDeltaTheme")
+	}
+	if got := common.Themes.Current().ID; got != tint.TintCatppuccinFrappe.ID {
+		t.Fatalf("expected the UI theme to stay %q, got %q", tint.TintCatppuccinFrappe.ID, got)
 	}
 }
 
-func TestThemePickerCancelRestoresThemeNone(t *testing.T) {
-	t.Setenv("DIFFNAV_THEME", common.NoTheme)
-	t.Cleanup(func() { common.DeltaOwnConfig = false })
+func TestUseDeltaThemeEnvOverridesConfig(t *testing.T) {
+	zone.NewGlobal()
+	t.Cleanup(func() { common.UseDeltaTheme = false })
+
+	for _, tc := range []struct {
+		env  string
+		cfg  bool
+		want bool
+	}{
+		{env: "1", cfg: false, want: true},
+		{env: "false", cfg: true, want: false},
+		{env: "", cfg: true, want: true},
+		{env: "nope", cfg: false, want: false},
+	} {
+		t.Setenv("DIFFNAV_USE_DELTA_THEME", tc.env)
+		cfg := config.DefaultConfig()
+		cfg.UI.UseDeltaTheme = tc.cfg
+		New(ModelOpts{}, cfg)
+
+		if common.UseDeltaTheme != tc.want {
+			t.Errorf("env=%q cfg=%t: expected UseDeltaTheme=%t", tc.env, tc.cfg, tc.want)
+		}
+	}
+}
+
+func TestThemePickerKeepsUseDeltaTheme(t *testing.T) {
+	t.Setenv("DIFFNAV_USE_DELTA_THEME", "true")
+	t.Cleanup(func() { common.UseDeltaTheme = false })
 	m := newTestMainModel(t)
 
 	m = updateMainModel(t, m, tea.KeyPressMsg{Code: 'T', Text: "T"})
@@ -267,26 +297,17 @@ func TestThemePickerCancelRestoresThemeNone(t *testing.T) {
 	}
 
 	m = updateMainModel(t, m, themepicker.ThemePreviewMsg{Theme: tint.TintDracula})
-	if common.DeltaOwnConfig {
-		t.Fatal("expected previewing a theme to disable DeltaOwnConfig")
+	if !common.UseDeltaTheme {
+		t.Fatal("expected previewing a theme to keep UseDeltaTheme")
 	}
 
 	m = updateMainModel(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	if m.themePickerOpen {
 		t.Fatal("expected theme picker to be closed")
 	}
-	if !common.DeltaOwnConfig {
-		t.Fatal("expected cancelling the picker to restore DeltaOwnConfig")
-	}
-}
-
-func TestThemePickerChooseLeavesThemeNone(t *testing.T) {
-	t.Setenv("DIFFNAV_THEME", common.NoTheme)
-	t.Cleanup(func() { common.DeltaOwnConfig = false })
-	m := newTestMainModel(t)
 
 	updateMainModel(t, m, themepicker.ThemeChosenMsg{Theme: tint.TintDracula})
-	if common.DeltaOwnConfig {
-		t.Fatal("expected choosing a theme to disable DeltaOwnConfig")
+	if !common.UseDeltaTheme {
+		t.Fatal("expected choosing a theme to keep UseDeltaTheme")
 	}
 }

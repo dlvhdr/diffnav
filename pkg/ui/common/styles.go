@@ -70,11 +70,8 @@ var SupportedThemeToDeltaSyntax = map[string]string{
 	tint.TintBuiltinSolarizedDark.ID:  "Solarized (dark)",
 }
 
-// NoTheme is the theme ID that leaves the diff styling to the user's own delta config.
-const NoTheme = "none"
-
-// DeltaOwnConfig is true when delta should use the user's own config instead of the theme colors.
-var DeltaOwnConfig bool
+// UseDeltaTheme is true when delta should use the user's own config instead of the theme colors.
+var UseDeltaTheme bool
 
 var Themes *tint.Registry
 

@@ -22,6 +22,7 @@ type UIConfig struct {
 	SideBySide            bool   `yaml:"sideBySide"`            // Side-by-side diff view (default: true)
 	StartFoldersOpenDepth int    `yaml:"startFoldersOpenDepth"` // How many levels of folders to open on start (-1 = all, 0 = none)
 	Theme                 string `yaml:"theme"`                 // The theme to use (default: "tokyo_night")
+	UseDeltaTheme         bool   `yaml:"useDeltaTheme"`         // Render diffs with the user's own delta config instead of the theme (default: false)
 }
 
 type WatchConfig struct {

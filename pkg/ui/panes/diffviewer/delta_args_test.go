@@ -15,11 +15,11 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
 )
 
-func newTestModel(t *testing.T, ownDelta bool) Model {
+func newTestModel(t *testing.T, useDeltaTheme bool) Model {
 	t.Helper()
 	common.RegisterSupportedTints()
-	common.DeltaOwnConfig = ownDelta
-	t.Cleanup(func() { common.DeltaOwnConfig = false })
+	common.UseDeltaTheme = useDeltaTheme
+	t.Cleanup(func() { common.UseDeltaTheme = false })
 	styles := common.MakeStyles()
 	return New(false, &styles)
 }
@@ -28,7 +28,7 @@ func hasArgPrefix(args []string, prefix string) bool {
 	return slices.ContainsFunc(args, func(a string) bool { return strings.HasPrefix(a, prefix) })
 }
 
-func TestMakeDeltaArgs_OwnConfigOnlyPassesLayoutFlags(t *testing.T) {
+func TestMakeDeltaArgs_DeltaThemeOnlyPassesLayoutFlags(t *testing.T) {
 	m := newTestModel(t, true)
 
 	want := []string{"--paging=never", "-w=80", "--wrap-max-lines=unlimited"}
@@ -58,9 +58,9 @@ func lastEnv(env []string, key string) (string, bool) {
 	return "", false
 }
 
-func TestMakeDeltaEnv_OwnConfigSetsSideBySide(t *testing.T) {
-	common.DeltaOwnConfig = true
-	t.Cleanup(func() { common.DeltaOwnConfig = false })
+func TestMakeDeltaEnv_DeltaThemeSetsSideBySide(t *testing.T) {
+	common.UseDeltaTheme = true
+	t.Cleanup(func() { common.UseDeltaTheme = false })
 	t.Setenv("GIT_CONFIG_PARAMETERS", "")
 
 	for _, sideBySide := range []bool{false, true} {
@@ -72,9 +72,9 @@ func TestMakeDeltaEnv_OwnConfigSetsSideBySide(t *testing.T) {
 	}
 }
 
-func TestMakeDeltaEnv_OwnConfigKeepsExistingParameters(t *testing.T) {
-	common.DeltaOwnConfig = true
-	t.Cleanup(func() { common.DeltaOwnConfig = false })
+func TestMakeDeltaEnv_DeltaThemeKeepsExistingParameters(t *testing.T) {
+	common.UseDeltaTheme = true
+	t.Cleanup(func() { common.UseDeltaTheme = false })
 	t.Setenv("GIT_CONFIG_PARAMETERS", "'delta.navigate'='true'")
 
 	got, _ := lastEnv(makeDeltaEnv(true), "GIT_CONFIG_PARAMETERS")
@@ -85,7 +85,7 @@ func TestMakeDeltaEnv_OwnConfigKeepsExistingParameters(t *testing.T) {
 }
 
 func TestMakeDeltaEnv_ThemedIsUnchanged(t *testing.T) {
-	common.DeltaOwnConfig = false
+	common.UseDeltaTheme = false
 	t.Setenv("GIT_CONFIG_PARAMETERS", "'delta.navigate'='true'")
 
 	if got := makeDeltaEnv(true); !slices.Equal(got, os.Environ()) {
@@ -95,7 +95,7 @@ func TestMakeDeltaEnv_ThemedIsUnchanged(t *testing.T) {
 
 // Runs the real delta to check that side-by-side keeps the user's line-number
 // format and can be turned off when the user's config turns it on.
-func TestDelta_OwnConfigSideBySideKeepsUserLineNumbers(t *testing.T) {
+func TestDelta_DeltaThemeSideBySideKeepsUserLineNumbers(t *testing.T) {
 	if _, err := exec.LookPath("delta"); err != nil {
 		t.Skip("delta not installed")
 	}
@@ -148,20 +148,6 @@ func TestMakeDeltaArgs_ThemedPassesStyleFlags(t *testing.T) {
 		if !hasArgPrefix(got, prefix) {
 			t.Errorf("expected an arg starting with %q in %q", prefix, got)
 		}
-	}
-}
-
-func TestCacheKey_DiffersByDeltaMode(t *testing.T) {
-	common.RegisterSupportedTints()
-	t.Cleanup(func() { common.DeltaOwnConfig = false })
-
-	common.DeltaOwnConfig = false
-	themed := cacheKey("a.go", false)
-	common.DeltaOwnConfig = true
-	own := cacheKey("a.go", false)
-
-	if themed == own {
-		t.Fatalf("expected different cache keys, both were %q", themed)
 	}
 }
 

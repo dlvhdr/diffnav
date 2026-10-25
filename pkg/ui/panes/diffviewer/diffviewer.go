@@ -35,9 +35,6 @@ type nodeCache map[string]*cachedNode
 
 func cacheKey(path string, sideBySide bool) string {
 	key := path + ":" + common.Themes.Current().ID
-	if common.DeltaOwnConfig {
-		key += ":" + common.NoTheme
-	}
 	if sideBySide {
 		return key + ":sbs"
 	}
@@ -613,7 +610,7 @@ type deltaOpts struct {
 // side-by-side off when the user's config turns it on.
 func makeDeltaEnv(sideBySide bool) []string {
 	env := os.Environ()
-	if !common.DeltaOwnConfig {
+	if !common.UseDeltaTheme {
 		return env
 	}
 	param := fmt.Sprintf("'delta.side-by-side'='%t'", sideBySide)
@@ -624,7 +621,7 @@ func makeDeltaEnv(sideBySide bool) []string {
 }
 
 func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []string {
-	if common.DeltaOwnConfig {
+	if common.UseDeltaTheme {
 		// Side-by-side is set by makeDeltaEnv, everything else comes from the user's config.
 		// Wrapping stays unlimited: the pane is narrower than the terminal and there is no
 		// horizontal scroll, so delta's default would cut long side-by-side lines.
