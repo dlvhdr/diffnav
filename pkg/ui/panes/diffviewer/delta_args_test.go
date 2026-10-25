@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
@@ -225,5 +226,80 @@ func TestDiffContentMsg_IgnoresOlderRunForSameKey(t *testing.T) {
 	}
 	if len(older.diff) != 0 {
 		t.Fatal("expected the older run not to be cached")
+	}
+}
+
+// fakeDelta puts a delta on PATH that echoes the diff back with a marker, so the
+// real diffFile/diffDir commands can run without depending on the installed delta.
+func fakeDelta(t *testing.T, marker string) {
+	t.Helper()
+	dir := t.TempDir()
+	script := "#!/bin/sh\necho " + marker + "\ncat\n"
+	if err := os.WriteFile(filepath.Join(dir, "delta"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func parseExampleFile(t *testing.T) *gitdiff.File {
+	t.Helper()
+	data, err := os.ReadFile("../../../../examples/single_file.diff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _, err := gitdiff.Parse(strings.NewReader(string(data)))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("parse example diff: %v", err)
+	}
+	return files[0]
+}
+
+func TestDiffFile_ResultIsShownAndOlderRunAfterResizeIsDropped(t *testing.T) {
+	m := newTestModel(t, false)
+	m.SetSize(80, 10)
+	file := parseExampleFile(t)
+
+	fakeDelta(t, "first-run")
+	m, firstCmd := m.SetFilePatch(file)
+	if firstCmd == nil {
+		t.Fatal("expected SetFilePatch to start a delta run")
+	}
+	firstMsg := firstCmd()
+
+	// A resize clears the cache and starts a new run for the same file.
+	fakeDelta(t, "second-run")
+	secondCmd := m.SetSize(90, 10)
+	if secondCmd == nil {
+		t.Fatal("expected SetSize to start a new delta run")
+	}
+	secondMsg := secondCmd()
+
+	m, _ = m.Update(secondMsg)
+	m, _ = m.Update(firstMsg)
+	view := m.View()
+	if !strings.Contains(view, "second-run") || strings.Contains(view, "first-run") {
+		t.Fatalf("expected only the second run on screen, got:\n%s", view)
+	}
+}
+
+func TestSetFilePatch_PendingNodeShowsResultWhenItArrives(t *testing.T) {
+	m := newTestModel(t, false)
+	m.SetSize(80, 10)
+	file := parseExampleFile(t)
+	fakeDelta(t, "pending-run")
+
+	m, cmd := m.SetFilePatch(file)
+	if cmd == nil {
+		t.Fatal("expected SetFilePatch to start a delta run")
+	}
+	// Selecting the same file again while its run is pending reuses the cached node.
+	m, again := m.SetFilePatch(file)
+	if again != nil {
+		t.Fatal("expected no second delta run for a pending node")
+	}
+
+	m, _ = m.Update(cmd())
+	if view := m.View(); !strings.Contains(view, "pending-run") {
+		t.Fatalf("expected the pending run on screen, got:\n%s", view)
 	}
 }

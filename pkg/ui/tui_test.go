@@ -210,6 +210,8 @@ func TestInitialActivePanelWhenFileTreeIsHidden(t *testing.T) {
 
 func newTestMainModel(t *testing.T) mainModel {
 	t.Helper()
+	t.Setenv("DIFFNAV_USE_DELTA_THEME", "")
+	t.Cleanup(func() { common.UseDeltaTheme = false })
 	zone.NewGlobal()
 
 	cfg := config.DefaultConfig()
@@ -287,9 +289,8 @@ func TestUseDeltaThemeEnvOverridesConfig(t *testing.T) {
 }
 
 func TestThemePickerKeepsUseDeltaTheme(t *testing.T) {
-	t.Setenv("DIFFNAV_USE_DELTA_THEME", "true")
-	t.Cleanup(func() { common.UseDeltaTheme = false })
 	m := newTestMainModel(t)
+	common.UseDeltaTheme = true
 
 	m = updateMainModel(t, m, tea.KeyPressMsg{Code: 'T', Text: "T"})
 	if !m.themePickerOpen {
