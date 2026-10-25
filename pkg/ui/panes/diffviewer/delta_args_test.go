@@ -48,6 +48,15 @@ func TestMakeDeltaArgs_ThemedPassesSideBySideFlag(t *testing.T) {
 	}
 }
 
+// unsetEnv removes key for the rest of the test and restores it afterwards.
+func unsetEnv(t *testing.T, key string) {
+	t.Helper()
+	t.Setenv(key, "")
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // lastEnv returns the value exec.Cmd uses for key: the last one in env.
 func lastEnv(env []string, key string) (string, bool) {
 	for _, kv := range slices.Backward(env) {
@@ -100,7 +109,12 @@ func TestDelta_DeltaThemeSideBySideKeepsUserLineNumbers(t *testing.T) {
 		t.Skip("delta not installed")
 	}
 	m := newTestModel(t, true)
+	// Keep the developer's own delta and git settings out of the run.
 	t.Setenv("GIT_CONFIG_PARAMETERS", "")
+	unsetEnv(t, "GIT_CONFIG_COUNT")
+	// An empty DELTA_FEATURES would clear the config's features, so unset it instead.
+	unsetEnv(t, "DELTA_FEATURES")
+	dir := t.TempDir()
 
 	config := filepath.Join(t.TempDir(), "gitconfig")
 	err := os.WriteFile(config, []byte(`[delta]
@@ -121,6 +135,7 @@ func TestDelta_DeltaThemeSideBySideKeepsUserLineNumbers(t *testing.T) {
 			m.makeDeltaArgs(sideBySide, 80, deltaOpts{})...)
 		cmd := exec.Command("delta", args...)
 		cmd.Env = makeDeltaEnv(sideBySide)
+		cmd.Dir = dir
 		cmd.Stdin = strings.NewReader(diff)
 		out, err := cmd.Output()
 		if err != nil {
@@ -164,6 +179,7 @@ func TestDiffContentMsg_IgnoresStaleResults(t *testing.T) {
 	m, _ = m.Update(
 		diffContentMsg{
 			cacheKey: cacheKey(other.path, false),
+			node:     other,
 			lines:    stringToDiffLines("other output"),
 		},
 	)
@@ -178,10 +194,36 @@ func TestDiffContentMsg_IgnoresStaleResults(t *testing.T) {
 	m, _ = m.Update(
 		diffContentMsg{
 			cacheKey: cacheKey(current.path, false),
+			node:     current,
 			lines:    stringToDiffLines("current output"),
 		},
 	)
 	if view := m.View(); !strings.Contains(view, "current output") {
 		t.Fatalf("expected current result on screen, got:\n%s", view)
+	}
+}
+
+func TestDiffContentMsg_IgnoresOlderRunForSameKey(t *testing.T) {
+	m := newTestModel(t, false)
+	m.SetSize(80, 10)
+	key := cacheKey("a.go", false)
+	older := &cachedNode{path: "a.go"}
+	newer := &cachedNode{path: "a.go"}
+	m.file = newer
+	m.cache[key] = newer
+
+	m, _ = m.Update(
+		diffContentMsg{cacheKey: key, node: newer, lines: stringToDiffLines("new output")},
+	)
+	m, _ = m.Update(
+		diffContentMsg{cacheKey: key, node: older, lines: stringToDiffLines("old output")},
+	)
+
+	if view := m.View(); !strings.Contains(view, "new output") ||
+		strings.Contains(view, "old output") {
+		t.Fatalf("expected only the newer run on screen, got:\n%s", view)
+	}
+	if len(older.diff) != 0 {
+		t.Fatal("expected the older run not to be cached")
 	}
 }

@@ -214,8 +214,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case diffContentMsg:
 		node, ok := m.cache[msg.cacheKey]
-		if !ok {
-			// Stale result from before a theme change or resize cleared the cache.
+		if !ok || node != msg.node {
+			// Stale result: a theme change, resize or reload has replaced this node since.
 			break
 		}
 		node.diff = msg.lines
@@ -477,7 +477,7 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{cacheKey: key, lines: stringToDiffLines(string(out))}
+		return diffContentMsg{cacheKey: key, node: node, lines: stringToDiffLines(string(out))}
 	}
 }
 
@@ -510,7 +510,7 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 		if preamble != "" {
 			text = m.renderPreamble(preamble) + "\n" + text
 		}
-		return diffContentMsg{cacheKey: key, lines: stringToDiffLines(text)}
+		return diffContentMsg{cacheKey: key, node: dir, lines: stringToDiffLines(text)}
 	}
 }
 
@@ -548,6 +548,7 @@ func (m Model) renderPreamble(preamble string) string {
 
 type diffContentMsg struct {
 	cacheKey string
+	node     *cachedNode
 	lines    []diffLine
 }
 
