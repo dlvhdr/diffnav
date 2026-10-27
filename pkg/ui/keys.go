@@ -29,6 +29,7 @@ type KeyMap struct {
 	SwitchPanel           key.Binding
 	OpenInEditor          key.Binding
 	ToggleDiffView        key.Binding
+	ToggleWrapLines       key.Binding
 	ToggleIconStyle       key.Binding
 	ToggleHelp            key.Binding
 	ToggleMessage         key.Binding
@@ -141,6 +142,10 @@ var keys = &KeyMap{
 		key.WithKeys("s"),
 		key.WithHelp("s", "toggle side-by-side"),
 	),
+	ToggleWrapLines: key.NewBinding(
+		key.WithKeys("w"),
+		key.WithHelp("w", "toggle line wrap"),
+	),
 	ToggleIconStyle: key.NewBinding(
 		key.WithKeys("i"),
 		key.WithHelp("i", "toggle icon style"),
@@ -186,6 +191,7 @@ func KeyGroups() [][]key.Binding {
 		keys.Copy,
 		keys.OpenInEditor,
 		keys.ToggleDiffView,
+		keys.ToggleWrapLines,
 		keys.ToggleIconStyle,
 		keys.ToggleSelection,
 	}, {

@@ -20,6 +20,7 @@ type UIConfig struct {
 	ColorFileNames        bool   `yaml:"colorFileNames"`        // Color filenames by git status (default: true)
 	ShowDiffStats         bool   `yaml:"showDiffStats"`         // Show the amount of lines added / removed next to the file
 	SideBySide            bool   `yaml:"sideBySide"`            // Side-by-side diff view (default: true)
+	WrapLines             bool   `yaml:"wrapLines"`             // Wrap long diff lines (default: true); when false, scroll the diff horizontally instead
 	StartFoldersOpenDepth int    `yaml:"startFoldersOpenDepth"` // How many levels of folders to open on start (-1 = all, 0 = none)
 	Theme                 string `yaml:"theme"`                 // The theme to use (default: "tokyo_night")
 }
@@ -46,6 +47,7 @@ func DefaultConfig() Config {
 			Icons:                 "nerd-fonts-status",
 			ColorFileNames:        true,
 			SideBySide:            true,
+			WrapLines:             true,
 			ShowDiffStats:         true,
 			StartFoldersOpenDepth: -1,
 			Theme:                 tint.TintTokyoNight.ID,

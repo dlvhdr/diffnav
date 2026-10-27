@@ -33,10 +33,13 @@ type cachedNode struct {
 
 type nodeCache map[string]*cachedNode
 
-func cacheKey(path string, sideBySide bool) string {
+func cacheKey(path string, sideBySide bool, wrap bool) string {
 	key := path + ":" + common.Themes.Current().ID
 	if sideBySide {
-		return key + ":sbs"
+		key += ":sbs"
+	}
+	if !wrap {
+		key += ":nowrap"
 	}
 	return key
 }
@@ -91,8 +94,21 @@ type Model struct {
 	dir        *cachedNode
 	cache      nodeCache
 	sideBySide bool
+	wrapLines  bool
 	preamble   string
 	sb         common.Scrollbar
+	// root additions/deletions are render-mode invariant and outlive cache
+	// clears, so the footer stats survive wrap/side-by-side toggles and theme
+	// changes while a file is open
+	rootAdditions int64
+	rootDeletions int64
+}
+
+// renderSideBySide reports whether the diff should render side-by-side.
+// delta truncates overflowing content in side-by-side mode, so it is only
+// usable when lines are wrapped.
+func (m Model) renderSideBySide() bool {
+	return m.sideBySide && m.wrapLines
 }
 
 // SetPreamble stores the preamble text (e.g. commit metadata from git show).
@@ -100,11 +116,12 @@ func (m *Model) SetPreamble(preamble string) {
 	m.preamble = preamble
 }
 
-func New(sideBySide bool, styles *common.Styles) Model {
+func New(sideBySide bool, wrapLines bool, styles *common.Styles) Model {
 	vp := viewport.New(
 		0,
 		0,
 		viewport.WithKeyMap[diffLine](ViewportKeyMap),
+		viewport.WithWrapText[diffLine](wrapLines),
 		viewport.WithStyles[diffLine](
 			viewport.Styles{
 				SelectionPrefix: lipgloss.NewStyle().Foreground(styles.Tint.Blue).Render("▐"),
@@ -200,12 +217,30 @@ func New(sideBySide bool, styles *common.Styles) Model {
 			filterableviewport.WithHorizontalPad[diffLine](8),
 		),
 		sideBySide: sideBySide,
+		wrapLines:  wrapLines,
 		cache:      map[string]*cachedNode{},
 	}
 }
 
 func (m Model) Init() tea.Cmd {
 	return nil
+}
+
+// currentCacheKey returns the cache key of the node and render mode currently
+// being displayed, or "" if none is set.
+func (m Model) currentCacheKey() string {
+	if m.file != nil {
+		file := m.file.files[0]
+		return cacheKey(
+			m.file.path,
+			m.renderSideBySide() && !file.IsNew && !file.IsDelete,
+			m.wrapLines,
+		)
+	}
+	if m.dir != nil {
+		return cacheKey(m.dir.path, m.renderSideBySide(), m.wrapLines)
+	}
+	return ""
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -216,7 +251,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if _, ok := m.cache[msg.cacheKey]; ok {
 			m.cache[msg.cacheKey].diff = msg.lines
 		}
-		m.fvp.SetObjects(msg.lines)
+		// a render finishing after we navigated away (other node, or toggled
+		// wrap/side-by-side) must not clobber what is on screen
+		if msg.cacheKey == m.currentCacheKey() {
+			m.fvp.SetObjects(msg.lines)
+		}
 	}
 
 	fvp, fvpCmd := m.fvp.Update(msg)
@@ -264,8 +303,8 @@ func (m Model) contentWidth() int {
 func (m *Model) diff() tea.Cmd {
 	if m.file != nil {
 		file := m.file.files[0]
-		sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
-		key := cacheKey(m.file.path, sideBySide)
+		sideBySide := m.renderSideBySide() && !file.IsNew && !file.IsDelete
+		key := cacheKey(m.file.path, sideBySide, m.wrapLines)
 		if cached, ok := m.cache[key]; ok && len(cached.diff) != 0 {
 			m.file = cached
 			m.fvp.SetObjects(cached.diff)
@@ -281,7 +320,7 @@ func (m *Model) diff() tea.Cmd {
 		m.cache[key] = node
 		return m.diffFile(node, m.contentWidth())
 	} else if m.dir != nil {
-		key := cacheKey(m.dir.path, m.sideBySide)
+		key := cacheKey(m.dir.path, m.renderSideBySide(), m.wrapLines)
 		if cached, ok := m.cache[key]; ok && len(cached.diff) != 0 {
 			m.dir = cached
 			m.fvp.SetObjects(cached.diff)
@@ -299,7 +338,7 @@ func (m *Model) diff() tea.Cmd {
 		if m.dir.path == "/" {
 			preamble = m.preamble
 		}
-		return m.diffDir(node, m.contentWidth(), m.sideBySide, preamble)
+		return m.diffDir(node, m.contentWidth(), m.renderSideBySide(), preamble)
 	}
 
 	return nil
@@ -350,10 +389,11 @@ func (m Model) dirHeaderView() string {
 
 func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	m.dir = nil
+	m.resetPan()
 
 	fname := filenode.GetFileName(file)
-	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
-	key := cacheKey(fname, sideBySide)
+	sideBySide := m.renderSideBySide() && !file.IsNew && !file.IsDelete
+	key := cacheKey(fname, sideBySide, m.wrapLines)
 	if cached, ok := m.cache[key]; ok {
 		m.file = cached
 		m.updateHeader()
@@ -378,8 +418,9 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
 	m.file = nil
+	m.resetPan()
 
-	key := cacheKey(dirPath, m.sideBySide)
+	key := cacheKey(dirPath, m.renderSideBySide(), m.wrapLines)
 	if cached, ok := m.cache[key]; ok {
 		m.dir = cached
 		m.updateHeader()
@@ -400,12 +441,16 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 		deletions: deleted,
 	}
 	m.cache[key] = m.dir
+	if dirPath == "/" {
+		m.rootAdditions = added
+		m.rootDeletions = deleted
+	}
 	preamble := ""
 	if dirPath == "/" {
 		preamble = m.preamble
 	}
 	m.updateHeader()
-	return m, m.diffDir(m.dir, m.contentWidth(), m.sideBySide, preamble)
+	return m, m.diffDir(m.dir, m.contentWidth(), m.renderSideBySide(), preamble)
 }
 
 func (m *Model) updateHeader() {
@@ -416,6 +461,21 @@ func (m *Model) updateHeader() {
 func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	m.sideBySide = sideBySide
 	return m.diff()
+}
+
+// SetWrapLines updates whether long lines wrap and re-renders. Wrapping is
+// required for side-by-side, so turning it off falls back to the unified view.
+func (m *Model) SetWrapLines(wrapLines bool) tea.Cmd {
+	m.wrapLines = wrapLines
+	m.fvp.SetWrapText(wrapLines)
+	return m.diff()
+}
+
+// panResetCols is large enough that a ScrollLeft by it always lands on column 0.
+const panResetCols = 1 << 30
+
+func (m *Model) resetPan() {
+	m.fvp.ScrollLeft(panResetCols)
 }
 
 // ScrollUp scrolls the viewport up by the given number of lines.
@@ -443,7 +503,7 @@ func (m *Model) ScrollLeft(cols int) {
 	m.fvp.ScrollLeft(cols)
 }
 
-// ScrollRight scrolls the viewport one column away from column 0.
+// ScrollRight scrolls the viewport right by the given number of columns.
 func (m *Model) ScrollRight(cols int) {
 	m.fvp.ScrollRight(cols)
 }
@@ -454,8 +514,8 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 	}
 
 	file := node.files[0]
-	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
-	key := cacheKey(node.path, sideBySide)
+	sideBySide := m.renderSideBySide() && !file.IsNew && !file.IsDelete
+	key := cacheKey(node.path, sideBySide, m.wrapLines)
 	return func() tea.Msg {
 		args := m.makeDeltaArgs(
 			sideBySide,
@@ -479,7 +539,7 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 	if width == 0 || dir == nil {
 		return nil
 	}
-	key := cacheKey(dir.path, sideBySide)
+	key := cacheKey(dir.path, sideBySide, m.wrapLines)
 	return func() tea.Msg {
 		args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
@@ -549,11 +609,7 @@ func (m *Model) ClearCache() {
 }
 
 func (m *Model) RootDiffStats() (int64, int64) {
-	if item, ok := m.cache[cacheKey("/", m.sideBySide)]; ok {
-		return item.additions, item.deletions
-	}
-
-	return 0, 0
+	return m.rootAdditions, m.rootDeletions
 }
 
 func (m *Model) Searching() bool {
@@ -609,6 +665,12 @@ func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []stri
 	minusLine := common.LipglossColorToHex(theme.BrightRed)
 	red := common.LipglossColorToHex(lipgloss.Darken(theme.Red, 0.8))
 	brightRed := common.LipglossColorToHex(lipgloss.Darken(theme.BrightRed, 0.5))
+	// zero means delta never wraps; with --max-line-length=0 the full line is
+	// emitted so the viewport can scroll it horizontally
+	wrapMaxLines := "unlimited"
+	if !m.wrapLines {
+		wrapMaxLines = "0"
+	}
 	args := []string{
 		"--paging=never",
 		"--line-numbers",
@@ -633,7 +695,7 @@ func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []stri
 		fmt.Sprintf("--file-decoration-style='\"%s\" box %s'", selectionColor, selectionColor),
 		fmt.Sprintf("-w=%d", width),
 		"--max-line-length=0",
-		"--wrap-max-lines=unlimited",
+		fmt.Sprintf("--wrap-max-lines=%s", wrapMaxLines),
 		fmt.Sprintf(
 			"--line-numbers-right-style='\"%s\" dim'",
 			common.LipglossColorToHex(m.Styles.Colors.FaintBlue()),
