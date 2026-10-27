@@ -24,6 +24,8 @@ type KeyMap struct {
 	SearchDiffInsensitive key.Binding
 	SearchDiffRegex       key.Binding
 	SearchDiffFuzzy       key.Binding
+	SearchNextMatch       key.Binding
+	SearchPrevMatch       key.Binding
 	Quit                  key.Binding
 	Copy                  key.Binding
 	SwitchPanel           key.Binding
@@ -121,6 +123,14 @@ var keys = &KeyMap{
 		key.WithKeys("ctrl+f"),
 		key.WithHelp("ctrl+f", "search diff (fuzzy)"),
 	),
+	SearchNextMatch: key.NewBinding(
+		key.WithKeys("n"),
+		key.WithHelp("n", "next match (in search)"),
+	),
+	SearchPrevMatch: key.NewBinding(
+		key.WithKeys("N"),
+		key.WithHelp("N", "prev match (in search)"),
+	),
 	Quit: key.NewBinding(
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
@@ -183,6 +193,8 @@ func KeyGroups() [][]key.Binding {
 		keys.SearchDiffInsensitive,
 		keys.SearchDiffRegex,
 		keys.SearchDiffFuzzy,
+		keys.SearchNextMatch,
+		keys.SearchPrevMatch,
 		keys.Copy,
 		keys.OpenInEditor,
 		keys.ToggleDiffView,

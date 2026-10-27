@@ -59,11 +59,11 @@ var ViewportKeyMap = viewport.KeyMap{
 		key.WithHelp("ctrl+u", "scroll half page up"),
 	),
 	Up: key.NewBinding(
-		key.WithKeys("up", "k"),
+		key.WithKeys("up", "k", "ctrl+y"),
 		key.WithHelp("↑/k", "prev file"),
 	),
 	Down: key.NewBinding(
-		key.WithKeys("down", "j"),
+		key.WithKeys("down", "j", "ctrl+e"),
 		key.WithHelp("↓/j", "next file"),
 	),
 	Bottom: key.NewBinding(
