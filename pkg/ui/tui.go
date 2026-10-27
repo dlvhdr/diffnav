@@ -266,6 +266,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, tCmd)
 			return m, tea.Batch(cmds...)
 		}
+
 		switch {
 		case key.Matches(msg, keys.OpenThemePicker):
 			m.lastTheme = common.Themes.Current()
@@ -371,52 +372,26 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.activePanel = FileTreePanel
 				}
 			}
-		case key.Matches(msg, keys.PrevFile):
-			if !m.diffViewer.Searching() && !m.diffViewer.Filtering() {
-				m, cmd = m.moveToFile(-1)
-			}
+		case !m.diffViewer.Searching() && !m.diffViewer.Filtering() && key.Matches(msg, keys.PrevFile):
+			m, cmd = m.moveToFile(-1)
 			cmds = append(cmds, cmd)
-		case key.Matches(msg, keys.NextFile):
-			if !m.diffViewer.Searching() && !m.diffViewer.Filtering() {
-				m, cmd = m.moveToFile(1)
-			}
+		case !m.diffViewer.Searching() && !m.diffViewer.Filtering() && key.Matches(msg, keys.NextFile):
+			m, cmd = m.moveToFile(1)
 			cmds = append(cmds, cmd)
-		case key.Matches(msg, keys.Up):
+		case m.activePanel == FileTreePanel && key.Matches(msg, keys.Up):
 			if m.activePanel == FileTreePanel {
 				m, cmd = m.moveCursor(moveUp)
 				cmds = append(cmds, cmd)
-			} else {
-				m.diffViewer.ScrollUp(1)
 			}
-		case key.Matches(msg, keys.Down):
-			if m.activePanel == FileTreePanel {
-				m, cmd = m.moveCursor(moveDown)
-				cmds = append(cmds, cmd)
-			} else {
-				m.diffViewer.ScrollDown(1)
-			}
-		case key.Matches(msg, keys.Bottom):
-			if m.activePanel == FileTreePanel {
-				m, cmd = m.moveCursor(moveBottom)
-				cmds = append(cmds, cmd)
-			} else {
-				m.diffViewer.ScrollBottom()
-			}
-		case key.Matches(msg, keys.Top):
-			if m.activePanel == FileTreePanel {
-				m, cmd = m.moveCursor(moveTop)
-				cmds = append(cmds, cmd)
-			} else {
-				m.diffViewer.ScrollTop()
-			}
-		case key.Matches(msg, keys.ScrollLeft):
-			if m.activePanel != FileTreePanel {
-				m.diffViewer.ScrollLeft(1)
-			}
-		case key.Matches(msg, keys.ScrollRight):
-			if m.activePanel != FileTreePanel {
-				m.diffViewer.ScrollRight(1)
-			}
+		case m.activePanel == FileTreePanel && key.Matches(msg, keys.Down):
+			m, cmd = m.moveCursor(moveDown)
+			cmds = append(cmds, cmd)
+		case m.activePanel == FileTreePanel && key.Matches(msg, keys.Bottom):
+			m, cmd = m.moveCursor(moveBottom)
+			cmds = append(cmds, cmd)
+		case m.activePanel == FileTreePanel && key.Matches(msg, keys.Top):
+			m, cmd = m.moveCursor(moveTop)
+			cmds = append(cmds, cmd)
 		case key.Matches(msg, keys.Copy):
 			cmd = m.fileTree.CopyCurrNodePath()
 			if cmd != nil {
@@ -427,25 +402,23 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
-
-		case key.Matches(msg, keys.CtrlE):
-			m.diffViewer.ScrollDown(1)
-
-		case key.Matches(msg, keys.CtrlY):
-			m.diffViewer.ScrollUp(1)
-
-		case key.Matches(msg, keys.CtrlD, keys.CtrlU, keys.CtrlE, keys.CtrlY):
-			m.diffViewer, cmd = m.diffViewer.Update(msg)
-			cmds = append(cmds, cmd)
 		default:
-			if m.activePanel == DiffViewerPanel {
+			if m.activePanel == DiffViewerPanel ||
+				key.Matches(
+					msg,
+					keys.CtrlE,
+					keys.CtrlD,
+					keys.CtrlY,
+					keys.CtrlU,
+					keys.SearchNextMatch,
+					keys.SearchPrevMatch,
+				) {
 				m.diffViewer, cmd = m.diffViewer.Update(msg)
-				cmds = append(cmds, cmd)
-				return m, tea.Batch(cmds...)
-			} else {
-				m.fileTree.Update(msg)
-				cmds = append(cmds, cmd)
-				return m, tea.Batch(cmds...)
+				return m, cmd
+			}
+			if m.activePanel == FileTreePanel {
+				_, cmd = m.fileTree.Update(msg)
+				return m, cmd
 			}
 		}
 
@@ -534,10 +507,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		log.Error("Crashing", "err", msg.Err, "message", msg.Message)
 		log.Fatal(msg.Err)
 
+	case tea.KeyReleaseMsg:
+		// noop on key release to prevent double handling of key events
+		return m, nil
+
 	default:
 		m.diffViewer, cmd = m.diffViewer.Update(msg)
 		cmds = append(cmds, cmd)
-		m.fileTree.Update(msg)
+		_, cmd = m.fileTree.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
