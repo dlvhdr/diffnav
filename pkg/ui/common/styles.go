@@ -70,8 +70,8 @@ var SupportedThemeToDeltaSyntax = map[string]string{
 	tint.TintBuiltinSolarizedDark.ID:  "Solarized (dark)",
 }
 
-// UseDeltaTheme is true when delta should use the user's own config instead of the theme colors.
-var UseDeltaTheme bool
+// UseUserDeltaTheme makes delta use the user's own config instead of the theme.
+var UseUserDeltaTheme bool
 
 var Themes *tint.Registry
 

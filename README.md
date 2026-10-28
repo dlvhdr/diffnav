@@ -186,7 +186,7 @@ ui:
 
   # Render diffs with your own delta config instead of the theme colors. The
   # rest of the UI keeps the theme above. (default: false)
-  useDeltaTheme: true
+  useUserDeltaTheme: true
 ```
 
 | Option                     | Type   | Default             | Description                                               |
@@ -202,7 +202,7 @@ ui:
 | `ui.sideBySide`            | bool   | `true`              | Use side-by-side diff view (false for unified)            |
 | `ui.startFoldersOpenDepth` | int    | `-1`                | Folder open depth on start (-1 = all, 0 = none)           |
 | `ui.theme`                 | string | `tokyo_night`       | The ID of the theme to use                                |
-| `ui.useDeltaTheme`         | bool   | `false`             | Render diffs with your own delta config                   |
+| `ui.useUserDeltaTheme`     | bool   | `false`             | Render diffs with your own delta config                   |
 
 ### Icon Styles
 

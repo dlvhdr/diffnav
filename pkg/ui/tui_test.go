@@ -7,12 +7,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
-	tint "github.com/lrstanley/bubbletint/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
-	themepicker "github.com/dlvhdr/diffnav/pkg/ui/theme_picker"
 )
 
 func TestSearchUpdateEnterWithNoResultsDoesNotPanic(t *testing.T) {
@@ -210,8 +208,8 @@ func TestInitialActivePanelWhenFileTreeIsHidden(t *testing.T) {
 
 func newTestMainModel(t *testing.T) mainModel {
 	t.Helper()
-	t.Setenv("DIFFNAV_USE_DELTA_THEME", "")
-	t.Cleanup(func() { common.UseDeltaTheme = false })
+	t.Setenv("DIFFNAV_USE_USER_DELTA_THEME", "")
+	t.Cleanup(func() { common.UseUserDeltaTheme = false })
 	zone.NewGlobal()
 
 	cfg := config.DefaultConfig()
@@ -244,28 +242,9 @@ func updateMainModel(t *testing.T, m mainModel, msg tea.Msg) mainModel {
 	return result
 }
 
-func TestUseDeltaThemeKeepsUITheme(t *testing.T) {
-	t.Setenv("DIFFNAV_THEME", "")
-	t.Setenv("DIFFNAV_USE_DELTA_THEME", "")
+func TestUseUserDeltaThemeEnvOverridesConfig(t *testing.T) {
 	zone.NewGlobal()
-	t.Cleanup(func() { common.UseDeltaTheme = false })
-
-	cfg := config.DefaultConfig()
-	cfg.UI.Theme = tint.TintCatppuccinFrappe.ID
-	cfg.UI.UseDeltaTheme = true
-	New(ModelOpts{}, cfg)
-
-	if !common.UseDeltaTheme {
-		t.Fatal("expected ui.useDeltaTheme to enable UseDeltaTheme")
-	}
-	if got := common.Themes.Current().ID; got != tint.TintCatppuccinFrappe.ID {
-		t.Fatalf("expected the UI theme to stay %q, got %q", tint.TintCatppuccinFrappe.ID, got)
-	}
-}
-
-func TestUseDeltaThemeEnvOverridesConfig(t *testing.T) {
-	zone.NewGlobal()
-	t.Cleanup(func() { common.UseDeltaTheme = false })
+	t.Cleanup(func() { common.UseUserDeltaTheme = false })
 
 	for _, tc := range []struct {
 		env  string
@@ -275,40 +254,14 @@ func TestUseDeltaThemeEnvOverridesConfig(t *testing.T) {
 		{env: "1", cfg: false, want: true},
 		{env: "false", cfg: true, want: false},
 		{env: "", cfg: true, want: true},
-		{env: "nope", cfg: false, want: false},
 	} {
-		t.Setenv("DIFFNAV_USE_DELTA_THEME", tc.env)
+		t.Setenv("DIFFNAV_USE_USER_DELTA_THEME", tc.env)
 		cfg := config.DefaultConfig()
-		cfg.UI.UseDeltaTheme = tc.cfg
+		cfg.UI.UseUserDeltaTheme = tc.cfg
 		New(ModelOpts{}, cfg)
 
-		if common.UseDeltaTheme != tc.want {
-			t.Errorf("env=%q cfg=%t: expected UseDeltaTheme=%t", tc.env, tc.cfg, tc.want)
+		if common.UseUserDeltaTheme != tc.want {
+			t.Errorf("env=%q cfg=%t: expected %t", tc.env, tc.cfg, tc.want)
 		}
-	}
-}
-
-func TestThemePickerKeepsUseDeltaTheme(t *testing.T) {
-	m := newTestMainModel(t)
-	common.UseDeltaTheme = true
-
-	m = updateMainModel(t, m, tea.KeyPressMsg{Code: 'T', Text: "T"})
-	if !m.themePickerOpen {
-		t.Fatal("expected theme picker to be open")
-	}
-
-	m = updateMainModel(t, m, themepicker.ThemePreviewMsg{Theme: tint.TintDracula})
-	if !common.UseDeltaTheme {
-		t.Fatal("expected previewing a theme to keep UseDeltaTheme")
-	}
-
-	m = updateMainModel(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
-	if m.themePickerOpen {
-		t.Fatal("expected theme picker to be closed")
-	}
-
-	updateMainModel(t, m, themepicker.ThemeChosenMsg{Theme: tint.TintDracula})
-	if !common.UseDeltaTheme {
-		t.Fatal("expected choosing a theme to keep UseDeltaTheme")
 	}
 }

@@ -120,9 +120,9 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 		theme = envTheme
 	}
 	common.Themes.SetTintID(theme)
-	common.UseDeltaTheme = cfg.UI.UseDeltaTheme
-	if env, err := strconv.ParseBool(os.Getenv("DIFFNAV_USE_DELTA_THEME")); err == nil {
-		common.UseDeltaTheme = env
+	common.UseUserDeltaTheme = cfg.UI.UseUserDeltaTheme
+	if env, err := strconv.ParseBool(os.Getenv("DIFFNAV_USE_USER_DELTA_THEME")); err == nil {
+		common.UseUserDeltaTheme = env
 	}
 
 	initialPanel := FileTreePanel

@@ -215,7 +215,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case diffContentMsg:
 		node, ok := m.cache[msg.cacheKey]
 		if !ok || node != msg.node {
-			// Stale result: a theme change, resize or reload has replaced this node since.
+			// Stale result from a replaced node.
 			break
 		}
 		node.diff = msg.lines
@@ -604,14 +604,11 @@ type deltaOpts struct {
 	IsDelete bool
 }
 
-// makeDeltaEnv returns the environment delta runs with. With the user's own config,
-// side-by-side is set the way `git -c delta.side-by-side=...` sets it instead of with
-// --side-by-side: the flag ranks delta's builtin side-by-side feature above the user's
-// features, so its line-number formats and styles replace the user's, and it cannot turn
-// side-by-side off when the user's config turns it on.
+// makeDeltaEnv sets side-by-side like `git -c delta.side-by-side=...` would.
+// The --side-by-side flag would override the user's line-number format and can't turn it off.
 func makeDeltaEnv(sideBySide bool) []string {
 	env := os.Environ()
-	if !common.UseDeltaTheme {
+	if !common.UseUserDeltaTheme {
 		return env
 	}
 	param := fmt.Sprintf("'delta.side-by-side'='%t'", sideBySide)
@@ -622,10 +619,8 @@ func makeDeltaEnv(sideBySide bool) []string {
 }
 
 func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []string {
-	if common.UseDeltaTheme {
-		// Side-by-side is set by makeDeltaEnv, everything else comes from the user's config.
-		// Wrapping stays unlimited: the pane is narrower than the terminal and there is no
-		// horizontal scroll, so delta's default would cut long side-by-side lines.
+	if common.UseUserDeltaTheme {
+		// Side-by-side is set in makeDeltaEnv. Unlimited wrap so long lines aren't cut.
 		return []string{"--paging=never", fmt.Sprintf("-w=%d", width), "--wrap-max-lines=unlimited"}
 	}
 
