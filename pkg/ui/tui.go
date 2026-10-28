@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,6 +120,10 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 		theme = envTheme
 	}
 	common.Themes.SetTintID(theme)
+	common.UseUserDeltaTheme = cfg.UI.UseUserDeltaTheme
+	if env, err := strconv.ParseBool(os.Getenv("DIFFNAV_USE_USER_DELTA_THEME")); err == nil {
+		common.UseUserDeltaTheme = env
+	}
 
 	initialPanel := FileTreePanel
 	if !cfg.UI.ShowFileTree {

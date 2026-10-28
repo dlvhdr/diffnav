@@ -213,10 +213,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 	switch msg := msg.(type) {
 	case diffContentMsg:
-		if _, ok := m.cache[msg.cacheKey]; ok {
-			m.cache[msg.cacheKey].diff = msg.lines
+		node, ok := m.cache[msg.cacheKey]
+		if !ok || node != msg.node {
+			// Stale result from a replaced node.
+			break
 		}
-		m.fvp.SetObjects(msg.lines)
+		node.diff = msg.lines
+		if node == m.file || node == m.dir {
+			m.fvp.SetObjects(msg.lines)
+		}
 	}
 
 	fvp, fvpCmd := m.fvp.Update(msg)
@@ -456,22 +461,23 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 	file := node.files[0]
 	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
 	key := cacheKey(node.path, sideBySide)
+	args := m.makeDeltaArgs(
+		sideBySide,
+		width,
+		deltaOpts{IsNew: file.IsNew, IsDelete: file.IsDelete},
+	)
+	env := makeDeltaEnv(sideBySide)
 	return func() tea.Msg {
-		args := m.makeDeltaArgs(
-			sideBySide,
-			width,
-			deltaOpts{IsNew: file.IsNew, IsDelete: file.IsDelete},
-		)
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
+		deltac.Env = env
 		deltac.Stdin = strings.NewReader(file.String() + "\n")
 		out, err := deltac.Output()
 		if err != nil {
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{cacheKey: key, lines: stringToDiffLines(string(out))}
+		return diffContentMsg{cacheKey: key, node: node, lines: stringToDiffLines(string(out))}
 	}
 }
 
@@ -480,11 +486,12 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 		return nil
 	}
 	key := cacheKey(dir.path, sideBySide)
+	args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
+	env := makeDeltaEnv(sideBySide)
 	return func() tea.Msg {
-		args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
+		deltac.Env = env
 		strs := strings.Builder{}
 		for _, file := range dir.files {
 			strs.WriteString(file.String())
@@ -503,7 +510,7 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 		if preamble != "" {
 			text = m.renderPreamble(preamble) + "\n" + text
 		}
-		return diffContentMsg{cacheKey: key, lines: stringToDiffLines(text)}
+		return diffContentMsg{cacheKey: key, node: dir, lines: stringToDiffLines(text)}
 	}
 }
 
@@ -541,6 +548,7 @@ func (m Model) renderPreamble(preamble string) string {
 
 type diffContentMsg struct {
 	cacheKey string
+	node     *cachedNode
 	lines    []diffLine
 }
 
@@ -596,7 +604,26 @@ type deltaOpts struct {
 	IsDelete bool
 }
 
+// makeDeltaEnv sets side-by-side like `git -c delta.side-by-side=...` would.
+// The --side-by-side flag would override the user's line-number format and can't turn it off.
+func makeDeltaEnv(sideBySide bool) []string {
+	env := os.Environ()
+	if !common.UseUserDeltaTheme {
+		return env
+	}
+	param := fmt.Sprintf("'delta.side-by-side'='%t'", sideBySide)
+	if prev := os.Getenv("GIT_CONFIG_PARAMETERS"); prev != "" {
+		param = prev + " " + param
+	}
+	return append(env, "GIT_CONFIG_PARAMETERS="+param)
+}
+
 func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []string {
+	if common.UseUserDeltaTheme {
+		// Side-by-side is set in makeDeltaEnv. Unlimited wrap so long lines aren't cut.
+		return []string{"--paging=never", fmt.Sprintf("-w=%d", width), "--wrap-max-lines=unlimited"}
+	}
+
 	theme := common.Themes.Current()
 	sSelection := lipgloss.NewStyle().Background(m.Styles.Colors.SelectionBg)
 	selectionColor := common.LipglossColorToHex(m.Styles.Colors.SelectionBg)

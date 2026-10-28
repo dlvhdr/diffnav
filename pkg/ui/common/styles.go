@@ -70,6 +70,9 @@ var SupportedThemeToDeltaSyntax = map[string]string{
 	tint.TintBuiltinSolarizedDark.ID:  "Solarized (dark)",
 }
 
+// UseUserDeltaTheme makes delta use the user's own config instead of the theme.
+var UseUserDeltaTheme bool
+
 var Themes *tint.Registry
 
 func RegisterSupportedTints() {

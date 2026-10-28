@@ -182,8 +182,12 @@ ui:
   startFoldersOpenDepth: 1
 
   # The ID of the theme to use. Press `T` to see available themes - IDs are
-  shown below each theme name. (default: tokyo_night)
+  # shown below each theme name. (default: tokyo_night)
   theme: gruvbox_dark
+
+  # Render diffs with your own delta config instead of the theme colors. The
+  # rest of the UI keeps the theme above. (default: false)
+  useUserDeltaTheme: true
 ```
 
 | Option                     | Type   | Default             | Description                                               |
@@ -199,6 +203,7 @@ ui:
 | `ui.sideBySide`            | bool   | `true`              | Use side-by-side diff view (false for unified)            |
 | `ui.startFoldersOpenDepth` | int    | `-1`                | Folder open depth on start (-1 = all, 0 = none)           |
 | `ui.theme`                 | string | `tokyo_night`       | The ID of the theme to use                                |
+| `ui.useUserDeltaTheme`     | bool   | `false`             | Render diffs with your own delta config                   |
 
 ### Icon Styles
 
