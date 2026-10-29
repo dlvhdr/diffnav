@@ -50,6 +50,18 @@ func (a *API) setAuthToken(token string) {
 	a.authToken = token
 }
 
+// graphqlHost converts the configured API URL into the bare hostname go-gh
+// expects in ClientOptions.Host. Passing a URL (e.g.
+// "https://api.github.com") makes go-gh treat the request host as a
+// different domain and silently omit the Authorization header, so every
+// GraphQL query would go out unauthenticated (403 rate limited).
+func graphqlHost(apiURL string) string {
+	if u, err := url.Parse(apiURL); err == nil && u.Hostname() != "" {
+		return u.Hostname()
+	}
+	return apiURL
+}
+
 func (a *API) getGraphQLClient(opts gh.ClientOptions) (*gh.GraphQLClient, error) {
 	if a.defaultTransport != nil {
 		opts.Transport = a.defaultTransport
@@ -57,7 +69,7 @@ func (a *API) getGraphQLClient(opts gh.ClientOptions) (*gh.GraphQLClient, error)
 	if a.authToken != "" {
 		opts.AuthToken = a.authToken
 	}
-	opts.Host = a.Host
+	opts.Host = graphqlHost(a.Host)
 
 	level := os.Getenv("LOG_LEVEL")
 	if level == "debug" {
