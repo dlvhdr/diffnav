@@ -58,6 +58,8 @@ const (
 
 	// Scroll speed in lines per wheel tick.
 	scrollLines = 3
+
+	stickyIcon = "󰐃"
 )
 
 type Panel int
@@ -86,6 +88,8 @@ type mainModel struct {
 	resultsCursor     int
 	searchingFiles    bool
 	filtered          []string
+	stickySearch      bool
+	stickyFilter      string
 	config            config.Config
 	draggingSidebar   bool
 	iconStyle         string
@@ -148,16 +152,7 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	m.help.SetKeys(KeyGroups())
 
 	m.filesSearch = textinput.New()
-	m.filesSearch.ShowSuggestions = true
-	m.filesSearch.KeyMap.AcceptSuggestion = key.NewBinding(key.WithKeys("tab"))
-	m.filesSearch.Prompt = " "
-	m.filesSearch.Placeholder = "Filter files 󰬛 "
-	m.filesSearch.SetStyles(textinput.Styles{
-		Focused: textinput.StyleState{
-			Placeholder: lipgloss.NewStyle().Foreground(m.styles.Tint.Black),
-			Prompt:      lipgloss.NewStyle().Foreground(m.styles.Tint.Black),
-		},
-	})
+	m.setSearchPrompt()
 	m.filesSearch.SetWidth(cfg.UI.FileTreeWidth - 2)
 
 	m.resultsVp = viewport.Model{}
@@ -319,20 +314,19 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.helpOpen || m.messageOpen:
 			// Block all other keys while an overlay is open
 			return m, tea.Batch(cmds...)
+		case m.stickyFilter != "" && !m.diffViewer.Filtering() && key.Matches(msg, keys.ClearFileFilter):
+			m.clearStickyFilter()
+			// directory diffs were built from the filtered files, refresh them
+			if node := m.fileTree.GetCurrNode(); node != nil {
+				if _, ok := node.GivenValue().(*filenode.FileNode); !ok {
+					m, cmd = m.setNodeDiff(node)
+					cmds = append(cmds, cmd)
+				}
+			}
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, keys.SearchFiles):
-			m.searchingFiles = true
-			m.filesSearch.SetWidth(m.searchWidth())
-			m.filesSearch.SetValue("")
-			m.resultsCursor = 0
-			m.setSearchResults()
-
-			m.resultsVp.SetWidth(m.config.UI.SearchTreeWidth)
-			m.resultsVp.SetHeight(m.mainContentHeight() - searchHeight)
-			m.resultsVp.SetContent(m.resultsView())
-
-			cmds = append(cmds, m.filesSearch.Focus())
+			cmds = append(cmds, m.startSearch())
 
 		case key.Matches(msg, keys.SearchDiffExact, keys.SearchDiffInsensitive, keys.SearchDiffRegex, keys.SearchDiffFuzzy):
 			m.activePanel = DiffViewerPanel
@@ -487,7 +481,10 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.files) == 0 && !m.watchEnabled {
 			return m, tea.Quit
 		}
-		m.fileTree = m.fileTree.SetFiles(m.files)
+		if m.stickyFilter != "" && len(m.filesMatching(m.stickyFilter)) == 0 {
+			m.stickyFilter = ""
+		}
+		m.fileTree = m.fileTree.SetFiles(m.visibleFiles())
 		m.preamble = strings.TrimSpace(msg.preamble)
 		m.commitBranch = msg.branch
 		m.cachedMeta = m.parseCommitMeta()
@@ -568,8 +565,18 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 				cmds = append(cmds, dfCmd)
 			case "ctrl+c":
 				return m, []tea.Cmd{tea.Quit}
+			case "tab":
+				m.stickySearch = !m.stickySearch
+				m.setSearchPrompt()
+				return m, cmds
 			case "enter":
+				sticky := m.stickySearch
+				query := m.filesSearch.Value()
 				m.stopSearch()
+
+				if sticky {
+					m.applyStickyFilter(query)
+				}
 
 				if selected, ok := m.selectedSearchResult(); ok {
 					for _, f := range m.files {
@@ -644,11 +651,17 @@ func (m mainModel) View() tea.View {
 
 	sidebar := ""
 	if m.isSidebarVisible() {
+		searchContent := m.filesSearch.View()
+		if !m.searchingFiles && m.stickyFilter != "" {
+			searchContent = lipgloss.NewStyle().
+				Foreground(m.styles.Tint.Blue).
+				Render(utils.TruncateString(stickyIcon+" "+m.stickyFilter, m.searchWidth()+2))
+		}
 		searchBox := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(m.styles.Tint.Black).
 			Width(m.sidebarWidth()).
-			Render(m.filesSearch.View())
+			Render(searchContent)
 		searchBox = zone.Mark(zoneSearchBox, searchBox)
 
 		content := ""
@@ -1115,8 +1128,67 @@ func (m *mainModel) searchWidth() int {
 	return max(0, m.sidebarWidth()-5)
 }
 
+func (m *mainModel) startSearch() tea.Cmd {
+	m.searchingFiles = true
+	m.stickySearch = m.stickyFilter != ""
+	m.setSearchPrompt()
+	m.filesSearch.SetWidth(m.searchWidth())
+	m.filesSearch.SetValue(m.stickyFilter)
+	m.filesSearch.CursorEnd()
+	m.resultsCursor = 0
+	m.setSearchResults()
+
+	m.resultsVp.SetWidth(m.config.UI.SearchTreeWidth)
+	m.resultsVp.SetHeight(m.mainContentHeight() - searchHeight)
+	m.resultsVp.SetContent(m.resultsView())
+
+	return m.filesSearch.Focus()
+}
+
+// setSearchPrompt updates the search box prompt to reflect whether pressing
+// enter will apply a sticky filter to the file tree.
+func (m *mainModel) setSearchPrompt() {
+	color := m.styles.Tint.Black
+	m.filesSearch.Prompt = " "
+	m.filesSearch.Placeholder = "Filter files 󰬛 "
+	if m.stickySearch {
+		color = m.styles.Tint.Blue
+		m.filesSearch.Prompt = stickyIcon + " "
+		m.filesSearch.Placeholder = "Sticky filter"
+	}
+	m.filesSearch.SetStyles(textinput.Styles{
+		Focused: textinput.StyleState{
+			Placeholder: lipgloss.NewStyle().Foreground(m.styles.Tint.Black),
+			Prompt:      lipgloss.NewStyle().Foreground(color),
+		},
+	})
+}
+
+// applyStickyFilter keeps only the files matching query in the file tree.
+// An empty query clears the filter, a query matching nothing is ignored.
+func (m *mainModel) applyStickyFilter(query string) {
+	if query == "" {
+		m.clearStickyFilter()
+		return
+	}
+	if len(m.filesMatching(query)) == 0 {
+		return
+	}
+	m.stickyFilter = query
+	m.fileTree = m.fileTree.SetFiles(m.visibleFiles())
+}
+
+func (m *mainModel) clearStickyFilter() {
+	curr := m.fileTree.CurrNodePath()
+	m.stickyFilter = ""
+	m.fileTree = m.fileTree.SetFiles(m.files)
+	m.fileTree.SetCursorByPath(curr)
+}
+
 func (m *mainModel) stopSearch() {
 	m.searchingFiles = false
+	m.stickySearch = false
+	m.setSearchPrompt()
 	m.filesSearch.SetValue("")
 	m.filesSearch.Blur()
 	m.filesSearch.SetWidth(m.searchWidth())
@@ -1315,18 +1387,9 @@ func (m mainModel) handleSearchBoxClick() (tea.Model, tea.Cmd) {
 	if m.searchingFiles {
 		return m, nil
 	}
-	m.searchingFiles = true
-	m.filesSearch.SetWidth(m.searchWidth())
-	m.filesSearch.SetValue("")
-	m.resultsCursor = 0
-	m.setSearchResults()
-
-	m.resultsVp.SetWidth(m.config.UI.SearchTreeWidth)
-	m.resultsVp.SetHeight(m.mainContentHeight() - searchHeight)
-	m.resultsVp.SetContent(m.resultsView())
-
+	searchCmd := m.startSearch()
 	dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.mainContentHeight())
-	return m, tea.Batch(dfCmd, m.filesSearch.Focus())
+	return m, tea.Batch(dfCmd, searchCmd)
 }
 
 func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
@@ -1494,15 +1557,31 @@ func (m mainModel) setNodeDiff(node *tree.Node) (mainModel, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *mainModel) setSearchResults() {
-	filtered := make([]string, 0)
+func (m mainModel) filesMatching(query string) []*gitdiff.File {
+	matching := make([]*gitdiff.File, 0)
 	for _, f := range m.files {
 		if strings.Contains(
 			strings.ToLower(filenode.GetFileName(f)),
-			strings.ToLower(m.filesSearch.Value()),
+			strings.ToLower(query),
 		) {
-			filtered = append(filtered, filenode.GetFileName(f))
+			matching = append(matching, f)
 		}
+	}
+	return matching
+}
+
+// visibleFiles returns the files shown in the file tree, honoring the sticky filter.
+func (m mainModel) visibleFiles() []*gitdiff.File {
+	if m.stickyFilter == "" {
+		return m.files
+	}
+	return m.filesMatching(m.stickyFilter)
+}
+
+func (m *mainModel) setSearchResults() {
+	filtered := make([]string, 0)
+	for _, f := range m.filesMatching(m.filesSearch.Value()) {
+		filtered = append(filtered, filenode.GetFileName(f))
 	}
 	m.filtered = filtered
 	switch {
