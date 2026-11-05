@@ -20,6 +20,7 @@ type KeyMap struct {
 	ScrollRight           key.Binding
 	ToggleFileTree        key.Binding
 	SearchFiles           key.Binding
+	ClearFileFilter       key.Binding
 	SearchDiffExact       key.Binding
 	SearchDiffInsensitive key.Binding
 	SearchDiffRegex       key.Binding
@@ -105,7 +106,11 @@ var keys = &KeyMap{
 	),
 	SearchFiles: key.NewBinding(
 		key.WithKeys("t"),
-		key.WithHelp("t", "search files"),
+		key.WithHelp("t", "search files (tab: sticky)"),
+	),
+	ClearFileFilter: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "clear file filter"),
 	),
 	SearchDiffInsensitive: key.NewBinding(
 		key.WithKeys("/"),
@@ -189,6 +194,7 @@ func KeyGroups() [][]key.Binding {
 	}, {
 		keys.ToggleFileTree,
 		keys.SearchFiles,
+		keys.ClearFileFilter,
 		keys.SearchDiffExact,
 		keys.SearchDiffInsensitive,
 		keys.SearchDiffRegex,

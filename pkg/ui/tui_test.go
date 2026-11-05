@@ -238,3 +238,106 @@ func updateMainModel(t *testing.T, m mainModel, msg tea.Msg) mainModel {
 
 	return result
 }
+
+func typeText(t *testing.T, m mainModel, text string) mainModel {
+	t.Helper()
+	for _, r := range text {
+		m = updateMainModel(t, m, tea.KeyPressMsg(tea.Key{Text: string(r), Code: r}))
+	}
+	return m
+}
+
+func applyStickyFilter(t *testing.T, m mainModel, query string) mainModel {
+	t.Helper()
+	m = updateMainModel(t, m, tea.KeyPressMsg(tea.Key{Text: "t", Code: 't'}))
+	m = typeText(t, m, query)
+	m = updateMainModel(t, m, tea.KeyPressMsg(tea.Key{Code: tea.KeyTab}))
+	m = updateMainModel(t, m, tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	return m
+}
+
+func TestStickyFilterKeepsOnlyMatchingFilesInTree(t *testing.T) {
+	m := newTestMainModel(t)
+	m = updateMainModel(t, m, tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	m = applyStickyFilter(t, m, "package")
+
+	if m.searchingFiles {
+		t.Fatal("expected search to close after applying the sticky filter")
+	}
+	if m.stickyFilter != "package" {
+		t.Fatalf("expected sticky filter %q, got %q", "package", m.stickyFilter)
+	}
+	if len(m.visibleFiles()) != 1 {
+		t.Fatalf("expected 1 visible file, got %d", len(m.visibleFiles()))
+	}
+	tree := m.fileTree.View()
+	if strings.Contains(tree, "yarn.lock") {
+		t.Fatal("expected yarn.lock to be filtered out of the tree")
+	}
+	if !strings.Contains(tree, "package.json") {
+		t.Fatal("expected package.json to be in the filtered tree")
+	}
+	if m.fileTree.CurrNodePath() != "graphql-server/tests/package.json" {
+		t.Fatalf("expected cursor on package.json, got %q", m.fileTree.CurrNodePath())
+	}
+
+	// navigating past the only file must not escape the filter
+	m = updateMainModel(t, m, tea.KeyPressMsg(tea.Key{Text: "n", Code: 'n'}))
+	if m.fileTree.CurrNodePath() != "graphql-server/tests/package.json" {
+		t.Fatalf("expected next file to stay within the filter, got %q", m.fileTree.CurrNodePath())
+	}
+	if !strings.Contains(m.View().Content, "package") {
+		t.Fatal("expected the active sticky filter to be shown")
+	}
+}
+
+func TestStickyFilterClearedWithEsc(t *testing.T) {
+	m := newTestMainModel(t)
+	m = updateMainModel(t, m, tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	m = applyStickyFilter(t, m, "package")
+	m = updateMainModel(t, m, tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
+
+	if m.stickyFilter != "" {
+		t.Fatalf("expected sticky filter to be cleared, got %q", m.stickyFilter)
+	}
+	if !strings.Contains(m.fileTree.View(), "yarn.lock") {
+		t.Fatal("expected all files to be back in the tree")
+	}
+	if m.fileTree.CurrNodePath() != "graphql-server/tests/package.json" {
+		t.Fatalf("expected cursor to stay on package.json, got %q", m.fileTree.CurrNodePath())
+	}
+}
+
+func TestSearchWithoutStickyDoesNotFilterTree(t *testing.T) {
+	m := newTestMainModel(t)
+	m = updateMainModel(t, m, tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	m = updateMainModel(t, m, tea.KeyPressMsg(tea.Key{Text: "t", Code: 't'}))
+	m = typeText(t, m, "package")
+	m = updateMainModel(t, m, tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+
+	if m.stickyFilter != "" {
+		t.Fatalf("expected no sticky filter, got %q", m.stickyFilter)
+	}
+	if !strings.Contains(m.fileTree.View(), "yarn.lock") {
+		t.Fatal("expected all files to stay in the tree")
+	}
+}
+
+func TestStickyFilterSurvivesDiffReload(t *testing.T) {
+	m := newTestMainModel(t)
+	m = updateMainModel(t, m, tea.WindowSizeMsg{Width: 100, Height: 40})
+
+	m = applyStickyFilter(t, m, "package")
+	files := m.files
+	m = updateMainModel(t, m, parsedDiffMsg{files: files})
+
+	if m.stickyFilter != "package" {
+		t.Fatalf("expected sticky filter to survive reload, got %q", m.stickyFilter)
+	}
+	if strings.Contains(m.fileTree.View(), "yarn.lock") {
+		t.Fatal("expected yarn.lock to stay filtered out after reload")
+	}
+}
