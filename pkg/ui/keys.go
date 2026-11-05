@@ -105,7 +105,7 @@ var keys = &KeyMap{
 	),
 	SearchFiles: key.NewBinding(
 		key.WithKeys("t"),
-		key.WithHelp("t", "search files"),
+		key.WithHelp("t", "search files (!term to exclude)"),
 	),
 	SearchDiffInsensitive: key.NewBinding(
 		key.WithKeys("/"),

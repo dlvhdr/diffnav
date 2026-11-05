@@ -66,3 +66,22 @@ func relativeTime(t time.Time) string {
 		return fmt.Sprintf("%dy", years)
 	}
 }
+
+// matchesQuery reports whether name satisfies every space-separated term in
+// query. Terms are case-insensitive substrings; a term prefixed with "!"
+// excludes names containing it instead.
+func matchesQuery(name, query string) bool {
+	name = strings.ToLower(name)
+	for _, term := range strings.Fields(strings.ToLower(query)) {
+		if exclude, ok := strings.CutPrefix(term, "!"); ok {
+			if exclude != "" && strings.Contains(name, exclude) {
+				return false
+			}
+			continue
+		}
+		if !strings.Contains(name, term) {
+			return false
+		}
+	}
+	return true
+}

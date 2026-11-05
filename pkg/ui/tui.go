@@ -1497,10 +1497,7 @@ func (m mainModel) setNodeDiff(node *tree.Node) (mainModel, tea.Cmd) {
 func (m *mainModel) setSearchResults() {
 	filtered := make([]string, 0)
 	for _, f := range m.files {
-		if strings.Contains(
-			strings.ToLower(filenode.GetFileName(f)),
-			strings.ToLower(m.filesSearch.Value()),
-		) {
+		if matchesQuery(filenode.GetFileName(f), m.filesSearch.Value()) {
 			filtered = append(filtered, filenode.GetFileName(f))
 		}
 	}
