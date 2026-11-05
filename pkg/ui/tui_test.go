@@ -238,3 +238,19 @@ func updateMainModel(t *testing.T, m mainModel, msg tea.Msg) mainModel {
 
 	return result
 }
+
+func TestSearchResultsExcludeNegatedTerms(t *testing.T) {
+	m := newTestMainModel(t)
+
+	m.filesSearch.SetValue("!yarn")
+	m.setSearchResults()
+	if len(m.filtered) != 1 || m.filtered[0] != "graphql-server/tests/package.json" {
+		t.Fatalf("expected only package.json for !yarn, got %v", m.filtered)
+	}
+
+	m.filesSearch.SetValue("!test")
+	m.setSearchResults()
+	if len(m.filtered) != 1 || m.filtered[0] != "yarn.lock" {
+		t.Fatalf("expected only yarn.lock for !test, got %v", m.filtered)
+	}
+}
