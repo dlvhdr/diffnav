@@ -462,9 +462,7 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
 	key := cacheKey(node.path, sideBySide)
 	args := m.makeDeltaArgs(
-		sideBySide,
-		width,
-		deltaOpts{IsNew: file.IsNew, IsDelete: file.IsDelete},
+		deltaOpts{SideBySide: sideBySide, Width: width, IsNew: file.IsNew, IsDelete: file.IsDelete},
 	)
 	env := makeDeltaEnv(sideBySide)
 	return func() tea.Msg {
@@ -486,7 +484,9 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 		return nil
 	}
 	key := cacheKey(dir.path, sideBySide)
-	args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
+	args := m.makeDeltaArgs(deltaOpts{
+		SideBySide: sideBySide, Width: width,
+	})
 	env := makeDeltaEnv(sideBySide)
 	return func() tea.Msg {
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
@@ -600,8 +600,10 @@ func stringToDiffLines(val string) []diffLine {
 }
 
 type deltaOpts struct {
-	IsNew    bool
-	IsDelete bool
+	IsNew      bool
+	IsDelete   bool
+	SideBySide bool
+	Width      int
 }
 
 // makeDeltaEnv sets side-by-side like `git -c delta.side-by-side=...` would.
@@ -618,10 +620,14 @@ func makeDeltaEnv(sideBySide bool) []string {
 	return append(env, "GIT_CONFIG_PARAMETERS="+param)
 }
 
-func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []string {
+func (m *Model) makeDeltaArgs(opts deltaOpts) []string {
 	if common.UseUserDeltaTheme {
 		// Side-by-side is set in makeDeltaEnv. Unlimited wrap so long lines aren't cut.
-		return []string{"--paging=never", fmt.Sprintf("-w=%d", width), "--wrap-max-lines=unlimited"}
+		return []string{
+			"--paging=never",
+			fmt.Sprintf("-w=%d", opts.Width),
+			"--wrap-max-lines=unlimited",
+		}
 	}
 
 	theme := common.Themes.Current()
@@ -658,7 +664,7 @@ func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []stri
 			utils.RemoveReset(sSelection.Foreground(m.Styles.Tint.Blue).Render("renamed:"))),
 		fmt.Sprintf("--file-style='\"%s\" bold \"%s\"'", selectionColor, selectionColor),
 		fmt.Sprintf("--file-decoration-style='\"%s\" box %s'", selectionColor, selectionColor),
-		fmt.Sprintf("-w=%d", width),
+		fmt.Sprintf("-w=%d", opts.Width),
 		"--max-line-length=0",
 		"--wrap-max-lines=unlimited",
 		fmt.Sprintf(
@@ -711,7 +717,7 @@ func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []stri
 		)
 	}
 
-	if sideBySide {
+	if opts.SideBySide {
 		args = append(args, "--side-by-side")
 	}
 	if theme.Dark {

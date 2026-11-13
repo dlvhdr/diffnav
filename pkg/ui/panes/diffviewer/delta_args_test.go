@@ -21,12 +21,12 @@ func newTestModel(t *testing.T, useUserDeltaTheme bool) Model {
 func TestMakeDeltaArgs(t *testing.T) {
 	m := newTestModel(t, true)
 	want := []string{"--paging=never", "-w=80", "--wrap-max-lines=unlimited"}
-	if got := m.makeDeltaArgs(true, 80, deltaOpts{}); !slices.Equal(got, want) {
+	if got := m.makeDeltaArgs(deltaOpts{SideBySide: true, Width: 80}); !slices.Equal(got, want) {
 		t.Fatalf("user delta theme: expected %q, got %q", want, got)
 	}
 
 	m = newTestModel(t, false)
-	got := m.makeDeltaArgs(true, 80, deltaOpts{})
+	got := m.makeDeltaArgs(deltaOpts{SideBySide: true, Width: 80})
 	for _, arg := range []string{"--side-by-side", "--syntax-theme=", "--plus-style="} {
 		if !slices.ContainsFunc(got, func(a string) bool { return strings.HasPrefix(a, arg) }) {
 			t.Errorf("themed: expected %q in %q", arg, got)
