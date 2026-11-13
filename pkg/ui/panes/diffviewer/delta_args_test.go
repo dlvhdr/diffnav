@@ -9,24 +9,22 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
 )
 
-func newTestModel(t *testing.T, useUserDeltaTheme bool) Model {
+func newTestModel(t *testing.T) Model {
 	t.Helper()
 	common.RegisterSupportedTints()
-	common.UseUserDeltaTheme = useUserDeltaTheme
-	t.Cleanup(func() { common.UseUserDeltaTheme = false })
 	styles := common.MakeStyles()
-	return New(false, &styles)
+	return New(false, false, &styles)
 }
 
 func TestMakeDeltaArgs(t *testing.T) {
-	m := newTestModel(t, true)
+	m := newTestModel(t)
 	want := []string{"--paging=never", "-w=80", "--wrap-max-lines=unlimited"}
-	if got := m.makeDeltaArgs(deltaOpts{SideBySide: true, Width: 80}); !slices.Equal(got, want) {
+	got := m.makeDeltaArgs(deltaOpts{SideBySide: true, Width: 80, UseUserDeltaTheme: true})
+	if !slices.Equal(got, want) {
 		t.Fatalf("user delta theme: expected %q, got %q", want, got)
 	}
 
-	m = newTestModel(t, false)
-	got := m.makeDeltaArgs(deltaOpts{SideBySide: true, Width: 80})
+	got = m.makeDeltaArgs(deltaOpts{SideBySide: true, Width: 80})
 	for _, arg := range []string{"--side-by-side", "--syntax-theme=", "--plus-style="} {
 		if !slices.ContainsFunc(got, func(a string) bool { return strings.HasPrefix(a, arg) }) {
 			t.Errorf("themed: expected %q in %q", arg, got)
@@ -37,14 +35,11 @@ func TestMakeDeltaArgs(t *testing.T) {
 func TestMakeDeltaEnv(t *testing.T) {
 	t.Setenv("GIT_CONFIG_PARAMETERS", "'delta.navigate'='true'")
 
-	common.UseUserDeltaTheme = false
-	if got := makeDeltaEnv(true); !slices.Equal(got, os.Environ()) {
+	if got := makeDeltaEnv(deltaOpts{SideBySide: true}); !slices.Equal(got, os.Environ()) {
 		t.Fatalf("themed: expected the plain environment, got %q", got)
 	}
 
-	common.UseUserDeltaTheme = true
-	t.Cleanup(func() { common.UseUserDeltaTheme = false })
-	env := makeDeltaEnv(false)
+	env := makeDeltaEnv(deltaOpts{UseUserDeltaTheme: true})
 	got := env[len(env)-1]
 	want := "GIT_CONFIG_PARAMETERS='delta.navigate'='true' 'delta.side-by-side'='false'"
 	if got != want {
@@ -53,7 +48,7 @@ func TestMakeDeltaEnv(t *testing.T) {
 }
 
 func TestDiffContentMsg_IgnoresStaleResult(t *testing.T) {
-	m := newTestModel(t, false)
+	m := newTestModel(t)
 	m.SetSize(80, 10)
 	key := cacheKey("a.go", false)
 	older := &cachedNode{path: "a.go"}

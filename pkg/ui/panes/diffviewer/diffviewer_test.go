@@ -10,7 +10,7 @@ import (
 
 func TestRenderPreamble_Empty(t *testing.T) {
 	common.RegisterSupportedTints()
-	m := New(false, &common.Styles{
+	m := New(false, false, &common.Styles{
 		Tint:   common.Themes.Current(),
 		Colors: common.Colors{},
 	})
@@ -24,7 +24,7 @@ func TestRenderPreamble_Empty(t *testing.T) {
 
 func TestRenderPreamble_GitShow(t *testing.T) {
 	common.RegisterSupportedTints()
-	m := New(false, &common.Styles{
+	m := New(false, false, &common.Styles{
 		Tint:   common.Themes.Current(),
 		Colors: common.Colors{},
 	})
@@ -62,7 +62,7 @@ Date:   Mon Jan 1 00:00:00 2026 +0000
     Merge branch 'feature' into main`
 
 	common.RegisterSupportedTints()
-	m := New(false, &common.Styles{
+	m := New(false, false, &common.Styles{
 		Tint:   common.Themes.Current(),
 		Colors: common.Colors{},
 	})
