@@ -102,7 +102,12 @@ func (m *Model) SetPreamble(preamble string) {
 	m.preamble = preamble
 }
 
-func New(sideBySide, useUserDeltaTheme bool, styles *common.Styles) Model {
+type ModelOpts struct {
+	SideBySide        bool
+	UseUserDeltaTheme bool
+}
+
+func New(opts ModelOpts, styles *common.Styles) Model {
 	vp := viewport.New(
 		0,
 		0,
@@ -201,8 +206,8 @@ func New(sideBySide, useUserDeltaTheme bool, styles *common.Styles) Model {
 			filterableviewport.WithVerticalPad[diffLine](8),
 			filterableviewport.WithHorizontalPad[diffLine](8),
 		),
-		sideBySide:        sideBySide,
-		useUserDeltaTheme: useUserDeltaTheme,
+		sideBySide:        opts.SideBySide,
+		useUserDeltaTheme: opts.UseUserDeltaTheme,
 		cache:             map[string]*cachedNode{},
 	}
 }

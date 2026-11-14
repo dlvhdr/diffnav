@@ -146,7 +146,13 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	}
 	m.fileTree = filetree.New(cfg, &m.styles)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
-	m.diffViewer = diffviewer.New(cfg.UI.SideBySide, cfg.UI.UseUserDeltaTheme, &m.styles)
+	m.diffViewer = diffviewer.New(
+		diffviewer.ModelOpts{
+			SideBySide:        cfg.UI.SideBySide,
+			UseUserDeltaTheme: cfg.UI.UseUserDeltaTheme,
+		},
+		&m.styles,
+	)
 	m.themePicker = themepicker.New(&m.styles)
 	m.help = help.New()
 	m.help.SetKeys(KeyGroups())

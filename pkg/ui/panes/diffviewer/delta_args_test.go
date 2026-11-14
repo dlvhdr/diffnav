@@ -13,7 +13,7 @@ func newTestModel(t *testing.T) Model {
 	t.Helper()
 	common.RegisterSupportedTints()
 	styles := common.MakeStyles()
-	return New(false, false, &styles)
+	return New(ModelOpts{}, &styles)
 }
 
 func TestMakeDeltaArgs(t *testing.T) {
