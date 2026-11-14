@@ -207,6 +207,7 @@ func TestInitialActivePanelWhenFileTreeIsHidden(t *testing.T) {
 
 func newTestMainModel(t *testing.T) mainModel {
 	t.Helper()
+	t.Setenv("DIFFNAV_USE_USER_DELTA_THEME", "")
 	zone.NewGlobal()
 
 	cfg := config.DefaultConfig()
@@ -237,4 +238,27 @@ func updateMainModel(t *testing.T, m mainModel, msg tea.Msg) mainModel {
 	}
 
 	return result
+}
+
+func TestUseUserDeltaThemeEnvOverridesConfig(t *testing.T) {
+	zone.NewGlobal()
+
+	for _, tc := range []struct {
+		env  string
+		cfg  bool
+		want bool
+	}{
+		{env: "1", cfg: false, want: true},
+		{env: "false", cfg: true, want: false},
+		{env: "", cfg: true, want: true},
+	} {
+		t.Setenv("DIFFNAV_USE_USER_DELTA_THEME", tc.env)
+		cfg := config.DefaultConfig()
+		cfg.UI.UseUserDeltaTheme = tc.cfg
+		m := New(ModelOpts{}, cfg)
+
+		if m.config.UI.UseUserDeltaTheme != tc.want {
+			t.Errorf("env=%q cfg=%t: expected %t", tc.env, tc.cfg, tc.want)
+		}
+	}
 }

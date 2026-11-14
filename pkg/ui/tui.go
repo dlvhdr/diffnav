@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,6 +120,9 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 		theme = envTheme
 	}
 	common.Themes.SetTintID(theme)
+	if env, err := strconv.ParseBool(os.Getenv("DIFFNAV_USE_USER_DELTA_THEME")); err == nil {
+		cfg.UI.UseUserDeltaTheme = env
+	}
 
 	initialPanel := FileTreePanel
 	if !cfg.UI.ShowFileTree {
@@ -142,7 +146,13 @@ func New(opts ModelOpts, cfg config.Config) mainModel {
 	}
 	m.fileTree = filetree.New(cfg, &m.styles)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
-	m.diffViewer = diffviewer.New(cfg.UI.SideBySide, &m.styles)
+	m.diffViewer = diffviewer.New(
+		diffviewer.ModelOpts{
+			SideBySide:        cfg.UI.SideBySide,
+			UseUserDeltaTheme: cfg.UI.UseUserDeltaTheme,
+		},
+		&m.styles,
+	)
 	m.themePicker = themepicker.New(&m.styles)
 	m.help = help.New()
 	m.help.SetKeys(KeyGroups())

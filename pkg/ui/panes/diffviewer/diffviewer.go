@@ -91,8 +91,10 @@ type Model struct {
 	dir        *cachedNode
 	cache      nodeCache
 	sideBySide bool
-	preamble   string
-	sb         common.Scrollbar
+	// useUserDeltaTheme renders diffs with the user's own delta config instead of the theme.
+	useUserDeltaTheme bool
+	preamble          string
+	sb                common.Scrollbar
 }
 
 // SetPreamble stores the preamble text (e.g. commit metadata from git show).
@@ -100,7 +102,12 @@ func (m *Model) SetPreamble(preamble string) {
 	m.preamble = preamble
 }
 
-func New(sideBySide bool, styles *common.Styles) Model {
+type ModelOpts struct {
+	SideBySide        bool
+	UseUserDeltaTheme bool
+}
+
+func New(opts ModelOpts, styles *common.Styles) Model {
 	vp := viewport.New(
 		0,
 		0,
@@ -199,8 +206,9 @@ func New(sideBySide bool, styles *common.Styles) Model {
 			filterableviewport.WithVerticalPad[diffLine](8),
 			filterableviewport.WithHorizontalPad[diffLine](8),
 		),
-		sideBySide: sideBySide,
-		cache:      map[string]*cachedNode{},
+		sideBySide:        opts.SideBySide,
+		useUserDeltaTheme: opts.UseUserDeltaTheme,
+		cache:             map[string]*cachedNode{},
 	}
 }
 
@@ -213,10 +221,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 	switch msg := msg.(type) {
 	case diffContentMsg:
-		if _, ok := m.cache[msg.cacheKey]; ok {
-			m.cache[msg.cacheKey].diff = msg.lines
+		node, ok := m.cache[msg.cacheKey]
+		if !ok || node != msg.node {
+			// Stale result from a replaced node.
+			break
 		}
-		m.fvp.SetObjects(msg.lines)
+		node.diff = msg.lines
+		if node == m.file || node == m.dir {
+			m.fvp.SetObjects(msg.lines)
+		}
 	}
 
 	fvp, fvpCmd := m.fvp.Update(msg)
@@ -456,22 +469,26 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 	file := node.files[0]
 	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
 	key := cacheKey(node.path, sideBySide)
+	opts := deltaOpts{
+		SideBySide:        sideBySide,
+		Width:             width,
+		IsNew:             file.IsNew,
+		IsDelete:          file.IsDelete,
+		UseUserDeltaTheme: m.useUserDeltaTheme,
+	}
+	args := m.makeDeltaArgs(opts)
+	env := makeDeltaEnv(opts)
 	return func() tea.Msg {
-		args := m.makeDeltaArgs(
-			sideBySide,
-			width,
-			deltaOpts{IsNew: file.IsNew, IsDelete: file.IsDelete},
-		)
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
+		deltac.Env = env
 		deltac.Stdin = strings.NewReader(file.String() + "\n")
 		out, err := deltac.Output()
 		if err != nil {
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{cacheKey: key, lines: stringToDiffLines(string(out))}
+		return diffContentMsg{cacheKey: key, node: node, lines: stringToDiffLines(string(out))}
 	}
 }
 
@@ -480,11 +497,17 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 		return nil
 	}
 	key := cacheKey(dir.path, sideBySide)
+	opts := deltaOpts{
+		SideBySide:        sideBySide,
+		Width:             width,
+		UseUserDeltaTheme: m.useUserDeltaTheme,
+	}
+	args := m.makeDeltaArgs(opts)
+	env := makeDeltaEnv(opts)
 	return func() tea.Msg {
-		args := m.makeDeltaArgs(sideBySide, width, deltaOpts{})
 		log.Info("executing delta", "cmd", fmt.Sprintf(`delta %s`, strings.Join(args, " ")))
 		deltac := exec.Command("delta", args...)
-		deltac.Env = os.Environ()
+		deltac.Env = env
 		strs := strings.Builder{}
 		for _, file := range dir.files {
 			strs.WriteString(file.String())
@@ -503,7 +526,7 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 		if preamble != "" {
 			text = m.renderPreamble(preamble) + "\n" + text
 		}
-		return diffContentMsg{cacheKey: key, lines: stringToDiffLines(text)}
+		return diffContentMsg{cacheKey: key, node: dir, lines: stringToDiffLines(text)}
 	}
 }
 
@@ -541,6 +564,7 @@ func (m Model) renderPreamble(preamble string) string {
 
 type diffContentMsg struct {
 	cacheKey string
+	node     *cachedNode
 	lines    []diffLine
 }
 
@@ -592,11 +616,37 @@ func stringToDiffLines(val string) []diffLine {
 }
 
 type deltaOpts struct {
-	IsNew    bool
-	IsDelete bool
+	IsNew             bool
+	IsDelete          bool
+	SideBySide        bool
+	Width             int
+	UseUserDeltaTheme bool
 }
 
-func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []string {
+// makeDeltaEnv sets side-by-side like `git -c delta.side-by-side=...` would.
+// The --side-by-side flag would override the user's line-number format and can't turn it off.
+func makeDeltaEnv(opts deltaOpts) []string {
+	env := os.Environ()
+	if !opts.UseUserDeltaTheme {
+		return env
+	}
+	param := fmt.Sprintf("'delta.side-by-side'='%t'", opts.SideBySide)
+	if prev := os.Getenv("GIT_CONFIG_PARAMETERS"); prev != "" {
+		param = prev + " " + param
+	}
+	return append(env, "GIT_CONFIG_PARAMETERS="+param)
+}
+
+func (m *Model) makeDeltaArgs(opts deltaOpts) []string {
+	if opts.UseUserDeltaTheme {
+		// Side-by-side is set in makeDeltaEnv. Unlimited wrap so long lines aren't cut.
+		return []string{
+			"--paging=never",
+			fmt.Sprintf("-w=%d", opts.Width),
+			"--wrap-max-lines=unlimited",
+		}
+	}
+
 	theme := common.Themes.Current()
 	sSelection := lipgloss.NewStyle().Background(m.Styles.Colors.SelectionBg)
 	selectionColor := common.LipglossColorToHex(m.Styles.Colors.SelectionBg)
@@ -631,7 +681,7 @@ func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []stri
 			utils.RemoveReset(sSelection.Foreground(m.Styles.Tint.Blue).Render("renamed:"))),
 		fmt.Sprintf("--file-style='\"%s\" bold \"%s\"'", selectionColor, selectionColor),
 		fmt.Sprintf("--file-decoration-style='\"%s\" box %s'", selectionColor, selectionColor),
-		fmt.Sprintf("-w=%d", width),
+		fmt.Sprintf("-w=%d", opts.Width),
 		"--max-line-length=0",
 		"--wrap-max-lines=unlimited",
 		fmt.Sprintf(
@@ -684,7 +734,7 @@ func (m *Model) makeDeltaArgs(sideBySide bool, width int, opts deltaOpts) []stri
 		)
 	}
 
-	if sideBySide {
+	if opts.SideBySide {
 		args = append(args, "--side-by-side")
 	}
 	if theme.Dark {
