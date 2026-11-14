@@ -57,12 +57,10 @@ func TestParseDeltaOutput_RealDelta(t *testing.T) {
 	if _, err := exec.LookPath("delta"); err != nil {
 		t.Skip("delta not installed")
 	}
-	t.Setenv("GIT_CONFIG_PARAMETERS", "")
-	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
-	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	patch := "diff --git a/a;b.go b/a;b.go\n--- a/a;b.go\n+++ b/a;b.go\n" +
 		"@@ -1,2 +1,2 @@\n ctx\n-old\n+new\n"
-	cmd := exec.Command("delta", "--paging=never", "--side-by-side", "-w=80")
+	t.Setenv("GIT_CONFIG_PARAMETERS", "")
+	cmd := exec.Command("delta", "--no-gitconfig", "--paging=never", "--side-by-side", "-w=80")
 	cmd.Env = makeDeltaEnv(deltaOpts{})
 	cmd.Stdin = strings.NewReader(patch)
 	out, err := cmd.Output()
