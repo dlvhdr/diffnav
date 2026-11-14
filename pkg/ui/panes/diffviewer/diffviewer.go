@@ -380,6 +380,11 @@ func (m *Model) setLines(lines []diffLine) {
 		}
 		row = max(row+min(a.offset, 0), 0)
 	}
+	m.showRow(row)
+}
+
+// showRow selects row in selection mode, or scrolls it to the top.
+func (m *Model) showRow(row int) {
 	if m.SelectionEnabled() {
 		m.fvp.SetSelectedItemIdx(row)
 		return
