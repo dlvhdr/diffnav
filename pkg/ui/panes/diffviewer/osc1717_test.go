@@ -28,7 +28,10 @@ func TestParseDeltaOutput(t *testing.T) {
 		{{Kind: 'f', File: "a.go"}},
 		{{Kind: 'h', NewLine: 10, File: "a.go"}},
 		nil,
-		{{Kind: 'd', NewLine: 10, OldLine: 9, File: "a.go"}, {Kind: 'a', NewLine: 10, File: "a.go"}},
+		{
+			{Kind: 'd', NewLine: 10, OldLine: 9, File: "a.go"},
+			{Kind: 'a', NewLine: 10, File: "a.go"},
+		},
 		{{Kind: 'c', NewLine: 11, File: "dir;b.go"}},
 		nil, // unknown type and version
 	}
