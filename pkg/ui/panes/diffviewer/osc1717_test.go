@@ -277,7 +277,10 @@ func TestHunkRow(t *testing.T) {
 		row(c(27, "a.go"), c(27, "a.go")), row(),
 		row(f("b.go")), row(f("b.go")),
 		row(h(1, "b.go")), // 15: same line as a.go's first hunk, another file
-		row(c(1, "b.go")),
+		row(c(1, "b.go")), row(c(2, "b.go")), row(),
+		row(c(9, "b.go")), // 19: no header (delta skips some), a jump in line numbers
+		row(f("c.go")),
+		row(c(5, "c.go")), // 21: no header, a new file
 	}
 	tests := []struct {
 		name           string
@@ -286,7 +289,10 @@ func TestHunkRow(t *testing.T) {
 		{"first from the file header", 0, 1, 3},
 		{"next from a header's decoration row", 4, 1, 8},
 		{"next into another file", 9, 1, 15},
-		{"none after the last", 15, 1, -1},
+		{"next without a header", 15, 1, 19},
+		{"next in a new file without a header", 19, 1, 21},
+		{"none after the last", 21, 1, -1},
+		{"prev without a header", 21, -1, 19},
 		{"prev from a hunk body goes to its header", 11, -1, 8},
 		{"prev from a header", 8, -1, 3},
 		{"none before the first", 3, -1, -1},

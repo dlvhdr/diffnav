@@ -1,6 +1,7 @@
 package diffviewer
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -133,16 +134,58 @@ func sameLine(r, want record) bool {
 	}
 }
 
-// hunkRow returns the first row of the next hunk header after row (dir > 0) or the
-// previous one before it (dir < 0), or -1. A header can span several rows (delta's
-// decorations), all with the same h record.
+// hunkRow returns the first row of the next hunk after row (dir > 0) or of the previous
+// one before it (dir < 0), or -1.
 func hunkRow(lines []diffLine, row, dir int) int {
-	for i := row + dir; i >= 0 && i < len(lines); i += dir {
-		if h, ok := hunkRecord(lines[i]); ok && (i == 0 || !lines[i-1].shows(h)) {
-			return i
+	starts := hunkStarts(lines)
+	if dir < 0 {
+		slices.Reverse(starts)
+	}
+	for _, s := range starts {
+		if (s-row)*dir > 0 {
+			return s
 		}
 	}
 	return -1
+}
+
+// hunkStarts returns the first row of each hunk: the first row of its header (delta
+// decorates it over several rows with the same h record) or, when delta printed no
+// header, its first line. Delta skips the header of a hunk with no code fragment
+// when the hunk-header style shows no line number or file, as diffnav's own does.
+func hunkStarts(lines []diffLine) []int {
+	var starts []int
+	var hunk record      // the current hunk's h record, if it has one
+	file, last := "", -1 // the current hunk's file and highest new line, -1 after a header
+	open := false
+	for i, l := range lines {
+		if len(l.records) == 0 {
+			continue
+		}
+		if h, ok := hunkRecord(l); ok {
+			if !open || h != hunk {
+				starts = append(starts, i)
+			}
+			open, hunk, file, last = true, h, h.File, -1
+			continue
+		}
+		r := l.records[0]
+		if r.Kind == 'f' {
+			open = false
+			continue
+		}
+		n := 0
+		for _, r := range l.records {
+			n = max(n, r.NewLine)
+		}
+		// Within a hunk, new lines go up by at most one per row.
+		if !open || r.File != file || (last >= 0 && n > last+1) {
+			starts = append(starts, i)
+			open, hunk, file, last = true, record{}, r.File, n
+		}
+		last = max(last, n)
+	}
+	return starts
 }
 
 // hunkRecord returns the row's h record, if any.
