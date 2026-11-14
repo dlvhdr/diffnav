@@ -92,13 +92,21 @@ func firstRecord(lines []diffLine, row int) (record, bool) {
 // findRecord returns the first row showing the same diff line as want, or -1.
 func findRecord(lines []diffLine, want record) int {
 	for i, l := range lines {
-		for _, r := range l.records {
-			if r.File == want.File && sameLine(r, want) {
-				return i
-			}
+		if l.shows(want) {
+			return i
 		}
 	}
 	return -1
+}
+
+// shows reports whether the row shows the same diff line as want.
+func (o diffLine) shows(want record) bool {
+	for _, r := range o.records {
+		if r.File == want.File && sameLine(r, want) {
+			return true
+		}
+	}
+	return false
 }
 
 // sameLine compares records of the same file: d by old line, c/a and h by new line.

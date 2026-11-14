@@ -134,6 +134,9 @@ func TestSetSideBySide_KeepsPosition(t *testing.T) {
 	var unified, sbs []diffLine
 	for n := 1; n <= 20; n++ {
 		unified = append(unified, row(c(n)))
+		if n == 7 {
+			unified = append(unified, row(c(n))) // line 7 wraps in unified only
+		}
 		sbs = append(sbs, row(), row(c(n), c(n))) // a decoration row before every line
 	}
 	files := []*gitdiff.File{{}}
@@ -141,7 +144,7 @@ func TestSetSideBySide_KeepsPosition(t *testing.T) {
 	m.cache[cacheKey("a.go", false)] = m.file
 	m.cache[cacheKey("a.go", true)] = &cachedNode{path: "a.go", files: files, diff: sbs}
 	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", false), node: m.file, lines: unified})
-	m.ScrollDown(6) // line 7 at the top
+	m.ScrollDown(7) // line 7's wrapped row at the top
 
 	m.SetSideBySide(true)
 	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 13 {

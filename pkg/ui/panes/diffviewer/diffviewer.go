@@ -312,13 +312,20 @@ func (m *Model) setLines(lines []diffLine) {
 	if m.anchor == nil {
 		return
 	}
-	row := findRecord(lines, m.anchor.rec)
-	offset := m.anchor.offset
+	a := *m.anchor
 	m.anchor = nil
+	row := findRecord(lines, a.rec)
 	if row < 0 || m.fvp.GetMatchingItemsOnly() {
 		return
 	}
-	row = max(row+offset, 0)
+	// Stay within the record's rows, so a wrapped row doesn't spill onto the next line.
+	for range a.offset {
+		if row+1 >= len(lines) || !lines[row+1].shows(a.rec) {
+			break
+		}
+		row++
+	}
+	row = max(row+min(a.offset, 0), 0)
 	if m.SelectionEnabled() {
 		m.fvp.SetSelectedItemIdx(row)
 		return
