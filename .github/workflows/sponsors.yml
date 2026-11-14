@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.SPONSORS_TOKEN }}
       - name: Install Go
         uses: actions/setup-go@v6
         with:
