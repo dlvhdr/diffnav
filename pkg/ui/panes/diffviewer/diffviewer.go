@@ -42,7 +42,8 @@ func cacheKey(path string, sideBySide bool) string {
 }
 
 type diffLine struct {
-	item item.Item
+	item    item.Item
+	records []record
 }
 
 func (o diffLine) GetItem() item.Item {
@@ -488,7 +489,7 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{cacheKey: key, node: node, lines: stringToDiffLines(string(out))}
+		return diffContentMsg{cacheKey: key, node: node, lines: parseDeltaOutput(string(out))}
 	}
 }
 
@@ -522,11 +523,11 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 			return common.ErrMsg{Err: err}
 		}
 
-		text := string(out)
+		lines := parseDeltaOutput(string(out))
 		if preamble != "" {
-			text = m.renderPreamble(preamble) + "\n" + text
+			lines = append(stringToDiffLines(m.renderPreamble(preamble)), lines...)
 		}
-		return diffContentMsg{cacheKey: key, node: dir, lines: stringToDiffLines(text)}
+		return diffContentMsg{cacheKey: key, node: dir, lines: lines}
 	}
 }
 
@@ -623,10 +624,11 @@ type deltaOpts struct {
 	UseUserDeltaTheme bool
 }
 
-// makeDeltaEnv sets side-by-side like `git -c delta.side-by-side=...` would.
-// The --side-by-side flag would override the user's line-number format and can't turn it off.
+// makeDeltaEnv asks for OSC 1717 line metadata and, with the user's theme, sets side-by-side
+// like `git -c delta.side-by-side=...` would. The --side-by-side flag would override the
+// user's line-number format and can't turn it off.
 func makeDeltaEnv(opts deltaOpts) []string {
-	env := os.Environ()
+	env := append(os.Environ(), "OSC1717=V1")
 	if !opts.UseUserDeltaTheme {
 		return env
 	}
