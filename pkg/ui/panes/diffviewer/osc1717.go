@@ -43,6 +43,9 @@ func parseDeltaOutput(out string) []diffLine {
 
 // parseRecords removes the OSC 1717 sequences from a row and returns them.
 func parseRecords(row string) (string, []record) {
+	if !strings.Contains(row, osc1717Prefix) {
+		return row, nil
+	}
 	var records []record
 	var b strings.Builder
 	for {
@@ -86,24 +89,16 @@ func firstRecord(lines []diffLine, row int) (record, bool) {
 	return record{}, false
 }
 
-// findRecord returns the first row showing the same diff line as want, else the
-// first row at or after its line in the same file, else -1.
+// findRecord returns the first row showing the same diff line as want, or -1.
 func findRecord(lines []diffLine, want record) int {
-	nearest := -1
 	for i, l := range lines {
 		for _, r := range l.records {
-			if r.File != want.File {
-				continue
-			}
-			if sameLine(r, want) {
+			if r.File == want.File && sameLine(r, want) {
 				return i
-			}
-			if nearest < 0 && want.Kind != 'f' && r.Kind != 'f' && r.NewLine >= want.NewLine {
-				nearest = i
 			}
 		}
 	}
-	return nearest
+	return -1
 }
 
 // sameLine compares records of the same file: d by old line, c/a and h by new line.

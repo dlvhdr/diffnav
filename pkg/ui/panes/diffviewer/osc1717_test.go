@@ -119,7 +119,6 @@ func TestFindRecord(t *testing.T) {
 		{"added on the right", a(3), 4},
 		{"hunk", record{Kind: 'h', NewLine: 1, File: "a.go"}, 1},
 		{"file", record{Kind: 'f', File: "a.go"}, 0},
-		{"nearest following line", d(4, 7), 6},
 		{"past the end", c(9), -1},
 		{"other file", record{Kind: 'c', NewLine: 1, File: "b.go"}, -1},
 	}
