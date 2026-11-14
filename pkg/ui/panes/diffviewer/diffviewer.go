@@ -96,8 +96,14 @@ type Model struct {
 	useUserDeltaTheme bool
 	preamble          string
 	sb                common.Scrollbar
-	// anchor is the diff line to scroll back to once the re-rendered diff is shown.
-	anchor *record
+	// anchor is where to scroll back to once the re-rendered diff is shown.
+	anchor *scrollAnchor
+}
+
+// scrollAnchor is a diff line and how many rows below its first row the view was.
+type scrollAnchor struct {
+	rec    record
+	offset int
 }
 
 // SetPreamble stores the preamble text (e.g. commit metadata from git show).
@@ -277,7 +283,8 @@ func (m *Model) UpdateTheme() tea.Cmd {
 }
 
 // keepPosition remembers the diff line at the top of the view (or the selected one),
-// so the next render of this node scrolls back to it.
+// so the next render of this node scrolls back to it. Rows without a record (a preamble,
+// decorations, wrapped rows) are kept by their offset from the next record's first row.
 func (m *Model) keepPosition() {
 	node := m.file
 	if node == nil {
@@ -295,7 +302,7 @@ func (m *Model) keepPosition() {
 	}
 	// Keep a pending anchor if the current render hasn't arrived yet.
 	if rec, ok := firstRecord(node.diff, row); ok {
-		m.anchor = &rec
+		m.anchor = &scrollAnchor{rec: rec, offset: row - findRecord(node.diff, rec)}
 	}
 }
 
@@ -305,11 +312,13 @@ func (m *Model) setLines(lines []diffLine) {
 	if m.anchor == nil {
 		return
 	}
-	row := findRecord(lines, *m.anchor)
+	row := findRecord(lines, m.anchor.rec)
+	offset := m.anchor.offset
 	m.anchor = nil
 	if row < 0 || m.fvp.GetMatchingItemsOnly() {
 		return
 	}
+	row = max(row+offset, 0)
 	if m.SelectionEnabled() {
 		m.fvp.SetSelectedItemIdx(row)
 		return

@@ -151,3 +151,26 @@ func TestSetSideBySide_KeepsPosition(t *testing.T) {
 		t.Fatalf("expected row 13 (line 7) at the top, got %d", got)
 	}
 }
+
+func TestSetSideBySide_KeepsRecordlessTopRow(t *testing.T) {
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	// A preamble, then line 1 wrapped over two rows.
+	lines := []diffLine{row(), row(), row(c(1)), row(c(1))}
+	for n := 2; n <= 20; n++ {
+		lines = append(lines, row(c(n)))
+	}
+	for _, top := range []int{0, 3} {
+		m := newTestModel(t)
+		m.SetSize(80, 4)
+		// A new file renders the same in both modes, so `s` re-shows the same lines.
+		m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{IsNew: true}}, diff: lines}
+		m.cache[cacheKey("a.go", false)] = m.file
+		m.fvp.SetObjects(lines)
+		m.ScrollDown(top)
+
+		m.SetSideBySide(true)
+		if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != top {
+			t.Errorf("expected row %d to stay at the top, got %d", top, got)
+		}
+	}
+}
