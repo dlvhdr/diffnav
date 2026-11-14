@@ -10,8 +10,7 @@ import (
 func osc(body string) string { return osc1717Prefix + body + osc1717Term }
 
 func TestParseDeltaOutput(t *testing.T) {
-	out := osc1717Handshake + "\n" +
-		osc("1;f;;;a.go") + "a.go\n" +
+	out := osc1717Handshake + osc("1;f;;;a.go") + "a.go\n" +
 		osc("1;h;10;;a.go") + "@@\n" +
 		"\x1b[0m────\n" +
 		osc("1;d;10;9;a.go") + "\x1b[31m-x" + osc("1;a;10;;a.go") + "+y\n" +

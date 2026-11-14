@@ -25,13 +25,13 @@ type record struct {
 }
 
 // parseDeltaOutput splits delta's output into rows. When it starts with the
-// OSC 1717 handshake, each row's records are parsed and stripped from its text.
+// OSC 1717 handshake (a prefix of the first row, not a row of its own), each
+// row's records are parsed and stripped from its text.
 func parseDeltaOutput(out string) []diffLine {
 	rest, ok := strings.CutPrefix(out, osc1717Handshake)
 	if !ok {
 		return stringToDiffLines(out)
 	}
-	rest = strings.TrimPrefix(rest, "\n")
 	rows := strings.Split(rest, "\n")
 	lines := make([]diffLine, len(rows))
 	for i, row := range rows {
