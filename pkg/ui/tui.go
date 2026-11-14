@@ -388,6 +388,10 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case !m.diffViewer.Searching() && !m.diffViewer.Filtering() && key.Matches(msg, keys.NextFile):
 			m, cmd = m.moveToFile(1)
 			cmds = append(cmds, cmd)
+		case !m.diffViewer.Searching() && !m.diffViewer.Filtering() && key.Matches(msg, keys.PrevHunk):
+			m.diffViewer.GoToHunk(-1)
+		case !m.diffViewer.Searching() && !m.diffViewer.Filtering() && key.Matches(msg, keys.NextHunk):
+			m.diffViewer.GoToHunk(1)
 		case m.activePanel == FileTreePanel && key.Matches(msg, keys.Up):
 			if m.activePanel == FileTreePanel {
 				m, cmd = m.moveCursor(moveUp)

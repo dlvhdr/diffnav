@@ -132,3 +132,25 @@ func sameLine(r, want record) bool {
 		return r.Kind == want.Kind && r.NewLine == want.NewLine
 	}
 }
+
+// hunkRow returns the first row of the next hunk header after row (dir > 0) or the
+// previous one before it (dir < 0), or -1. A header can span several rows (delta's
+// decorations), all with the same h record.
+func hunkRow(lines []diffLine, row, dir int) int {
+	for i := row + dir; i >= 0 && i < len(lines); i += dir {
+		if h, ok := hunkRecord(lines[i]); ok && (i == 0 || !lines[i-1].shows(h)) {
+			return i
+		}
+	}
+	return -1
+}
+
+// hunkRecord returns the row's h record, if any.
+func hunkRecord(l diffLine) (record, bool) {
+	for _, r := range l.records {
+		if r.Kind == 'h' {
+			return r, true
+		}
+	}
+	return record{}, false
+}

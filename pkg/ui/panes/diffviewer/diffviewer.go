@@ -354,6 +354,20 @@ func (m *Model) show(lines []diffLine) {
 	m.fvp.SetObjects(lines)
 }
 
+// GoToHunk moves to the next (dir > 0) or previous (dir < 0) hunk header: it scrolls it
+// to the top, or selects it in selection mode. It stays put at the last / first hunk
+// and without OSC 1717 records.
+func (m *Model) GoToHunk(dir int) {
+	if m.fvp.GetMatchingItemsOnly() {
+		return
+	}
+	row := hunkRow(m.shown, m.currentRow(), dir)
+	if row < 0 {
+		return
+	}
+	m.showRow(row)
+}
+
 // setLines shows lines and scrolls to the anchor, if any.
 func (m *Model) setLines(lines []diffLine) {
 	m.show(lines)

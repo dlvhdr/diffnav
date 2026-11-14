@@ -264,3 +264,75 @@ func TestSwitchToUncachedNode_HasNoRecord(t *testing.T) {
 		}
 	}
 }
+
+func TestHunkRow(t *testing.T) {
+	f := func(file string) record { return record{Kind: 'f', File: file} }
+	h := func(n int, file string) record { return record{Kind: 'h', NewLine: n, File: file} }
+	c := func(n int, file string) record { return record{Kind: 'c', NewLine: n, File: file} }
+	lines := []diffLine{
+		row(f("a.go")), row(f("a.go")), row(),
+		row(h(1, "a.go")), row(h(1, "a.go")), row(h(1, "a.go")), // 3: overline, header, underline
+		row(c(1, "a.go")), row(),
+		row(h(27, "a.go")), row(h(27, "a.go")), row(h(27, "a.go")), // 8
+		row(c(27, "a.go"), c(27, "a.go")), row(),
+		row(f("b.go")), row(f("b.go")),
+		row(h(1, "b.go")), // 15: same line as a.go's first hunk, another file
+		row(c(1, "b.go")),
+	}
+	tests := []struct {
+		name           string
+		row, dir, want int
+	}{
+		{"first from the file header", 0, 1, 3},
+		{"next from a header's decoration row", 4, 1, 8},
+		{"next into another file", 9, 1, 15},
+		{"none after the last", 15, 1, -1},
+		{"prev from a hunk body goes to its header", 11, -1, 8},
+		{"prev from a header", 8, -1, 3},
+		{"none before the first", 3, -1, -1},
+	}
+	for _, tt := range tests {
+		if got := hunkRow(lines, tt.row, tt.dir); got != tt.want {
+			t.Errorf("%s: expected row %d, got %d", tt.name, tt.want, got)
+		}
+	}
+	if got := hunkRow([]diffLine{row(), row(), row()}, 0, 1); got != -1 {
+		t.Errorf("without records: expected -1, got %d", got)
+	}
+}
+
+func TestGoToHunk(t *testing.T) {
+	h := func(n int) record { return record{Kind: 'h', NewLine: n, File: "a.go"} }
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	var lines []diffLine
+	for _, start := range []int{1, 20} {
+		lines = append(lines, row(h(start)), row(h(start)))
+		for n := start; n < start+10; n++ {
+			lines = append(lines, row(c(n)))
+		}
+	}
+	m := newTestModel(t)
+	m.SetSize(80, 4)
+	m.show(lines)
+	top := func() int { return m.fvp.GetItemMetrics().FirstVisibleItemIdx }
+
+	m.GoToHunk(1)
+	if top() != 12 {
+		t.Fatalf("expected the second hunk at the top, got row %d", top())
+	}
+	m.GoToHunk(1)
+	if top() != 12 {
+		t.Fatalf("expected to stay at the last hunk, got row %d", top())
+	}
+	m.GoToHunk(-1)
+	m.GoToHunk(-1)
+	if top() != 0 {
+		t.Fatalf("expected to stay at the first hunk, got row %d", top())
+	}
+
+	m.SetSelectionEnabled(true)
+	m.GoToHunk(1)
+	if got := m.fvp.GetSelectedItemIdx(); got != 12 {
+		t.Fatalf("expected the second hunk selected, got row %d", got)
+	}
+}
