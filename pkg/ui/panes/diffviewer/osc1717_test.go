@@ -264,3 +264,48 @@ func TestSwitchToUncachedNode_HasNoRecord(t *testing.T) {
 		}
 	}
 }
+
+func TestEditorTarget(t *testing.T) {
+	m := newTestModel(t)
+	m.SetSize(80, 4)
+	lines := []diffLine{
+		row(),
+		row(record{Kind: 'f', File: "a.go"}),
+		row(record{Kind: 'h', NewLine: 5, File: "a.go"}),
+		row(record{Kind: 'd', NewLine: 6, OldLine: 5, File: "a.go"}, record{Kind: 'a', NewLine: 6, File: "a.go"}),
+		row(record{Kind: 'c', NewLine: 7, File: "dir/b.go"}),
+	}
+	for i := 0; i < 6; i++ {
+		lines = append(lines, row())
+	}
+	m.file = &cachedNode{path: "a.go", diff: lines}
+	m.fvp.SetObjects(lines)
+
+	tests := []struct {
+		top  int
+		file string
+		line int
+		ok   bool
+	}{
+		{0, "a.go", 0, true}, // a preamble row takes the next record
+		{2, "a.go", 5, true},
+		{3, "a.go", 6, true},
+		{4, "dir/b.go", 7, true},
+		{5, "", 0, false},
+	}
+	for _, tt := range tests {
+		m.fvp.GoToTop()
+		m.ScrollDown(tt.top)
+		file, line, ok := m.EditorTarget()
+		if file != tt.file || line != tt.line || ok != tt.ok {
+			t.Errorf("top %d: got (%q, %d, %v), want (%q, %d, %v)", tt.top, file, line, ok, tt.file, tt.line, tt.ok)
+		}
+	}
+
+	m.fvp.GoToTop()
+	m.SetSelectionEnabled(true)
+	m.fvp.SetSelectedItemIdx(4)
+	if file, line, _ := m.EditorTarget(); file != "dir/b.go" || line != 7 {
+		t.Errorf("selection: got (%q, %d), want (\"dir/b.go\", 7)", file, line)
+	}
+}

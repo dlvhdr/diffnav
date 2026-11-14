@@ -101,6 +101,15 @@ func firstRecord(lines []diffLine, row int) (record, bool) {
 	return record{}, false
 }
 
+// editorLine is the new-file line to open the editor at: the line itself for c/a,
+// the new-file position for d, the hunk start for h, and 0 (none) for f.
+func editorLine(r record) int {
+	if r.Kind == 'f' {
+		return 0
+	}
+	return r.NewLine
+}
+
 // findRecord returns the first row showing the same diff line as want, or -1.
 func findRecord(lines []diffLine, want record) int {
 	for i, l := range lines {

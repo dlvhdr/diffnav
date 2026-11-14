@@ -354,6 +354,25 @@ func (m *Model) show(lines []diffLine) {
 	m.fvp.SetObjects(lines)
 }
 
+// EditorTarget returns the file (relative to the repo root) and line shown by the
+// selected or top visible row, from its OSC 1717 record. line is 0 when the row has
+// no line (a file header); ok is false when there is no record.
+func (m *Model) EditorTarget() (file string, line int, ok bool) {
+	node := m.file
+	if node == nil {
+		node = m.dir
+	}
+	// Filtered rows don't index node.diff.
+	if node == nil || m.fvp.GetMatchingItemsOnly() {
+		return "", 0, false
+	}
+	rec, ok := firstRecord(node.diff, m.currentRow())
+	if !ok {
+		return "", 0, false
+	}
+	return rec.File, editorLine(rec), true
+}
+
 // setLines shows lines and scrolls to the anchor, if any.
 func (m *Model) setLines(lines []diffLine) {
 	m.show(lines)
