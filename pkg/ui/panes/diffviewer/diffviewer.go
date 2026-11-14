@@ -96,6 +96,8 @@ type Model struct {
 	useUserDeltaTheme bool
 	preamble          string
 	sb                common.Scrollbar
+	// anchor is the diff line to scroll back to once the re-rendered diff is shown.
+	anchor *record
 }
 
 // SetPreamble stores the preamble text (e.g. commit metadata from git show).
@@ -229,7 +231,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		node.diff = msg.lines
 		if node == m.file || node == m.dir {
-			m.fvp.SetObjects(msg.lines)
+			m.setLines(msg.lines)
 		}
 	}
 
@@ -262,13 +264,54 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.Height = height
 	m.fvp.SetWidth(m.contentWidth())
 	m.fvp.SetHeight(m.Height)
+	m.keepPosition()
 	m.ClearCache()
 	return m.diff()
 }
 
 func (m *Model) UpdateTheme() tea.Cmd {
+	m.keepPosition()
 	m.ClearCache()
 	return m.diff()
+}
+
+// keepPosition remembers the diff line at the top of the view (or the selected one),
+// so the next render of this node scrolls back to it.
+func (m *Model) keepPosition() {
+	node := m.file
+	if node == nil {
+		node = m.dir
+	}
+	if node == nil || m.fvp.GetMatchingItemsOnly() {
+		return
+	}
+	row := m.fvp.GetItemMetrics().FirstVisibleItemIdx
+	if m.SelectionEnabled() {
+		row = m.fvp.GetSelectedItemIdx()
+	}
+	// Keep a pending anchor if the current render hasn't arrived yet.
+	if rec, ok := firstRecord(node.diff, row); ok {
+		m.anchor = &rec
+	}
+}
+
+// setLines shows lines and scrolls to the anchor, if any.
+func (m *Model) setLines(lines []diffLine) {
+	m.fvp.SetObjects(lines)
+	if m.anchor == nil {
+		return
+	}
+	row := findRecord(lines, *m.anchor)
+	m.anchor = nil
+	if row < 0 || m.fvp.GetMatchingItemsOnly() {
+		return
+	}
+	if m.SelectionEnabled() {
+		m.fvp.SetSelectedItemIdx(row)
+		return
+	}
+	m.fvp.GoToTop()
+	m.fvp.ScrollDown(row)
 }
 
 func (m Model) contentWidth() int {
@@ -282,7 +325,7 @@ func (m *Model) diff() tea.Cmd {
 		key := cacheKey(m.file.path, sideBySide)
 		if cached, ok := m.cache[key]; ok && len(cached.diff) != 0 {
 			m.file = cached
-			m.fvp.SetObjects(cached.diff)
+			m.setLines(cached.diff)
 			return nil
 		}
 		node := &cachedNode{
@@ -298,7 +341,7 @@ func (m *Model) diff() tea.Cmd {
 		key := cacheKey(m.dir.path, m.sideBySide)
 		if cached, ok := m.cache[key]; ok && len(cached.diff) != 0 {
 			m.dir = cached
-			m.fvp.SetObjects(cached.diff)
+			m.setLines(cached.diff)
 			return nil
 		}
 		node := &cachedNode{
@@ -364,6 +407,7 @@ func (m Model) dirHeaderView() string {
 
 func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	m.dir = nil
+	m.anchor = nil
 
 	fname := filenode.GetFileName(file)
 	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
@@ -392,6 +436,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
 	m.file = nil
+	m.anchor = nil
 
 	key := cacheKey(dirPath, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
@@ -429,6 +474,7 @@ func (m *Model) updateHeader() {
 // SetSideBySide updates the diff view mode and re-renders.
 func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	m.sideBySide = sideBySide
+	m.keepPosition()
 	return m.diff()
 }
 

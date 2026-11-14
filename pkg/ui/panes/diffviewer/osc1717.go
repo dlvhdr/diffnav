@@ -75,3 +75,45 @@ func parseRecord(body string) (record, bool) {
 	oldLine, _ := strconv.Atoi(fields[3])
 	return record{Kind: fields[1][0], NewLine: newLine, OldLine: oldLine, File: fields[4]}, true
 }
+
+// firstRecord returns the first record at or below row.
+func firstRecord(lines []diffLine, row int) (record, bool) {
+	for i := max(row, 0); i < len(lines); i++ {
+		if len(lines[i].records) > 0 {
+			return lines[i].records[0], true
+		}
+	}
+	return record{}, false
+}
+
+// findRecord returns the first row showing the same diff line as want, else the
+// first row at or after its line in the same file, else -1.
+func findRecord(lines []diffLine, want record) int {
+	nearest := -1
+	for i, l := range lines {
+		for _, r := range l.records {
+			if r.File != want.File {
+				continue
+			}
+			if sameLine(r, want) {
+				return i
+			}
+			if nearest < 0 && want.Kind != 'f' && r.Kind != 'f' && r.NewLine >= want.NewLine {
+				nearest = i
+			}
+		}
+	}
+	return nearest
+}
+
+// sameLine compares records of the same file: d by old line, c/a and h by new line.
+func sameLine(r, want record) bool {
+	switch want.Kind {
+	case 'd':
+		return r.Kind == 'd' && r.OldLine == want.OldLine
+	case 'c', 'a':
+		return (r.Kind == 'c' || r.Kind == 'a') && r.NewLine == want.NewLine
+	default:
+		return r.Kind == want.Kind && r.NewLine == want.NewLine
+	}
+}

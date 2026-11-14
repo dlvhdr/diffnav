@@ -5,6 +5,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/bluekeyes/go-gitdiff/gitdiff"
+	"github.com/robinovitch61/viewport/viewport/item"
 )
 
 func osc(body string) string { return osc1717Prefix + body + osc1717Term }
@@ -86,5 +89,65 @@ func TestParseDeltaOutput_RealDelta(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}
+
+func row(records ...record) diffLine {
+	return diffLine{item: item.NewItem("x"), records: records}
+}
+
+func TestFindRecord(t *testing.T) {
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	a := func(n int) record { return record{Kind: 'a', NewLine: n, File: "a.go"} }
+	d := func(n, o int) record { return record{Kind: 'd', NewLine: n, OldLine: o, File: "a.go"} }
+	// Side-by-side: a modification is one row with d and a.
+	lines := []diffLine{
+		row(record{Kind: 'f', File: "a.go"}),
+		row(record{Kind: 'h', NewLine: 1, File: "a.go"}),
+		row(c(1), c(1)),
+		row(d(2, 2), a(2)),
+		row(a(3)),
+		row(),
+		row(c(4), c(4)),
+	}
+	tests := []struct {
+		name string
+		want record
+		row  int
+	}{
+		{"deleted by old line", d(2, 2), 3},
+		{"added on the right", a(3), 4},
+		{"hunk", record{Kind: 'h', NewLine: 1, File: "a.go"}, 1},
+		{"file", record{Kind: 'f', File: "a.go"}, 0},
+		{"nearest following line", d(4, 7), 6},
+		{"past the end", c(9), -1},
+		{"other file", record{Kind: 'c', NewLine: 1, File: "b.go"}, -1},
+	}
+	for _, tt := range tests {
+		if got := findRecord(lines, tt.want); got != tt.row {
+			t.Errorf("%s: expected row %d, got %d", tt.name, tt.row, got)
+		}
+	}
+}
+
+func TestSetSideBySide_KeepsPosition(t *testing.T) {
+	m := newTestModel(t)
+	m.SetSize(80, 4)
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	var unified, sbs []diffLine
+	for n := 1; n <= 20; n++ {
+		unified = append(unified, row(c(n)))
+		sbs = append(sbs, row(), row(c(n), c(n))) // a decoration row before every line
+	}
+	files := []*gitdiff.File{{}}
+	m.file = &cachedNode{path: "a.go", files: files}
+	m.cache[cacheKey("a.go", false)] = m.file
+	m.cache[cacheKey("a.go", true)] = &cachedNode{path: "a.go", files: files, diff: sbs}
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", false), node: m.file, lines: unified})
+	m.ScrollDown(6) // line 7 at the top
+
+	m.SetSideBySide(true)
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 13 {
+		t.Fatalf("expected row 13 (line 7) at the top, got %d", got)
 	}
 }
