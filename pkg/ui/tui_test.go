@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -259,6 +260,27 @@ func TestUseUserDeltaThemeEnvOverridesConfig(t *testing.T) {
 
 		if m.config.UI.UseUserDeltaTheme != tc.want {
 			t.Errorf("env=%q cfg=%t: expected %t", tc.env, tc.cfg, tc.want)
+		}
+	}
+}
+
+func TestEditorArgs(t *testing.T) {
+	const def = "+{line} {file}"
+	tests := []struct {
+		name, editor, lineArg, path string
+		line                        int
+		want                        []string
+	}{
+		{"default", "vim", def, "/r/a.go", 12, []string{"vim", "+12", "/r/a.go"}},
+		{"vs code", "code -w", "-g {file}:{line}", "/r/a.go", 3, []string{"code", "-w", "-g", "/r/a.go:3"}},
+		{"path with spaces", "hx", "{file}:{line}", "/r/my dir/a.go", 7, []string{"hx", "/r/my dir/a.go:7"}},
+		{"no line", "code -w", "-g {file}:{line}", "/r/a.go", 0, []string{"code", "-w", "/r/a.go"}},
+		{"no editor", "", def, "/r/a.go", 1, nil},
+	}
+	for _, tt := range tests {
+		t.Setenv("EDITOR", tt.editor)
+		if got := editorArgs(tt.lineArg, tt.path, tt.line); !slices.Equal(got, tt.want) {
+			t.Errorf("%s: got %q, want %q", tt.name, got, tt.want)
 		}
 	}
 }

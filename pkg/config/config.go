@@ -23,6 +23,7 @@ type UIConfig struct {
 	StartFoldersOpenDepth int    `yaml:"startFoldersOpenDepth"` // How many levels of folders to open on start (-1 = all, 0 = none)
 	Theme                 string `yaml:"theme"`                 // The theme to use (default: "tokyo_night")
 	UseUserDeltaTheme     bool   `yaml:"useUserDeltaTheme"`     // Use the user's delta config for diffs (default: false)
+	EditorLineArg         string `yaml:"editorLineArg"`         // $EDITOR arguments when the line is known, with {line} and {file} (default: "+{line} {file}")
 }
 
 type WatchConfig struct {
@@ -50,6 +51,7 @@ func DefaultConfig() Config {
 			ShowDiffStats:         true,
 			StartFoldersOpenDepth: -1,
 			Theme:                 tint.TintTokyoNight.ID,
+			EditorLineArg:         "+{line} {file}",
 		},
 	}
 }

@@ -1137,23 +1137,40 @@ func (m mainModel) openInEditor() tea.Cmd {
 		return nil
 	}
 
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		return nil
+	relpath, line, ok := m.diffViewer.EditorTarget()
+	if !ok {
+		relpath = m.fileTree.CurrNodePath()
 	}
-
-	relpath := m.fileTree.CurrNodePath()
-	var path string
+	path := relpath
 	if m.repoRoot != "" {
 		path = filepath.Join(m.repoRoot, relpath)
-	} else {
-		path = relpath
 	}
 
-	c := exec.Command(editor, path)
+	args := editorArgs(m.config.UI.EditorLineArg, path, line)
+	if args == nil {
+		return nil
+	}
+	c := exec.Command(args[0], args[1:]...)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return nil
 	})
+}
+
+// editorArgs returns $EDITOR's words followed by path, or by lineArg's words with
+// {file} and {line} replaced when line is known (> 0). It's nil without $EDITOR.
+func editorArgs(lineArg, path string, line int) []string {
+	args := strings.Fields(os.Getenv("EDITOR"))
+	if len(args) == 0 {
+		return nil
+	}
+	if line <= 0 || strings.TrimSpace(lineArg) == "" {
+		return append(args, path)
+	}
+	r := strings.NewReplacer("{file}", path, "{line}", strconv.Itoa(line))
+	for _, w := range strings.Fields(lineArg) {
+		args = append(args, r.Replace(w))
+	}
+	return args
 }
 
 // messageViewContent returns the message overlay content (viewport + optional scrollbar).
