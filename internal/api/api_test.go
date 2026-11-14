@@ -10,6 +10,43 @@ import (
 	"testing"
 )
 
+func TestGraphQLHost(t *testing.T) {
+	tests := []struct {
+		name   string
+		apiURL string
+		want   string
+	}{
+		{
+			name:   "default API URL",
+			apiURL: "https://api.github.com",
+			want:   "api.github.com",
+		},
+		{
+			name:   "enterprise URL with path",
+			apiURL: "https://ghe.example.com/api/v3",
+			want:   "ghe.example.com",
+		},
+		{
+			name:   "scheme-less host passes through",
+			apiURL: "localhost:3000",
+			want:   "localhost:3000",
+		},
+		{
+			name:   "bare hostname",
+			apiURL: "github.com",
+			want:   "github.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := graphqlHost(tt.apiURL); got != tt.want {
+				t.Errorf("graphqlHost(%q) = %q, want %q", tt.apiURL, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestFetchPRComments(t *testing.T) {
 	transport := localRoundTripper{
 		handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
