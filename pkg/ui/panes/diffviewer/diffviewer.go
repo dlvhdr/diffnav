@@ -260,11 +260,12 @@ func (m Model) View() string {
 }
 
 func (m *Model) SetSize(width, height int) tea.Cmd {
+	// Before resizing: the viewport clamps its top row to the new size.
+	m.keepPosition()
 	m.Width = width
 	m.Height = height
 	m.fvp.SetWidth(m.contentWidth())
 	m.fvp.SetHeight(m.Height)
-	m.keepPosition()
 	m.ClearCache()
 	return m.diff()
 }
@@ -288,6 +289,9 @@ func (m *Model) keepPosition() {
 	row := m.fvp.GetItemMetrics().FirstVisibleItemIdx
 	if m.SelectionEnabled() {
 		row = m.fvp.GetSelectedItemIdx()
+	}
+	if row < 0 {
+		return
 	}
 	// Keep a pending anchor if the current render hasn't arrived yet.
 	if rec, ok := firstRecord(node.diff, row); ok {
