@@ -153,10 +153,14 @@ func hunkRow(lines []diffLine, row, dir int) int {
 // decorates it over several rows with the same h record) or, when delta printed no
 // header, its first line. Delta skips the header of a hunk with no code fragment
 // when the hunk-header style shows no line number or file, as diffnav's own does.
+// Without a header, a hunk starts after a file header, where the new line jumps, or
+// where a deleted line skips an old line. An addition-only hunk right before a
+// deletion hunk (possible with -U0) is still missed: added lines have no old line.
 func hunkStarts(lines []diffLine) []int {
 	var starts []int
 	var hunk record      // the current hunk's h record, if it has one
 	file, last := "", -1 // the current hunk's file and highest new line, -1 after a header
+	old := -1            // the next old line, -1 until a deleted line gives it
 	open := false
 	for i, l := range lines {
 		if len(l.records) == 0 {
@@ -166,7 +170,7 @@ func hunkStarts(lines []diffLine) []int {
 			if !open || h != hunk {
 				starts = append(starts, i)
 			}
-			open, hunk, file, last = true, h, h.File, -1
+			open, hunk, file, last, old = true, h, h.File, -1, -1
 			continue
 		}
 		r := l.records[0]
@@ -174,16 +178,30 @@ func hunkStarts(lines []diffLine) []int {
 			open = false
 			continue
 		}
-		n := 0
+		if i > 0 && slices.Equal(l.records, lines[i-1].records) {
+			continue // a wrapped row of the same line
+		}
+		n, del := 0, record{}
 		for _, r := range l.records {
 			n = max(n, r.NewLine)
+			if r.Kind == 'd' {
+				del = r
+			}
 		}
-		// Within a hunk, new lines go up by at most one per row.
-		if !open || r.File != file || (last >= 0 && n > last+1) {
+		// Within a hunk, new lines go up by at most one per line and deleted lines
+		// follow the old lines.
+		if !open || r.File != file || (last >= 0 && n > last+1) ||
+			(del.Kind == 'd' && old >= 0 && del.OldLine > old) {
 			starts = append(starts, i)
-			open, hunk, file, last = true, record{}, r.File, n
+			open, hunk, file, last, old = true, record{}, r.File, n, -1
 		}
 		last = max(last, n)
+		switch {
+		case del.Kind == 'd':
+			old = del.OldLine + 1
+		case r.Kind == 'c' && old >= 0:
+			old++
+		}
 	}
 	return starts
 }

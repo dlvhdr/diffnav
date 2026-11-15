@@ -269,6 +269,7 @@ func TestHunkRow(t *testing.T) {
 	f := func(file string) record { return record{Kind: 'f', File: file} }
 	h := func(n int, file string) record { return record{Kind: 'h', NewLine: n, File: file} }
 	c := func(n int, file string) record { return record{Kind: 'c', NewLine: n, File: file} }
+	d := func(n, o int) record { return record{Kind: 'd', NewLine: n, OldLine: o, File: "c.go"} }
 	lines := []diffLine{
 		row(f("a.go")), row(f("a.go")), row(),
 		row(h(1, "a.go")), row(h(1, "a.go")), row(h(1, "a.go")), // 3: overline, header, underline
@@ -281,6 +282,11 @@ func TestHunkRow(t *testing.T) {
 		row(c(9, "b.go")), // 19: no header (delta skips some), a jump in line numbers
 		row(f("c.go")),
 		row(c(5, "c.go")), // 21: no header, a new file
+		row(d(6, 10)),
+		row(d(7, 12)), // 23: -U0, no header, new lines go on but old line 11 is skipped
+		row(c(7, "c.go")), row(c(7, "c.go")), // a wrapped line, counted once
+		row(d(8, 15)), // 26: old line 14 is skipped
+		row(d(8, 16)),
 	}
 	tests := []struct {
 		name           string
@@ -291,7 +297,9 @@ func TestHunkRow(t *testing.T) {
 		{"next into another file", 9, 1, 15},
 		{"next without a header", 15, 1, 19},
 		{"next in a new file without a header", 19, 1, 21},
-		{"none after the last", 21, 1, -1},
+		{"next at a one-line gap in old lines", 21, 1, 23},
+		{"next after a wrapped line", 23, 1, 26},
+		{"none after the last", 26, 1, -1},
 		{"prev without a header", 21, -1, 19},
 		{"prev from a hunk body goes to its header", 11, -1, 8},
 		{"prev from a header", 8, -1, 3},
