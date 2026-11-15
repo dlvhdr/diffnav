@@ -272,8 +272,22 @@ func TestEditorArgs(t *testing.T) {
 		want                        []string
 	}{
 		{"default", "vim", def, "/r/a.go", 12, []string{"vim", "+12", "/r/a.go"}},
-		{"vs code", "code -w", "-g {file}:{line}", "/r/a.go", 3, []string{"code", "-w", "-g", "/r/a.go:3"}},
-		{"path with spaces", "hx", "{file}:{line}", "/r/my dir/a.go", 7, []string{"hx", "/r/my dir/a.go:7"}},
+		{
+			"vs code",
+			"code -w",
+			"-g {file}:{line}",
+			"/r/a.go",
+			3,
+			[]string{"code", "-w", "-g", "/r/a.go:3"},
+		},
+		{
+			"path with spaces",
+			"hx",
+			"{file}:{line}",
+			"/r/my dir/a.go",
+			7,
+			[]string{"hx", "/r/my dir/a.go:7"},
+		},
 		{"no line", "code -w", "-g {file}:{line}", "/r/a.go", 0, []string{"code", "-w", "/r/a.go"}},
 		{"no editor", "", def, "/r/a.go", 1, nil},
 	}

@@ -272,7 +272,10 @@ func TestEditorTarget(t *testing.T) {
 		row(),
 		row(record{Kind: 'f', File: "a.go"}),
 		row(record{Kind: 'h', NewLine: 5, File: "a.go"}),
-		row(record{Kind: 'd', NewLine: 6, OldLine: 5, File: "a.go"}, record{Kind: 'a', NewLine: 6, File: "a.go"}),
+		row(
+			record{Kind: 'd', NewLine: 6, OldLine: 5, File: "a.go"},
+			record{Kind: 'a', NewLine: 6, File: "a.go"},
+		),
 		row(record{Kind: 'c', NewLine: 7, File: "dir/b.go"}),
 	}
 	for i := 0; i < 6; i++ {
@@ -298,7 +301,7 @@ func TestEditorTarget(t *testing.T) {
 		m.ScrollDown(tt.top)
 		file, line, ok := m.EditorTarget()
 		if file != tt.file || line != tt.line || ok != tt.ok {
-			t.Errorf("top %d: got (%q, %d, %v), want (%q, %d, %v)", tt.top, file, line, ok, tt.file, tt.line, tt.ok)
+			t.Errorf("top %d: got (%q, %d, %v), want %+v", tt.top, file, line, ok, tt)
 		}
 	}
 
