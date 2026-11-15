@@ -241,9 +241,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	}
 
+	row := m.currentRow()
 	fvp, fvpCmd := m.fvp.Update(msg)
 	cmds = append(cmds, fvpCmd)
 	m.fvp = fvp
+	// The user moved before the re-render arrived: don't scroll back.
+	if m.currentRow() != row {
+		m.anchor = nil
+	}
 
 	return m, tea.Batch(cmds...)
 }
@@ -293,10 +298,7 @@ func (m *Model) keepPosition() {
 	if node == nil || m.fvp.GetMatchingItemsOnly() {
 		return
 	}
-	row := m.fvp.GetItemMetrics().FirstVisibleItemIdx
-	if m.SelectionEnabled() {
-		row = m.fvp.GetSelectedItemIdx()
-	}
+	row := m.currentRow()
 	if row < 0 {
 		return
 	}
@@ -304,6 +306,14 @@ func (m *Model) keepPosition() {
 	if rec, ok := firstRecord(node.diff, row); ok {
 		m.anchor = &scrollAnchor{rec: rec, offset: row - findRecord(node.diff, rec)}
 	}
+}
+
+// currentRow is the selected row, or the top visible one without a selection.
+func (m *Model) currentRow() int {
+	if m.SelectionEnabled() {
+		return m.fvp.GetSelectedItemIdx()
+	}
+	return m.fvp.GetItemMetrics().FirstVisibleItemIdx
 }
 
 // setLines shows lines and scrolls to the anchor, if any.
@@ -500,21 +510,25 @@ func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 
 // ScrollUp scrolls the viewport up by the given number of lines.
 func (m *Model) ScrollUp(lines int) {
+	m.anchor = nil
 	m.fvp.ScrollUp(lines)
 }
 
 // ScrollDown scrolls the viewport down by the given number of lines.
 func (m *Model) ScrollDown(lines int) {
+	m.anchor = nil
 	m.fvp.ScrollDown(lines)
 }
 
 // ScrollBottom scrolls the viewport to the bottom.
 func (m *Model) ScrollBottom() {
+	m.anchor = nil
 	m.fvp.GoToBottom()
 }
 
 // ScrollTop scrolls the viewport to its top.
 func (m *Model) ScrollTop() {
+	m.anchor = nil
 	m.fvp.GoToTop()
 }
 

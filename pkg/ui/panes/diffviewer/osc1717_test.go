@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/robinovitch61/viewport/viewport/item"
 )
@@ -175,5 +176,26 @@ func TestSetSideBySide_KeepsRecordlessTopRow(t *testing.T) {
 		if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != top {
 			t.Errorf("expected row %d to stay at the top, got %d", top, got)
 		}
+	}
+}
+
+func TestSetSideBySide_UserMoveDropsAnchor(t *testing.T) {
+	m := newTestModel(t)
+	m.SetSize(80, 4)
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	var lines []diffLine
+	for n := 1; n <= 20; n++ {
+		lines = append(lines, row(c(n)))
+	}
+	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: lines}
+	m.cache[cacheKey("a.go", false)] = m.file
+	m.fvp.SetObjects(lines)
+	m.ScrollDown(10)
+
+	m.SetSideBySide(true) // renders async: the anchor is pending
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: lines})
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 0 {
+		t.Fatalf("expected g to keep the top, got row %d", got)
 	}
 }
