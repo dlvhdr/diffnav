@@ -191,9 +191,9 @@ ui:
 
   # Arguments for $EDITOR when `o` knows the line (needs delta >= 0.20).
   # {file} and {line} are replaced; without a line it runs `$EDITOR <file>`.
+  # The default works for vim, nvim, nano, emacs, ... For other editors:
   # VS Code: "-g {file}:{line}", helix/zed/subl: "{file}:{line}"
-  # (default: "+{line} {file}", for vim, nvim, nano, emacs, ...)
-  editorLineArg: "-g {file}:{line}"
+  editorLineArg: "+{line} {file}"
 ```
 
 | Option                     | Type   | Default             | Description                                               |
