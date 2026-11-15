@@ -76,7 +76,14 @@ func parseRecord(body string) (record, bool) {
 	}
 	newLine, _ := strconv.Atoi(fields[2])
 	oldLine, _ := strconv.Atoi(fields[3])
-	return record{Kind: fields[1][0], NewLine: newLine, OldLine: oldLine, File: fields[4]}, true
+	file := fields[4]
+	// Git quotes unusual names with octal escapes (\303\244 for ä), and delta copies them.
+	if strings.Contains(file, `\`) {
+		if name, err := strconv.Unquote(`"` + file + `"`); err == nil {
+			file = name
+		}
+	}
+	return record{Kind: fields[1][0], NewLine: newLine, OldLine: oldLine, File: file}, true
 }
 
 // firstRecord returns the first record at or below row.
