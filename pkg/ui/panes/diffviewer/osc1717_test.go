@@ -283,7 +283,7 @@ func TestHunkRow(t *testing.T) {
 		row(f("c.go")),
 		row(c(5, "c.go")), // 21: no header, a new file
 		row(d(6, 10)),
-		row(d(7, 12)), // 23: -U0, no header, new lines go on but old line 11 is skipped
+		row(d(7, 12)),                        // 23: -U0, no header: old line 11 is skipped
 		row(c(7, "c.go")), row(c(7, "c.go")), // a wrapped line, counted once
 		row(d(8, 15)), // 26: old line 14 is skipped
 		row(d(8, 16)),
