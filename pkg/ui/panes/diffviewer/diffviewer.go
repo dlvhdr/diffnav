@@ -358,15 +358,7 @@ func (m *Model) show(lines []diffLine) {
 // selected or top visible row, from its OSC 1717 record. line is 0 when the row has
 // no line (a file header); ok is false when there is no record.
 func (m *Model) EditorTarget() (file string, line int, ok bool) {
-	node := m.file
-	if node == nil {
-		node = m.dir
-	}
-	// Filtered rows don't index node.diff.
-	if node == nil || m.fvp.GetMatchingItemsOnly() {
-		return "", 0, false
-	}
-	rec, ok := firstRecord(node.diff, m.currentRow())
+	rec, ok := m.currentRecord()
 	if !ok {
 		return "", 0, false
 	}

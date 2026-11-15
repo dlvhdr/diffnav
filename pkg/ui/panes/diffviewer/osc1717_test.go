@@ -282,7 +282,7 @@ func TestEditorTarget(t *testing.T) {
 		lines = append(lines, row())
 	}
 	m.file = &cachedNode{path: "a.go", diff: lines}
-	m.fvp.SetObjects(lines)
+	m.show(lines)
 
 	tests := []struct {
 		top  int
@@ -310,5 +310,28 @@ func TestEditorTarget(t *testing.T) {
 	m.fvp.SetSelectedItemIdx(4)
 	if file, line, _ := m.EditorTarget(); file != "dir/b.go" || line != 7 {
 		t.Errorf("selection: got (%q, %d), want (\"dir/b.go\", 7)", file, line)
+	}
+}
+
+func TestEditorTarget_PendingRender(t *testing.T) {
+	m := newTestModel(t)
+	m.SetSize(80, 4)
+	c := func(n int, file string) record { return record{Kind: 'c', NewLine: n, File: file} }
+	lines := []diffLine{row(c(1, "dir/a.go")), row(c(2, "dir/a.go")), row(c(9, "dir/b.go"))}
+	for i := 0; i < 6; i++ {
+		lines = append(lines, row())
+	}
+	m.dir = &cachedNode{path: "dir", diff: lines}
+	m.cache[cacheKey("dir", m.sideBySide)] = m.dir
+	m.show(lines)
+	m.ScrollDown(2)
+
+	// A resize starts a new render; the old lines stay on screen until it arrives.
+	m.SetSize(70, 4)
+	if m.dir.diff != nil {
+		t.Fatal("expected a pending render")
+	}
+	if file, line, ok := m.EditorTarget(); file != "dir/b.go" || line != 9 || !ok {
+		t.Errorf("got (%q, %d, %v), want (\"dir/b.go\", 9, true)", file, line, ok)
 	}
 }
