@@ -169,7 +169,7 @@ func TestSetSideBySide_KeepsRecordlessTopRow(t *testing.T) {
 		// A new file renders the same in both modes, so `s` re-shows the same lines.
 		m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{IsNew: true}}, diff: lines}
 		m.cache[cacheKey("a.go", false)] = m.file
-		m.fvp.SetObjects(lines)
+		m.show(lines)
 		m.ScrollDown(top)
 
 		m.SetSideBySide(true)
@@ -179,24 +179,35 @@ func TestSetSideBySide_KeepsRecordlessTopRow(t *testing.T) {
 	}
 }
 
-func TestSetSideBySide_UserMoveDropsAnchor(t *testing.T) {
-	m := newTestModel(t)
-	m.SetSize(80, 4)
+func TestSetSideBySide_UserMoveDuringRender(t *testing.T) {
 	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
-	var lines []diffLine
+	var unified, sbs []diffLine
 	for n := 1; n <= 20; n++ {
-		lines = append(lines, row(c(n)))
+		unified = append(unified, row(c(n)))
+		sbs = append(sbs, row(), row(c(n), c(n))) // a decoration row before every line
 	}
-	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: lines}
-	m.cache[cacheKey("a.go", false)] = m.file
-	m.fvp.SetObjects(lines)
-	m.ScrollDown(10)
+	for _, key := range []string{"g", "G", "j"} {
+		m := newTestModel(t)
+		m.SetSize(80, 6)
+		m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: unified}
+		m.cache[cacheKey("a.go", false)] = m.file
+		m.show(unified)
+		m.ScrollDown(10)
 
-	m.SetSideBySide(true) // renders async: the anchor is pending
-	m, _ = m.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
-	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: lines})
-	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 0 {
-		t.Fatalf("expected g to keep the top, got row %d", got)
+		m.SetSideBySide(true) // renders async: the anchor is pending
+		m, _ = m.Update(tea.KeyPressMsg{Code: rune(key[0]), Text: key})
+		want, _ := m.currentRecord()
+		m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+		metrics := m.fvp.GetItemMetrics()
+		got, _ := firstRecord(sbs, metrics.FirstVisibleItemIdx)
+		switch {
+		case key == "g" && metrics.FirstVisibleItemIdx != 0:
+			t.Errorf("g: expected the top, got row %d", metrics.FirstVisibleItemIdx)
+		case key == "G" && metrics.LastVisibleItemIdx != len(sbs)-1:
+			t.Errorf("G: expected the bottom, got row %d", metrics.LastVisibleItemIdx)
+		case key == "j" && got != want:
+			t.Errorf("j: expected line %d at the top, got line %d", want.NewLine, got.NewLine)
+		}
 	}
 }
 
@@ -211,7 +222,7 @@ func TestSetSideBySide_WheelWithoutMoveKeepsAnchor(t *testing.T) {
 	}
 	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: unified}
 	m.cache[cacheKey("a.go", false)] = m.file
-	m.fvp.SetObjects(unified)
+	m.show(unified)
 	m.ScrollBottom()
 	want, _ := firstRecord(unified, m.fvp.GetItemMetrics().FirstVisibleItemIdx)
 
