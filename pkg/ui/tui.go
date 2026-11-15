@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -1146,7 +1147,7 @@ func (m mainModel) openInEditor() tea.Cmd {
 		path = filepath.Join(m.repoRoot, relpath)
 	}
 
-	args := editorArgs(m.config.UI.EditorLineArg, path, line)
+	args := editorCommand(editorArgs(m.config.UI.EditorLineArg, path, line))
 	if args == nil {
 		return nil
 	}
@@ -1156,21 +1157,32 @@ func (m mainModel) openInEditor() tea.Cmd {
 	})
 }
 
-// editorArgs returns $EDITOR's words followed by path, or by lineArg's words with
-// {file} and {line} replaced when line is known (> 0). It's nil without $EDITOR.
+// editorArgs returns the arguments for $EDITOR: path, or lineArg's words with
+// {file} and {line} replaced when line is known (> 0).
 func editorArgs(lineArg, path string, line int) []string {
-	args := strings.Fields(os.Getenv("EDITOR"))
-	if len(args) == 0 {
-		return nil
-	}
 	if line <= 0 || strings.TrimSpace(lineArg) == "" {
-		return append(args, path)
+		return []string{path}
 	}
 	r := strings.NewReplacer("{file}", path, "{line}", strconv.Itoa(line))
+	var args []string
 	for _, w := range strings.Fields(lineArg) {
 		args = append(args, r.Replace(w))
 	}
 	return args
+}
+
+// editorCommand runs $EDITOR with args the way git does, through sh, so it may
+// hold arguments ("code -w") or a quoted path with spaces. Windows has no sh, so
+// there $EDITOR is split on spaces. It's nil without $EDITOR.
+func editorCommand(args []string) []string {
+	editor := strings.TrimSpace(os.Getenv("EDITOR"))
+	if editor == "" {
+		return nil
+	}
+	if runtime.GOOS == "windows" {
+		return append(strings.Fields(editor), args...)
+	}
+	return append([]string{"sh", "-c", editor + ` "$@"`, "sh"}, args...)
 }
 
 // messageViewContent returns the message overlay content (viewport + optional scrollbar).

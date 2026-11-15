@@ -2,6 +2,9 @@ package ui
 
 import (
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -265,36 +268,53 @@ func TestUseUserDeltaThemeEnvOverridesConfig(t *testing.T) {
 }
 
 func TestEditorArgs(t *testing.T) {
-	const def = "+{line} {file}"
 	tests := []struct {
-		name, editor, lineArg, path string
-		line                        int
-		want                        []string
+		name, lineArg, path string
+		line                int
+		want                []string
 	}{
-		{"default", "vim", def, "/r/a.go", 12, []string{"vim", "+12", "/r/a.go"}},
-		{
-			"vs code",
-			"code -w",
-			"-g {file}:{line}",
-			"/r/a.go",
-			3,
-			[]string{"code", "-w", "-g", "/r/a.go:3"},
-		},
-		{
-			"path with spaces",
-			"hx",
-			"{file}:{line}",
-			"/r/my dir/a.go",
-			7,
-			[]string{"hx", "/r/my dir/a.go:7"},
-		},
-		{"no line", "code -w", "-g {file}:{line}", "/r/a.go", 0, []string{"code", "-w", "/r/a.go"}},
-		{"no editor", "", def, "/r/a.go", 1, nil},
+		{"default", "+{line} {file}", "/r/a.go", 12, []string{"+12", "/r/a.go"}},
+		{"vs code", "-g {file}:{line}", "/r/a.go", 3, []string{"-g", "/r/a.go:3"}},
+		{"path with spaces", "{file}:{line}", "/r/my dir/a.go", 7, []string{"/r/my dir/a.go:7"}},
+		{"no line", "-g {file}:{line}", "/r/a.go", 0, []string{"/r/a.go"}},
 	}
 	for _, tt := range tests {
-		t.Setenv("EDITOR", tt.editor)
 		if got := editorArgs(tt.lineArg, tt.path, tt.line); !slices.Equal(got, tt.want) {
 			t.Errorf("%s: got %q, want %q", tt.name, got, tt.want)
 		}
+	}
+}
+
+func TestEditorCommand(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs sh")
+	}
+	t.Setenv("EDITOR", "")
+	if got := editorCommand([]string{"a.go"}); got != nil {
+		t.Errorf("no editor: got %q, want nil", got)
+	}
+
+	// An editor in a path with a space, quoted the way git expects, plus an argument.
+	dir := filepath.Join(t.TempDir(), "my editor")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	log := filepath.Join(dir, "args")
+	script := filepath.Join(dir, "ed")
+	body := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + log + "'\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("EDITOR", "'"+script+"' -w")
+	args := editorCommand([]string{"+3", "/r/my dir/a.go"})
+	if err := exec.Command(args[0], args[1:]...).Run(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "-w\n+3\n/r/my dir/a.go\n"; string(got) != want {
+		t.Errorf("editor got args %q, want %q", got, want)
 	}
 }
