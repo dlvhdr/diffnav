@@ -102,8 +102,8 @@ type Model struct {
 	anchor *scrollAnchor
 }
 
-// scrollAnchor is a diff line and how many rows below its first row the view was,
-// or the top or bottom of the diff.
+// scrollAnchor is a diff line and the view's offset from its first row (negative for
+// rows above it without a record), or the top or bottom of the diff.
 type scrollAnchor struct {
 	rec    record
 	offset int
@@ -307,7 +307,8 @@ func (m *Model) UpdateTheme() tea.Cmd {
 
 // keepPosition remembers the diff line at the top of the view (or the selected one),
 // so the next render of this node scrolls back to it. Rows without a record (a preamble,
-// decorations, wrapped rows) are kept by their offset from the next record's first row.
+// blank or decoration rows) keep a negative offset from the next record's first row;
+// wrapped rows repeat their record and keep a positive offset, capped to the line's rows.
 func (m *Model) keepPosition() {
 	// Without a record, a pending anchor is kept.
 	if rec, ok := m.currentRecord(); ok {
