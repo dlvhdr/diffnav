@@ -245,10 +245,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	fvp, fvpCmd := m.fvp.Update(msg)
 	cmds = append(cmds, fvpCmd)
 	m.fvp = fvp
-	// The user moved before the re-render arrived: don't scroll back.
-	if m.currentRow() != row {
-		m.anchor = nil
-	}
+	m.followMove(row)
 
 	return m, tea.Batch(cmds...)
 }
@@ -314,6 +311,13 @@ func (m *Model) currentRow() int {
 		return m.fvp.GetSelectedItemIdx()
 	}
 	return m.fvp.GetItemMetrics().FirstVisibleItemIdx
+}
+
+// followMove keeps a pending render from undoing a move the user made from row.
+func (m *Model) followMove(row int) {
+	if m.currentRow() != row {
+		m.anchor = nil
+	}
 }
 
 // setLines shows lines and scrolls to the anchor, if any.
@@ -510,26 +514,30 @@ func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 
 // ScrollUp scrolls the viewport up by the given number of lines.
 func (m *Model) ScrollUp(lines int) {
-	m.anchor = nil
+	row := m.currentRow()
 	m.fvp.ScrollUp(lines)
+	m.followMove(row)
 }
 
 // ScrollDown scrolls the viewport down by the given number of lines.
 func (m *Model) ScrollDown(lines int) {
-	m.anchor = nil
+	row := m.currentRow()
 	m.fvp.ScrollDown(lines)
+	m.followMove(row)
 }
 
 // ScrollBottom scrolls the viewport to the bottom.
 func (m *Model) ScrollBottom() {
-	m.anchor = nil
+	row := m.currentRow()
 	m.fvp.GoToBottom()
+	m.followMove(row)
 }
 
 // ScrollTop scrolls the viewport to its top.
 func (m *Model) ScrollTop() {
-	m.anchor = nil
+	row := m.currentRow()
 	m.fvp.GoToTop()
+	m.followMove(row)
 }
 
 // ScrollLeft moves the viewport to the left by the given number of columns.

@@ -199,3 +199,26 @@ func TestSetSideBySide_UserMoveDropsAnchor(t *testing.T) {
 		t.Fatalf("expected g to keep the top, got row %d", got)
 	}
 }
+
+func TestSetSideBySide_WheelWithoutMoveKeepsAnchor(t *testing.T) {
+	m := newTestModel(t)
+	m.SetSize(80, 4)
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	var unified, sbs []diffLine
+	for n := 1; n <= 20; n++ {
+		unified = append(unified, row(c(n)))
+		sbs = append(sbs, row(), row(c(n), c(n))) // a decoration row before every line
+	}
+	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: unified}
+	m.cache[cacheKey("a.go", false)] = m.file
+	m.fvp.SetObjects(unified)
+	m.ScrollBottom()
+	want, _ := firstRecord(unified, m.fvp.GetItemMetrics().FirstVisibleItemIdx)
+
+	m.SetSideBySide(true)
+	m.ScrollDown(3) // the wheel at the bottom doesn't move
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+	if got, _ := firstRecord(sbs, m.fvp.GetItemMetrics().FirstVisibleItemIdx); got != want {
+		t.Fatalf("expected line %d at the top, got line %d", want.NewLine, got.NewLine)
+	}
+}
