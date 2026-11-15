@@ -151,8 +151,10 @@ func hunkRow(lines []diffLine, row, dir int) int {
 
 // hunkStarts returns the first row of each hunk: the first row of its header (delta
 // decorates it over several rows with the same h record) or, when delta printed no
-// header, its first line. Delta skips the header of a hunk with no code fragment
-// when the hunk-header style shows no line number or file, as diffnav's own does.
+// header, its first line. Delta 0.20.x skips the header of a hunk with no code fragment
+// when the hunk-header style shows no line number or file, as diffnav's own does; delta
+// main (#2334) puts the h record on the blank row above it instead, and then the
+// fallback below finds nothing extra.
 // Without a header, a hunk starts after a file header, where the new line jumps, or
 // where a deleted line skips an old line. An addition-only hunk right before a
 // deletion hunk (possible with -U0) is still missed: added lines have no old line.
