@@ -350,3 +350,29 @@ func TestGoToHunk(t *testing.T) {
 		t.Fatalf("expected the second hunk selected, got row %d", got)
 	}
 }
+
+func TestGoToHunk_DuringRender(t *testing.T) {
+	h := func(n int) record { return record{Kind: 'h', NewLine: n, File: "a.go"} }
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	var unified, sbs []diffLine
+	for _, start := range []int{1, 20} {
+		unified = append(unified, row(h(start)))
+		sbs = append(sbs, row(h(start)), row(h(start)), row(h(start))) // a boxed header
+		for n := start; n < start+10; n++ {
+			unified = append(unified, row(c(n)))
+			sbs = append(sbs, row(), row(c(n), c(n))) // a decoration row before every line
+		}
+	}
+	m := newTestModel(t)
+	m.SetSize(80, 4)
+	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: unified}
+	m.cache[cacheKey("a.go", false)] = m.file
+	m.show(unified)
+
+	m.SetSideBySide(true) // renders async: the anchor is pending
+	m.GoToHunk(1)
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 23 {
+		t.Fatalf("expected the second hunk's header (row 23) at the top, got row %d", got)
+	}
+}

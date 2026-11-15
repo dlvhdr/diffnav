@@ -365,8 +365,15 @@ func (m *Model) GoToHunk(dir int) {
 	if row < 0 {
 		return
 	}
-	m.anchor = nil
 	m.showRow(row)
+	// A pending render lands on the hunk, not where the view was before.
+	if m.anchor != nil {
+		rec, ok := hunkRecord(m.shown[row])
+		if !ok {
+			rec = m.shown[row].records[0]
+		}
+		m.anchor = &scrollAnchor{rec: rec, offset: row - findRecord(m.shown, rec)}
+	}
 }
 
 // setLines shows lines and scrolls to the anchor, if any.
