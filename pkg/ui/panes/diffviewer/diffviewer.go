@@ -365,6 +365,7 @@ func (m *Model) GoToHunk(dir int) {
 	if row < 0 {
 		return
 	}
+	m.anchor = nil
 	m.showRow(row)
 }
 
