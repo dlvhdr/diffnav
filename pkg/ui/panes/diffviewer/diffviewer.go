@@ -354,9 +354,9 @@ func (m *Model) show(lines []diffLine) {
 	m.fvp.SetObjects(lines)
 }
 
-// GoToHunk moves to the next (dir > 0) or previous (dir < 0) hunk header: it scrolls it
-// to the top, or selects it in selection mode. It stays put at the last / first hunk
-// and without OSC 1717 records.
+// GoToHunk moves to the next (dir > 0) or previous (dir < 0) hunk start (its header, or
+// its first line when delta prints none): it scrolls it to the top, or selects it in
+// selection mode. It stays put at the last / first hunk and without OSC 1717 records.
 func (m *Model) GoToHunk(dir int) {
 	if m.fvp.GetMatchingItemsOnly() {
 		return
