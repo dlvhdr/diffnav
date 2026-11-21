@@ -132,8 +132,8 @@ var keys = &KeyMap{
 		key.WithHelp("N", "prev match (in search)"),
 	),
 	Quit: key.NewBinding(
-		key.WithKeys("q", "ctrl+c"),
-		key.WithHelp("q", "quit"),
+		key.WithKeys("q", "ctrl+c", "esc"),
+		key.WithHelp("q/esc", "quit"),
 	),
 	Copy: key.NewBinding(
 		key.WithKeys("y"),
