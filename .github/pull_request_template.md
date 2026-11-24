@@ -1,7 +1,8 @@
 # Summary
 
-- [] Closes #<issue number>
-- [] I have read the [CONTIBUTING.md](../CONTRIBUTING.md) and [AI_POLICY.md](../AI_POLICY.md) guides
+Closes #
+
+- [ ] I have read the [Contributing](https://github.com/dlvhdr/diffnav/blob/main/CONTRIBUTING.md) and [AI Policy](https://github.com/dlvhdr/diffnav/blob/main/AI_POLICY.md) guides.
 
 ## How Did You Test this Change?
 
