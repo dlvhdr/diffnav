@@ -351,6 +351,20 @@ func TestGoToHunk(t *testing.T) {
 	}
 }
 
+func TestGoToHunk_IgnoredWhileFiltering(t *testing.T) {
+	h := record{Kind: 'h', NewLine: 1, File: "a.go"}
+	lines := []diffLine{row(), row(h), row(h)}
+	m := newTestModel(t)
+	m.SetSize(80, 8)
+	m.show(lines)
+	m.SetSelectionEnabled(true)
+	m.fvp.SetMatchingItemsOnly(true)
+	m.GoToHunk(1)
+	if got := m.fvp.GetSelectedItemIdx(); got != 0 {
+		t.Fatalf("expected no jump while showing matching lines only, got row %d", got)
+	}
+}
+
 func TestGoToHunk_NearTheEnd(t *testing.T) {
 	h := func(n int) record { return record{Kind: 'h', NewLine: n, File: "a.go"} }
 	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
