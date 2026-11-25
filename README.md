@@ -222,6 +222,8 @@ ui:
 | <kbd>k</kbd>                | Previous node                    |
 | <kbd>n</kbd>                | Next file                        |
 | <kbd>p</kbd> / <kbd>N</kbd> | Previous file                    |
+| <kbd>]</kbd>                | Next hunk                        |
+| <kbd>[</kbd>                | Previous hunk                    |
 | <kbd>Ctrl-d</kbd>           | Scroll the diff half page down   |
 | <kbd>Ctrl-u</kbd>           | Scroll the diff half page up     |
 | <kbd>Ctrl-e</kbd>           | Scroll the diff one line down    |

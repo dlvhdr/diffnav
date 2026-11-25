@@ -12,6 +12,8 @@ type KeyMap struct {
 	Top                   key.Binding
 	NextFile              key.Binding
 	PrevFile              key.Binding
+	NextHunk              key.Binding
+	PrevHunk              key.Binding
 	CtrlD                 key.Binding
 	CtrlU                 key.Binding
 	CtrlE                 key.Binding
@@ -74,6 +76,14 @@ var keys = &KeyMap{
 	PrevFile: key.NewBinding(
 		key.WithKeys("p", "N"),
 		key.WithHelp("p/N", "prev file"),
+	),
+	NextHunk: key.NewBinding(
+		key.WithKeys("]"),
+		key.WithHelp("]", "next hunk"),
+	),
+	PrevHunk: key.NewBinding(
+		key.WithKeys("["),
+		key.WithHelp("[", "prev hunk"),
 	),
 	CtrlD: key.NewBinding(
 		key.WithKeys("ctrl+d"),
@@ -182,6 +192,8 @@ func KeyGroups() [][]key.Binding {
 		keys.Bottom,
 		keys.NextFile,
 		keys.PrevFile,
+		keys.NextHunk,
+		keys.PrevHunk,
 		keys.CtrlD,
 		keys.CtrlU,
 		keys.ScrollLeft,
