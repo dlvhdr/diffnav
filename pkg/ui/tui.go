@@ -1142,11 +1142,7 @@ func (m mainModel) openInEditor() tea.Cmd {
 	if !ok {
 		relpath = m.fileTree.CurrNodePath()
 	}
-	path := relpath
-	if m.repoRoot != "" {
-		path = filepath.Join(m.repoRoot, relpath)
-	}
-
+	path := editorPath(m.repoRoot, relpath)
 	args := editorCommand(editorArgs(m.config.UI.EditorLineArg, path, line))
 	if args == nil {
 		return nil
@@ -1155,6 +1151,18 @@ func (m mainModel) openInEditor() tea.Cmd {
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return nil
 	})
+}
+
+// editorPath returns relpath under the repo root, or made absolute outside a repo,
+// so a file name like "+cmd" or "--opt" isn't read as an editor argument.
+func editorPath(repoRoot, relpath string) string {
+	if repoRoot != "" {
+		return filepath.Join(repoRoot, relpath)
+	}
+	if abs, err := filepath.Abs(relpath); err == nil {
+		return abs
+	}
+	return relpath
 }
 
 // editorArgs returns the arguments for $EDITOR: path, or lineArg's words with

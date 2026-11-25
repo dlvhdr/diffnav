@@ -285,6 +285,17 @@ func TestEditorArgs(t *testing.T) {
 	}
 }
 
+func TestEditorPath(t *testing.T) {
+	if got := editorPath("/r", "a.go"); got != filepath.Join("/r", "a.go") {
+		t.Errorf("in a repo: got %q", got)
+	}
+	// Outside a repo, a name like "+!cmd" must not reach the editor as an option.
+	got := editorPath("", "+!touch x")
+	if !filepath.IsAbs(got) || filepath.Base(got) != "+!touch x" {
+		t.Errorf("outside a repo: got %q, want an absolute path", got)
+	}
+}
+
 func TestEditorCommand(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("needs sh")
