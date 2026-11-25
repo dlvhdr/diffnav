@@ -385,7 +385,7 @@ func (m *Model) GoToHunk(dir int) {
 		if !ok {
 			rec = m.shown[row].records[0]
 		}
-		m.anchor = &scrollAnchor{rec: rec, offset: row - findRecord(m.shown, rec)}
+		m.anchor = &scrollAnchor{rec: rec} // a hunk start is the first row of its record
 	}
 }
 
