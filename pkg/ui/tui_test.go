@@ -296,12 +296,22 @@ func TestEditorPath(t *testing.T) {
 	}
 }
 
+func TestEditorCommand_Windows(t *testing.T) {
+	// No sh: $EDITOR is the program, spaces and all, as before.
+	t.Setenv("EDITOR", `C:\Program Files\Editor\ed.exe`)
+	got := editorCommand("windows", []string{"+3", "a.go"})
+	want := []string{`C:\Program Files\Editor\ed.exe`, "+3", "a.go"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestEditorCommand(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("needs sh")
 	}
 	t.Setenv("EDITOR", "")
-	if got := editorCommand([]string{"a.go"}); got != nil {
+	if got := editorCommand(runtime.GOOS, []string{"a.go"}); got != nil {
 		t.Errorf("no editor: got %q, want nil", got)
 	}
 
@@ -317,7 +327,7 @@ func TestEditorCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("EDITOR", "'"+script+"' -w")
-	args := editorCommand([]string{"+3", "/r/my dir/a.go"})
+	args := editorCommand(runtime.GOOS, []string{"+3", "/r/my dir/a.go"})
 	if err := exec.Command(args[0], args[1:]...).Run(); err != nil {
 		t.Fatal(err)
 	}

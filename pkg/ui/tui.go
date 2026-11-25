@@ -1143,7 +1143,7 @@ func (m mainModel) openInEditor() tea.Cmd {
 		relpath = m.fileTree.CurrNodePath()
 	}
 	path := editorPath(m.repoRoot, relpath)
-	args := editorCommand(editorArgs(m.config.UI.EditorLineArg, path, line))
+	args := editorCommand(runtime.GOOS, editorArgs(m.config.UI.EditorLineArg, path, line))
 	if args == nil {
 		return nil
 	}
@@ -1181,14 +1181,14 @@ func editorArgs(lineArg, path string, line int) []string {
 
 // editorCommand runs $EDITOR with args the way git does, through sh, so it may
 // hold arguments ("code -w") or a quoted path with spaces. Windows has no sh, so
-// there $EDITOR is split on spaces. It's nil without $EDITOR.
-func editorCommand(args []string) []string {
+// there $EDITOR is the program path, as before. It's nil without $EDITOR.
+func editorCommand(goos string, args []string) []string {
 	editor := strings.TrimSpace(os.Getenv("EDITOR"))
 	if editor == "" {
 		return nil
 	}
-	if runtime.GOOS == "windows" {
-		return append(strings.Fields(editor), args...)
+	if goos == "windows" {
+		return append([]string{editor}, args...)
 	}
 	return append([]string{"sh", "-c", editor + ` "$@"`, "sh"}, args...)
 }
