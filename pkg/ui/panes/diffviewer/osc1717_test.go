@@ -1,8 +1,12 @@
 package diffviewer
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -312,6 +316,99 @@ func TestHunkRow(t *testing.T) {
 	}
 	if got := hunkRow([]diffLine{row(), row(), row()}, 0, 1); got != -1 {
 		t.Errorf("without records: expected -1, got %d", got)
+	}
+}
+
+// TestHunkStarts_RealDelta finds every hunk of real delta output, also with its h records
+// removed, as delta 0.20.x prints no header for some hunks.
+func TestHunkStarts_RealDelta(t *testing.T) {
+	if _, err := exec.LookPath("delta"); err != nil {
+		t.Skip("delta not installed")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	var old, changed []string
+	for n := 1; n <= 40; n++ {
+		old = append(old, fmt.Sprintf("line %d", n))
+		switch n {
+		case 10, 11, 13, 30: // deleted: 10-11 and 13 are separate hunks with -U0
+		case 5, 35:
+			changed = append(changed, fmt.Sprintf("line %d changed", n))
+		case 20:
+			changed = append(changed, "line 20", "added a", "added b")
+		case 25: // wraps in side-by-side at 80 columns
+			changed = append(changed, "line 25 "+strings.Repeat("long ", 20))
+		default:
+			changed = append(changed, fmt.Sprintf("line %d", n))
+		}
+	}
+	dir := t.TempDir()
+	write := func(name string, lines []string) {
+		if err := os.WriteFile(
+			filepath.Join(dir, name),
+			[]byte(strings.Join(lines, "\n")+"\n"),
+			0o600,
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("a.txt", old)
+	write("b.txt", changed)
+	t.Setenv("GIT_CONFIG_PARAMETERS", "")
+
+	for _, context := range []string{"-U0", "-U1", "-U3"} {
+		cmd := exec.Command("git", "diff", "--no-index", "--no-color", context, "a.txt", "b.txt")
+		cmd.Dir = dir
+		patch, _ := cmd.Output() // exits 1 when the files differ
+		want := strings.Count(string(patch), "\n@@ ")
+		for _, width := range []int{80, 200} {
+			for _, sbs := range []bool{false, true} {
+				args := []string{"--no-gitconfig", "--paging=never", fmt.Sprintf("-w=%d", width)}
+				if sbs {
+					args = append(args, "--side-by-side")
+				}
+				cmd := exec.Command("delta", args...)
+				cmd.Env = makeDeltaEnv(deltaOpts{})
+				cmd.Stdin = strings.NewReader(string(patch))
+				out, err := cmd.Output()
+				if err != nil {
+					t.Fatalf("delta: %v", err)
+				}
+				if !strings.HasPrefix(string(out), osc1717Handshake) {
+					t.Skip("delta has no OSC 1717 support")
+				}
+				lines := parseDeltaOutput(string(out))
+				if got := len(hunkStarts(lines)); got != want {
+					t.Errorf(
+						"%s %d columns side-by-side=%v: expected %d hunks, got %d",
+						context,
+						width,
+						sbs,
+						want,
+						got,
+					)
+				}
+				for i, l := range lines {
+					lines[i].records = slices.DeleteFunc(
+						slices.Clone(l.records),
+						func(r record) bool {
+							return r.Kind == 'h'
+						},
+					)
+				}
+				if got := len(hunkStarts(lines)); got != want {
+					t.Errorf(
+						"%s %d columns side-by-side=%v without h records: expected %d hunks, got %d",
+						context,
+						width,
+						sbs,
+						want,
+						got,
+					)
+				}
+			}
+		}
 	}
 }
 
