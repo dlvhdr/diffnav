@@ -77,9 +77,14 @@ func parseRecord(body string) (record, bool) {
 	newLine, _ := strconv.Atoi(fields[2])
 	oldLine, _ := strconv.Atoi(fields[3])
 	file := fields[4]
-	// Git quotes unusual names with octal escapes (\303\244 for ä), and delta copies them.
+	// Git quotes unusual names with octal escapes (\303\244 for ä), and delta copies them,
+	// with the quotes for a renamed file.
 	if strings.Contains(file, `\`) {
-		if name, err := strconv.Unquote(`"` + file + `"`); err == nil {
+		quoted := file
+		if len(file) < 2 || file[0] != '"' || file[len(file)-1] != '"' {
+			quoted = `"` + file + `"`
+		}
+		if name, err := strconv.Unquote(quoted); err == nil {
 			file = name
 		}
 	}

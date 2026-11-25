@@ -52,8 +52,9 @@ func TestParseRecords_StripsText(t *testing.T) {
 
 func TestParseRecords_UnquotesFileName(t *testing.T) {
 	for raw, want := range map[string]string{
-		`\303\244.txt`: "ä.txt",
-		`a\q.txt`:      `a\q.txt`, // not a valid escape: kept as is
+		`\303\244.txt`:   "ä.txt",
+		`"\303\244.txt"`: "ä.txt",   // a rename keeps git's quotes
+		`a\q.txt`:        `a\q.txt`, // not a valid escape: kept as is
 	} {
 		_, records := parseRecords(osc("1;c;1;;"+raw) + "x")
 		if len(records) != 1 || records[0].File != want {
