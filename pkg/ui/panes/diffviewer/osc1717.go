@@ -101,6 +101,18 @@ func firstRecord(lines []diffLine, row int) (record, bool) {
 	return record{}, false
 }
 
+// newSide returns the row's record for the new file. A side-by-side row pairs a
+// deleted line (d, which keeps the block's start as its new line) with the added
+// line next to it, so the added one says where the row is.
+func newSide(records []record) record {
+	for _, r := range records {
+		if r.Kind != 'd' {
+			return r
+		}
+	}
+	return records[0]
+}
+
 // editorLine is the new-file line to open the editor at: the line itself for c/a,
 // the new-file position for d, the hunk start for h, and 0 (none) for f.
 func editorLine(r record) int {

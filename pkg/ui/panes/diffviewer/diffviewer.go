@@ -362,6 +362,9 @@ func (m *Model) EditorTarget() (file string, line int, ok bool) {
 	if !ok {
 		return "", 0, false
 	}
+	if row := findRecord(m.shown, rec); row >= 0 {
+		rec = newSide(m.shown[row].records)
+	}
 	return rec.File, editorLine(rec), true
 }
 

@@ -276,6 +276,12 @@ func TestEditorTarget(t *testing.T) {
 			record{Kind: 'd', NewLine: 6, OldLine: 5, File: "a.go"},
 			record{Kind: 'a', NewLine: 6, File: "a.go"},
 		),
+		// Side-by-side, the block's second row: every d keeps the block's new position.
+		row(
+			record{Kind: 'd', NewLine: 6, OldLine: 6, File: "a.go"},
+			record{Kind: 'a', NewLine: 7, File: "a.go"},
+		),
+		row(record{Kind: 'd', NewLine: 6, OldLine: 7, File: "a.go"}),
 		row(record{Kind: 'c', NewLine: 7, File: "dir/b.go"}),
 	}
 	for i := 0; i < 6; i++ {
@@ -293,8 +299,10 @@ func TestEditorTarget(t *testing.T) {
 		{0, "a.go", 0, true}, // a preamble row takes the next record
 		{2, "a.go", 5, true},
 		{3, "a.go", 6, true},
-		{4, "dir/b.go", 7, true},
-		{5, "", 0, false},
+		{4, "a.go", 7, true}, // the added line, on the right
+		{5, "a.go", 6, true}, // a deleted line alone: its new-file position
+		{6, "dir/b.go", 7, true},
+		{7, "", 0, false},
 	}
 	for _, tt := range tests {
 		m.fvp.GoToTop()
@@ -307,7 +315,7 @@ func TestEditorTarget(t *testing.T) {
 
 	m.fvp.GoToTop()
 	m.SetSelectionEnabled(true)
-	m.fvp.SetSelectedItemIdx(4)
+	m.fvp.SetSelectedItemIdx(6)
 	if file, line, _ := m.EditorTarget(); file != "dir/b.go" || line != 7 {
 		t.Errorf("selection: got (%q, %d), want (\"dir/b.go\", 7)", file, line)
 	}
