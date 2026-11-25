@@ -351,6 +351,34 @@ func TestGoToHunk(t *testing.T) {
 	}
 }
 
+func TestGoToHunk_NearTheEnd(t *testing.T) {
+	h := func(n int) record { return record{Kind: 'h', NewLine: n, File: "a.go"} }
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	var lines []diffLine
+	for _, hunk := range [][2]int{{1, 3}, {10, 3}, {20, 1}, {30, 1}, {40, 1}} {
+		lines = append(lines, row(h(hunk[0])))
+		for n := hunk[0]; n < hunk[0]+hunk[1]; n++ {
+			lines = append(lines, row(c(n)))
+		}
+	}
+	m := newTestModel(t)
+	m.SetSize(80, 8) // 6 rows of 14: the top can't go below row 8
+	m.show(lines)
+	top := func() int { return m.fvp.GetItemMetrics().FirstVisibleItemIdx }
+
+	for range 4 {
+		m.GoToHunk(1) // rows 4, 8, then 10 and 12, which stay at row 8
+	}
+	m.GoToHunk(-1)
+	m.GoToHunk(-1)
+	if top() != 8 {
+		t.Fatalf("expected [ twice from the last hunk to show row 8, got row %d", top())
+	}
+	if m.GoToHunk(-1); top() != 4 {
+		t.Fatalf("expected [ to reach the second hunk (row 4), got row %d", top())
+	}
+}
+
 func TestGoToHunk_DuringRender(t *testing.T) {
 	h := func(n int) record { return record{Kind: 'h', NewLine: n, File: "a.go"} }
 	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }

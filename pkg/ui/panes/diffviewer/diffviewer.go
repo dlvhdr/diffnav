@@ -100,7 +100,12 @@ type Model struct {
 	shown []diffLine
 	// anchor is where to scroll back to once the re-rendered diff is shown.
 	anchor *scrollAnchor
+	// jump is the last hunk jump, for one the view couldn't scroll to the top.
+	jump *hunkJump
 }
+
+// hunkJump is the row a hunk jump went to and the top row the view stopped at.
+type hunkJump struct{ row, top int }
 
 // scrollAnchor is a diff line and the view's offset from its first row (negative for
 // rows above it without a record), or the top or bottom of the diff.
@@ -351,21 +356,29 @@ func (m *Model) followMove(row int, mv move) {
 // show puts lines on screen.
 func (m *Model) show(lines []diffLine) {
 	m.shown = lines
+	m.jump = nil
 	m.fvp.SetObjects(lines)
 }
 
 // GoToHunk moves to the next (dir > 0) or previous (dir < 0) hunk start (its header, or
 // its first line when delta prints none): it scrolls it to the top, or selects it in
 // selection mode. It stays put at the last / first hunk and without OSC 1717 records.
+// Near the end of the diff the view can't scroll a hunk to the top: the next jump then
+// counts from that hunk, not from the top row, while the view still shows the same top row.
 func (m *Model) GoToHunk(dir int) {
 	if m.fvp.GetMatchingItemsOnly() {
 		return
 	}
-	row := hunkRow(m.shown, m.currentRow(), dir)
+	from := m.currentRow()
+	if m.jump != nil && m.jump.top == from {
+		from = m.jump.row
+	}
+	row := hunkRow(m.shown, from, dir)
 	if row < 0 {
 		return
 	}
 	m.showRow(row)
+	m.jump = &hunkJump{row: row, top: m.currentRow()}
 	// A pending render lands on the hunk, not where the view was before.
 	if m.anchor != nil {
 		rec, ok := hunkRecord(m.shown[row])
