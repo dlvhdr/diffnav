@@ -245,3 +245,21 @@ func TestSetSideBySide_WheelWithoutMoveKeepsAnchor(t *testing.T) {
 		t.Fatalf("expected line %d at the top, got line %d", want.NewLine, got.NewLine)
 	}
 }
+
+func TestSwitchToUncachedNode_HasNoRecord(t *testing.T) {
+	a := []diffLine{row(record{Kind: 'c', NewLine: 40, File: "a.go"})}
+	b := &gitdiff.File{OldName: "b.go", NewName: "b.go"}
+	switches := map[string]func(Model) Model{
+		"file": func(m Model) Model { m, _ = m.SetFilePatch(b); return m },
+		"dir":  func(m Model) Model { m, _ = m.SetDirPatch("pkg", []*gitdiff.File{b}); return m },
+	}
+	for name, switchTo := range switches {
+		m := newTestModel(t)
+		m.SetSize(80, 6)
+		m.show(a)
+		m = switchTo(m)
+		if rec, ok := m.currentRecord(); ok {
+			t.Errorf("%s: expected no record before the render lands, got %+v", name, rec)
+		}
+	}
+}

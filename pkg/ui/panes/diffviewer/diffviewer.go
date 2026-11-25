@@ -503,6 +503,8 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 		deletions: deletions,
 	}
 	m.cache[key] = m.file
+	// The old node's rows stay on screen until the render lands; they have no record for this one.
+	m.shown = nil
 
 	m.updateHeader()
 	return m, m.diffFile(m.file, m.contentWidth())
@@ -533,6 +535,7 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 		deletions: deleted,
 	}
 	m.cache[key] = m.dir
+	m.shown = nil
 	preamble := ""
 	if dirPath == "/" {
 		preamble = m.preamble
