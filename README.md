@@ -245,7 +245,7 @@ ui:
 | <kbd>T</kbd>                | Open the theme picker            |
 | <kbd>q</kbd>                | Quit                             |
 
-<kbd>o</kbd> opens the file at the line at the top of the diff, or at the selected line when selection is on. Deleted lines open at their place in the new file, hunk headers at the hunk start. In the directory view it opens the file under that line. Without a line (a file header, or delta older than 0.20) it opens the selected tree node, as before. Like git, it runs `$EDITOR` through `sh`, so it can carry arguments (`code -w`) or a quoted path. See `ui.editorLineArg` for editors that don't take `+N`.
+<kbd>o</kbd> opens the file at the line at the top of the diff, or at the selected line when selection is on. Deleted lines open at their place in the new file, hunk headers at the hunk start, and a side-by-side row at the line on its right side. In the directory view it opens the file under that line. A file header opens just that file. Without any line information (delta older than 0.20) it opens the selected tree node, as before. Like git, it runs `$EDITOR` through `sh`, so it can carry arguments (`code -w`) or a quoted path; on Windows `$EDITOR` is the editor's path. See `ui.editorLineArg` for editors that don't take `+N`.
 
 ## Discord
 
