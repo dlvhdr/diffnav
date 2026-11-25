@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -1137,23 +1138,59 @@ func (m mainModel) openInEditor() tea.Cmd {
 		return nil
 	}
 
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
+	relpath, line, ok := m.diffViewer.EditorTarget()
+	if !ok {
+		relpath = m.fileTree.CurrNodePath()
+	}
+	path := editorPath(m.repoRoot, relpath)
+	args := editorCommand(runtime.GOOS, editorArgs(m.config.UI.EditorLineArg, path, line))
+	if args == nil {
 		return nil
 	}
-
-	relpath := m.fileTree.CurrNodePath()
-	var path string
-	if m.repoRoot != "" {
-		path = filepath.Join(m.repoRoot, relpath)
-	} else {
-		path = relpath
-	}
-
-	c := exec.Command(editor, path)
+	c := exec.Command(args[0], args[1:]...)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return nil
 	})
+}
+
+// editorPath returns relpath under the repo root, or made absolute outside a repo,
+// so a file name like "+cmd" or "--opt" isn't read as an editor argument.
+func editorPath(repoRoot, relpath string) string {
+	if repoRoot != "" {
+		return filepath.Join(repoRoot, relpath)
+	}
+	if abs, err := filepath.Abs(relpath); err == nil {
+		return abs
+	}
+	return relpath
+}
+
+// editorArgs returns the arguments for $EDITOR: path, or lineArg's words with
+// {file} and {line} replaced when line is known (> 0).
+func editorArgs(lineArg, path string, line int) []string {
+	if line <= 0 || strings.TrimSpace(lineArg) == "" {
+		return []string{path}
+	}
+	r := strings.NewReplacer("{file}", path, "{line}", strconv.Itoa(line))
+	var args []string
+	for _, w := range strings.Fields(lineArg) {
+		args = append(args, r.Replace(w))
+	}
+	return args
+}
+
+// editorCommand runs $EDITOR with args the way git does, through sh, so it may
+// hold arguments ("code -w") or a quoted path with spaces. Windows has no sh, so
+// there $EDITOR is the program path, as before. It's nil without $EDITOR.
+func editorCommand(goos string, args []string) []string {
+	editor := strings.TrimSpace(os.Getenv("EDITOR"))
+	if editor == "" {
+		return nil
+	}
+	if goos == "windows" {
+		return append([]string{editor}, args...)
+	}
+	return append([]string{"sh", "-c", editor + ` "$@"`, "sh"}, args...)
 }
 
 // messageViewContent returns the message overlay content (viewport + optional scrollbar).

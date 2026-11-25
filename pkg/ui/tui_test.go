@@ -2,6 +2,10 @@ package ui
 
 import (
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -260,5 +264,78 @@ func TestUseUserDeltaThemeEnvOverridesConfig(t *testing.T) {
 		if m.config.UI.UseUserDeltaTheme != tc.want {
 			t.Errorf("env=%q cfg=%t: expected %t", tc.env, tc.cfg, tc.want)
 		}
+	}
+}
+
+func TestEditorArgs(t *testing.T) {
+	tests := []struct {
+		name, lineArg, path string
+		line                int
+		want                []string
+	}{
+		{"default", "+{line} {file}", "/r/a.go", 12, []string{"+12", "/r/a.go"}},
+		{"vs code", "-g {file}:{line}", "/r/a.go", 3, []string{"-g", "/r/a.go:3"}},
+		{"path with spaces", "{file}:{line}", "/r/my dir/a.go", 7, []string{"/r/my dir/a.go:7"}},
+		{"no line", "-g {file}:{line}", "/r/a.go", 0, []string{"/r/a.go"}},
+	}
+	for _, tt := range tests {
+		if got := editorArgs(tt.lineArg, tt.path, tt.line); !slices.Equal(got, tt.want) {
+			t.Errorf("%s: got %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestEditorPath(t *testing.T) {
+	if got := editorPath("/r", "a.go"); got != filepath.Join("/r", "a.go") {
+		t.Errorf("in a repo: got %q", got)
+	}
+	// Outside a repo, a name like "+!cmd" must not reach the editor as an option.
+	got := editorPath("", "+!touch x")
+	if !filepath.IsAbs(got) || filepath.Base(got) != "+!touch x" {
+		t.Errorf("outside a repo: got %q, want an absolute path", got)
+	}
+}
+
+func TestEditorCommand_Windows(t *testing.T) {
+	// No sh: $EDITOR is the program, spaces and all, as before.
+	t.Setenv("EDITOR", `C:\Program Files\Editor\ed.exe`)
+	got := editorCommand("windows", []string{"+3", "a.go"})
+	want := []string{`C:\Program Files\Editor\ed.exe`, "+3", "a.go"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestEditorCommand(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs sh")
+	}
+	t.Setenv("EDITOR", "")
+	if got := editorCommand(runtime.GOOS, []string{"a.go"}); got != nil {
+		t.Errorf("no editor: got %q, want nil", got)
+	}
+
+	// An editor in a path with a space, quoted the way git expects, plus an argument.
+	dir := filepath.Join(t.TempDir(), "my editor")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	log := filepath.Join(dir, "args")
+	script := filepath.Join(dir, "ed")
+	body := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + log + "'\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("EDITOR", "'"+script+"' -w")
+	args := editorCommand(runtime.GOOS, []string{"+3", "/r/my dir/a.go"})
+	if err := exec.Command(args[0], args[1:]...).Run(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "-w\n+3\n/r/my dir/a.go\n"; string(got) != want {
+		t.Errorf("editor got args %q, want %q", got, want)
 	}
 }

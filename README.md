@@ -186,6 +186,12 @@ ui:
   # Render diffs with your own delta config instead of the theme colors. The
   # rest of the UI keeps the theme above. (default: false)
   useUserDeltaTheme: true
+
+  # Arguments for $EDITOR when `o` knows the line (needs delta >= 0.20).
+  # {file} and {line} are replaced; without a line it runs `$EDITOR <file>`.
+  # The default works for vim, nvim, nano, emacs, ... For other editors:
+  # VS Code: "-g {file}:{line}", helix/zed/subl: "{file}:{line}"
+  editorLineArg: "+{line} {file}"
 ```
 
 | Option                     | Type   | Default             | Description                                               |
@@ -202,6 +208,7 @@ ui:
 | `ui.startFoldersOpenDepth` | int    | `-1`                | Folder open depth on start (-1 = all, 0 = none)           |
 | `ui.theme`                 | string | `tokyo_night`       | The ID of the theme to use                                |
 | `ui.useUserDeltaTheme`     | bool   | `false`             | Render diffs with your own delta config                   |
+| `ui.editorLineArg`         | string | `+{line} {file}`    | `$EDITOR` args to open at a line (`{file}`, `{line}`)     |
 
 ### Icon Styles
 
@@ -230,11 +237,13 @@ ui:
 | <kbd>t</kbd>                | Search/go-to file                |
 | <kbd>y</kbd>                | Copy file path                   |
 | <kbd>i</kbd>                | Cycle icon style                 |
-| <kbd>o</kbd>                | Open file in $EDITOR             |
+| <kbd>o</kbd>                | Open file at line in $EDITOR     |
 | <kbd>s</kbd>                | Toggle side-by-side/unified view |
 | <kbd>Tab</kbd>              | Switch focus between the panes   |
 | <kbd>T</kbd>                | Open the theme picker            |
 | <kbd>q</kbd>                | Quit                             |
+
+<kbd>o</kbd> opens the file at the line at the top of the diff, or at the selected line when selection is on. Deleted lines open at their place in the new file, hunk headers at the hunk start, and a side-by-side row at the line on its right side. In the directory view it opens the file under that line. A file header opens just that file. Without any line information (delta older than 0.20) it opens the selected tree node, as before. Like git, it runs `$EDITOR` through `sh`, so it can carry arguments (`code -w`) or a quoted path; on Windows `$EDITOR` is the editor's path. See `ui.editorLineArg` for editors that don't take `+N`.
 
 ## Discord
 

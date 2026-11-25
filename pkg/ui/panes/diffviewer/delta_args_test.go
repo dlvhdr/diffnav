@@ -35,11 +35,15 @@ func TestMakeDeltaArgs(t *testing.T) {
 func TestMakeDeltaEnv(t *testing.T) {
 	t.Setenv("GIT_CONFIG_PARAMETERS", "'delta.navigate'='true'")
 
-	if got := makeDeltaEnv(deltaOpts{SideBySide: true}); !slices.Equal(got, os.Environ()) {
-		t.Fatalf("themed: expected the plain environment, got %q", got)
+	wantEnv := append(os.Environ(), "OSC1717=V1")
+	if got := makeDeltaEnv(deltaOpts{SideBySide: true}); !slices.Equal(got, wantEnv) {
+		t.Fatalf("themed: expected %q, got %q", wantEnv, got)
 	}
 
 	env := makeDeltaEnv(deltaOpts{UseUserDeltaTheme: true})
+	if !slices.Contains(env, "OSC1717=V1") {
+		t.Errorf("user delta theme: expected OSC1717=V1 in %q", env)
+	}
 	got := env[len(env)-1]
 	want := "GIT_CONFIG_PARAMETERS='delta.navigate'='true' 'delta.side-by-side'='false'"
 	if got != want {
