@@ -3,6 +3,7 @@ package diffviewer
 import (
 	"os/exec"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -41,12 +42,8 @@ func TestParseDeltaOutput(t *testing.T) {
 			t.Errorf("row %d: expected %+v, got %+v", i, want[i], l.records)
 		}
 	}
-}
-
-func TestParseRecords_StripsText(t *testing.T) {
-	text, _ := parseRecords(osc("1;d;10;9;a.go") + "\x1b[31m-x" + osc("1;a;10;;a.go") + "+y")
-	if text != "\x1b[31m-x+y" {
-		t.Fatalf("expected records stripped, got %q", text)
+	if got := lines[3].item.Content(); got != "\x1b[31m-x+y" {
+		t.Errorf("expected the records stripped from the text, got %q", got)
 	}
 }
 
@@ -126,6 +123,7 @@ func unifiedAndSbs() (unified, sbs []diffLine) {
 
 // showing returns a model of the given height that shows lines as a.go in unified.
 func showing(t *testing.T, height int, lines []diffLine) Model {
+	t.Helper()
 	m := newTestModel(t)
 	m.SetSize(80, height)
 	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: lines}
@@ -152,8 +150,10 @@ func TestFindRecord(t *testing.T) {
 		want record
 		row  int
 	}{
-		{"deleted by old line", d(2, 2), 3},
-		{"added on the right", a(3), 4},
+		{"deleted by old line", d(99, 2), 3},
+		{"deleted, other old line", d(2, 99), -1},
+		{"added on the right of a row", a(2), 3},
+		{"added", a(3), 4},
 		{"hunk", record{Kind: 'h', NewLine: 1, File: "a.go"}, 1},
 		{"file", record{Kind: 'f', File: "a.go"}, 0},
 		{"past the end", ctxLine(9), -1},
@@ -167,21 +167,10 @@ func TestFindRecord(t *testing.T) {
 }
 
 func TestSetSideBySide_KeepsPosition(t *testing.T) {
-	m := newTestModel(t)
-	m.SetSize(80, 4)
-	var unified, sbs []diffLine
-	for n := 1; n <= 20; n++ {
-		unified = append(unified, row(ctxLine(n)))
-		if n == 7 {
-			unified = append(unified, row(ctxLine(n))) // line 7 wraps in unified only
-		}
-		sbs = append(sbs, row(), row(ctxLine(n), ctxLine(n))) // a decoration row before every line
-	}
-	files := []*gitdiff.File{{}}
-	m.file = &cachedNode{path: "a.go", files: files}
-	m.cache[cacheKey("a.go", false)] = m.file
-	m.cache[cacheKey("a.go", true)] = &cachedNode{path: "a.go", files: files, diff: sbs}
-	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", false), node: m.file, lines: unified})
+	unified, sbs := unifiedAndSbs()
+	unified = slices.Insert(unified, 7, row(ctxLine(7))) // line 7 wraps in unified only
+	m := showing(t, 4, unified)
+	m.cache[cacheKey("a.go", true)] = &cachedNode{path: "a.go", files: m.file.files, diff: sbs}
 	m.ScrollDown(7) // line 7's wrapped row at the top
 
 	m.SetSideBySide(true)
@@ -191,24 +180,16 @@ func TestSetSideBySide_KeepsPosition(t *testing.T) {
 }
 
 func TestSetSideBySide_KeepsRecordlessTopRow(t *testing.T) {
-	// A preamble, then line 1 wrapped over two rows.
-	lines := []diffLine{row(), row(), row(ctxLine(1)), row(ctxLine(1))}
-	for n := 2; n <= 20; n++ {
-		lines = append(lines, row(ctxLine(n)))
-	}
-	for _, top := range []int{0, 3} {
-		m := newTestModel(t)
-		m.SetSize(80, 4)
-		// A new file renders the same in both modes, so `s` re-shows the same lines.
-		m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{IsNew: true}}, diff: lines}
-		m.cache[cacheKey("a.go", false)] = m.file
-		m.setLines(lines)
-		m.ScrollDown(top)
+	unified, _ := unifiedAndSbs()
+	lines := append([]diffLine{row(), row()}, unified...) // a two-row preamble
+	m := showing(t, 4, lines)
+	// A new file renders the same in both modes, so `s` re-shows the same lines.
+	m.file.files[0].IsNew = true
+	m.ScrollDown(1) // the preamble's second row at the top
 
-		m.SetSideBySide(true)
-		if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != top {
-			t.Errorf("expected row %d to stay at the top, got %d", top, got)
-		}
+	m.SetSideBySide(true)
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 1 {
+		t.Fatalf("expected row 1 to stay at the top, got %d", got)
 	}
 }
 
@@ -220,7 +201,6 @@ func TestSetSideBySide_UserMoveDuringRender(t *testing.T) {
 
 		m.SetSideBySide(true) // renders async: the anchor is pending
 		m, _ = m.Update(tea.KeyPressMsg{Code: rune(key[0]), Text: key})
-		want, _ := m.currentRecord()
 		m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
 		metrics := m.fvp.GetItemMetrics()
 		got, _ := firstRecord(sbs, metrics.FirstVisibleItemIdx)
@@ -229,8 +209,8 @@ func TestSetSideBySide_UserMoveDuringRender(t *testing.T) {
 			t.Errorf("g: expected the top, got row %d", metrics.FirstVisibleItemIdx)
 		case key == "G" && metrics.LastVisibleItemIdx != len(sbs)-1:
 			t.Errorf("G: expected the bottom, got row %d", metrics.LastVisibleItemIdx)
-		case key == "j" && got != want:
-			t.Errorf("j: expected line %d at the top, got line %d", want.NewLine, got.NewLine)
+		case key == "j" && got != ctxLine(12):
+			t.Errorf("j: expected line 12 at the top, got line %d", got.NewLine)
 		}
 	}
 }
@@ -299,5 +279,30 @@ func TestSetSideBySide_ResizeDuringRenderKeepsAnchor(t *testing.T) {
 	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
 	if got := m.fvp.GetItemMetrics().LastVisibleItemIdx; got != len(sbs)-1 {
 		t.Fatalf("expected the bottom, got row %d", got)
+	}
+}
+
+func TestAnchorRow(t *testing.T) {
+	// A row without a record, line 1 wrapped over two rows, then line 2.
+	lines := []diffLine{row(), row(ctxLine(1)), row(ctxLine(1)), row(ctxLine(2))}
+	tests := []struct {
+		name   string
+		rec    record
+		offset int
+		row    int
+		ok     bool
+	}{
+		{"on the line", ctxLine(1), 0, 1, true},
+		{"a row above it", ctxLine(1), -1, 0, true},
+		{"above the first row", ctxLine(1), -5, 0, true},
+		{"its wrapped row", ctxLine(1), 1, 2, true},
+		{"not onto the next line", ctxLine(1), 5, 2, true},
+		{"not past the last row", ctxLine(2), 3, 3, true},
+		{"gone", ctxLine(9), 0, 0, false},
+	}
+	for _, tt := range tests {
+		if row, ok := anchorRow(lines, tt.rec, tt.offset); row != tt.row || ok != tt.ok {
+			t.Errorf("%s: expected row %d (%v), got %d (%v)", tt.name, tt.row, tt.ok, row, ok)
+		}
 	}
 }
