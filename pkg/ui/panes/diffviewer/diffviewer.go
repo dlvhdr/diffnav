@@ -102,21 +102,21 @@ type Model struct {
 	anchor *scrollAnchor
 }
 
-// scrollAnchor is a diff line and the view's offset from its first row (negative for
-// rows above it without a record), or the top or bottom of the diff.
+// scrollAnchor is where to scroll back to after a re-render: the top or bottom of the
+// diff, or a diff line and the view's offset from its first row.
 type scrollAnchor struct {
+	edge   anchorEdge
 	rec    record
 	offset int
-	edge   move
 }
 
-// move is how the user moved the view.
-type move int
+// anchorEdge is the edge of the diff an anchor sticks to, if any.
+type anchorEdge int
 
 const (
-	moveBy move = iota
-	moveTop
-	moveBottom
+	edgeNone anchorEdge = iota
+	edgeTop
+	edgeBottom
 )
 
 // SetPreamble stores the preamble text (e.g. commit metadata from git show).
@@ -254,17 +254,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	}
 
-	mv := moveBy
+	edge := edgeNone
 	if k, ok := msg.(tea.KeyPressMsg); ok && !m.fvp.FilterFocused() {
 		if key.Matches(k, ViewportKeyMap.Top) {
-			mv = moveTop
+			edge = edgeTop
 		} else if key.Matches(k, ViewportKeyMap.Bottom) {
-			mv = moveBottom
+			edge = edgeBottom
 		}
 	}
-	var fvpCmd tea.Cmd
-	m.tracked(mv, func() { m.fvp, fvpCmd = m.fvp.Update(msg) })
+	row := m.currentRow()
+	fvp, fvpCmd := m.fvp.Update(msg)
 	cmds = append(cmds, fvpCmd)
+	m.fvp = fvp
+	m.reanchor(row, edge)
 
 	return m, tea.Batch(cmds...)
 }
@@ -330,40 +332,41 @@ func (m *Model) currentRow() int {
 	return m.fvp.GetItemMetrics().FirstVisibleItemIdx
 }
 
-// tracked runs moveView, a move the user made, so that a pending render doesn't undo it:
-// a jump to the top or bottom stays there, other moves keep the line they land on.
-func (m *Model) tracked(mv move, moveView func()) {
-	row := m.currentRow()
-	moveView()
+// reanchor keeps a pending render from undoing a move the user made from row: a jump to
+// the top or bottom (edge) stays there, other moves keep the line they land on.
+func (m *Model) reanchor(row int, edge anchorEdge) {
 	if m.anchor == nil || m.currentRow() == row {
 		return
 	}
-	if mv != moveBy {
-		m.anchor = &scrollAnchor{edge: mv}
+	if edge != edgeNone {
+		m.anchor = &scrollAnchor{edge: edge}
 		return
 	}
 	m.anchor = nil
 	m.keepPosition()
 }
 
-// show puts lines on screen.
-func (m *Model) show(lines []diffLine) {
+// setLines shows lines and scrolls to the pending anchor, if any.
+func (m *Model) setLines(lines []diffLine) {
 	m.shown = lines
 	m.fvp.SetObjects(lines)
-}
-
-// setLines shows lines and scrolls to the anchor, if any.
-func (m *Model) setLines(lines []diffLine) {
-	m.show(lines)
 	if m.anchor == nil {
 		return
 	}
 	a := *m.anchor
 	m.anchor = nil
-	if a.edge == moveBy && m.fvp.GetMatchingItemsOnly() {
+	switch a.edge {
+	case edgeTop:
+		m.fvp.GoToTop()
+		return
+	case edgeBottom:
+		m.fvp.GoToBottom()
 		return
 	}
-	row, ok := anchorRow(lines, a)
+	if m.fvp.GetMatchingItemsOnly() {
+		return
+	}
+	row, ok := anchorRow(lines, a.rec, a.offset)
 	if !ok {
 		return
 	}
@@ -375,24 +378,21 @@ func (m *Model) setLines(lines []diffLine) {
 	m.fvp.ScrollDown(row)
 }
 
-// anchorRow returns the row of lines to scroll to for a, or false when its line is gone.
-func anchorRow(lines []diffLine, a scrollAnchor) (int, bool) {
-	switch a.edge {
-	case moveTop:
-		return 0, true
-	case moveBottom:
-		return max(len(lines)-1, 0), true
-	}
-	row := findRecord(lines, a.rec)
+// anchorRow returns the row offset rows from rec's first row, or false when rec is gone.
+// Rows above it (offset < 0) have no record, like blank or decoration rows. Rows below it
+// are its wrapped rows, so it stops at the line's last row.
+func anchorRow(lines []diffLine, rec record, offset int) (int, bool) {
+	row := findRecord(lines, rec)
 	if row < 0 {
 		return 0, false
 	}
-	if a.offset < 0 {
-		// A row above the line without a record, like a blank or decoration row.
-		return max(row+a.offset, 0), true
+	if offset < 0 {
+		return max(row+offset, 0), true
 	}
-	// A wrapped row: go down the line's rows, but not onto the next line.
-	for i := 0; i < a.offset && row+1 < len(lines) && lines[row+1].shows(a.rec); i++ {
+	for range offset {
+		if row+1 == len(lines) || !lines[row+1].shows(rec) {
+			break
+		}
 		row++
 	}
 	return row, true
@@ -491,7 +491,8 @@ func (m Model) dirHeaderView() string {
 
 func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	m.dir = nil
-	m.anchor = nil
+	// The rows on screen are another node's until this one is shown.
+	m.anchor, m.shown = nil, nil
 
 	fname := filenode.GetFileName(file)
 	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
@@ -499,7 +500,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	if cached, ok := m.cache[key]; ok {
 		m.file = cached
 		m.updateHeader()
-		m.show(cached.diff)
+		m.setLines(cached.diff)
 		return m, nil
 	}
 
@@ -513,8 +514,6 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 		deletions: deletions,
 	}
 	m.cache[key] = m.file
-	// The old node's rows stay on screen until the render lands; they have no record for this one.
-	m.shown = nil
 
 	m.updateHeader()
 	return m, m.diffFile(m.file, m.contentWidth())
@@ -522,13 +521,13 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
 	m.file = nil
-	m.anchor = nil
+	m.anchor, m.shown = nil, nil
 
 	key := cacheKey(dirPath, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
 		m.dir = cached
 		m.updateHeader()
-		m.show(cached.diff)
+		m.setLines(cached.diff)
 		return m, nil
 	}
 
@@ -545,7 +544,6 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 		deletions: deleted,
 	}
 	m.cache[key] = m.dir
-	m.shown = nil
 	preamble := ""
 	if dirPath == "/" {
 		preamble = m.preamble
@@ -567,22 +565,26 @@ func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 
 // ScrollUp scrolls the viewport up by the given number of lines.
 func (m *Model) ScrollUp(lines int) {
-	m.tracked(moveBy, func() { m.fvp.ScrollUp(lines) })
+	row := m.currentRow()
+	m.fvp.ScrollUp(lines)
+	m.reanchor(row, edgeNone)
 }
 
 // ScrollDown scrolls the viewport down by the given number of lines.
 func (m *Model) ScrollDown(lines int) {
-	m.tracked(moveBy, func() { m.fvp.ScrollDown(lines) })
+	row := m.currentRow()
+	m.fvp.ScrollDown(lines)
+	m.reanchor(row, edgeNone)
 }
 
 // ScrollBottom scrolls the viewport to the bottom.
 func (m *Model) ScrollBottom() {
-	m.tracked(moveBottom, m.fvp.GoToBottom)
+	m.fvp.GoToBottom()
 }
 
 // ScrollTop scrolls the viewport to its top.
 func (m *Model) ScrollTop() {
-	m.tracked(moveTop, m.fvp.GoToTop)
+	m.fvp.GoToTop()
 }
 
 // ScrollLeft moves the viewport to the left by the given number of columns.

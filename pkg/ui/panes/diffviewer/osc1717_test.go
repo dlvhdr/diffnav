@@ -130,7 +130,7 @@ func showing(t *testing.T, height int, lines []diffLine) Model {
 	m.SetSize(80, height)
 	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: lines}
 	m.cache[cacheKey("a.go", false)] = m.file
-	m.show(lines)
+	m.setLines(lines)
 	return m
 }
 
@@ -202,7 +202,7 @@ func TestSetSideBySide_KeepsRecordlessTopRow(t *testing.T) {
 		// A new file renders the same in both modes, so `s` re-shows the same lines.
 		m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{IsNew: true}}, diff: lines}
 		m.cache[cacheKey("a.go", false)] = m.file
-		m.show(lines)
+		m.setLines(lines)
 		m.ScrollDown(top)
 
 		m.SetSideBySide(true)
@@ -238,7 +238,7 @@ func TestSetSideBySide_UserMoveDuringRender(t *testing.T) {
 func TestSetSideBySide_WheelWithoutMoveKeepsAnchor(t *testing.T) {
 	unified, sbs := unifiedAndSbs()
 	m := showing(t, 4, unified)
-	m.ScrollBottom()
+	m.fvp.GoToBottom()
 	want, _ := firstRecord(unified, m.fvp.GetItemMetrics().FirstVisibleItemIdx)
 
 	m.SetSideBySide(true)
@@ -259,7 +259,7 @@ func TestSwitchToUncachedNode_HasNoRecord(t *testing.T) {
 	for name, switchTo := range switches {
 		m := newTestModel(t)
 		m.SetSize(80, 6)
-		m.show(a)
+		m.setLines(a)
 		m = switchTo(m)
 		if rec, ok := m.currentRecord(); ok {
 			t.Errorf("%s: expected no record before the render lands, got %+v", name, rec)
