@@ -303,10 +303,8 @@ func (m *Model) UpdateTheme() tea.Cmd {
 	return m.diff()
 }
 
-// keepPosition remembers the diff line at the top of the view (or the selected one),
-// so the next render of this node scrolls back to it. Rows without a record (a preamble,
-// blank or decoration rows) keep a negative offset from the next record's first row;
-// wrapped rows repeat their record and keep a positive offset, capped to the line's rows.
+// keepPosition remembers the diff line at the top of the view (or the selected one) and
+// the view's offset from its first row, so the next render scrolls back to it (anchorRow).
 func (m *Model) keepPosition() {
 	// Without a record, a pending anchor is kept.
 	if rec, ok := m.currentRecord(); ok {
