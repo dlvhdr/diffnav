@@ -362,23 +362,12 @@ func (m *Model) setLines(lines []diffLine) {
 	}
 	a := *m.anchor
 	m.anchor = nil
-	row := 0
-	switch a.edge {
-	case moveBottom:
-		row = max(len(lines)-1, 0)
-	case moveBy:
-		row = findRecord(lines, a.rec)
-		if row < 0 || m.fvp.GetMatchingItemsOnly() {
-			return
-		}
-		// Stay within the record's rows, so a wrapped row doesn't spill onto the next line.
-		for range a.offset {
-			if row+1 >= len(lines) || !lines[row+1].shows(a.rec) {
-				break
-			}
-			row++
-		}
-		row = max(row+min(a.offset, 0), 0)
+	if a.edge == moveBy && m.fvp.GetMatchingItemsOnly() {
+		return
+	}
+	row, ok := anchorRow(lines, a)
+	if !ok {
+		return
 	}
 	if m.SelectionEnabled() {
 		m.fvp.SetSelectedItemIdx(row)
@@ -386,6 +375,29 @@ func (m *Model) setLines(lines []diffLine) {
 	}
 	m.fvp.GoToTop()
 	m.fvp.ScrollDown(row)
+}
+
+// anchorRow returns the row of lines to scroll to for a, or false when its line is gone.
+func anchorRow(lines []diffLine, a scrollAnchor) (int, bool) {
+	switch a.edge {
+	case moveTop:
+		return 0, true
+	case moveBottom:
+		return max(len(lines)-1, 0), true
+	}
+	row := findRecord(lines, a.rec)
+	if row < 0 {
+		return 0, false
+	}
+	if a.offset < 0 {
+		// A row above the line without a record, like a blank or decoration row.
+		return max(row+a.offset, 0), true
+	}
+	// A wrapped row: go down the line's rows, but not onto the next line.
+	for i := 0; i < a.offset && row+1 < len(lines) && lines[row+1].shows(a.rec); i++ {
+		row++
+	}
+	return row, true
 }
 
 func (m Model) contentWidth() int {
