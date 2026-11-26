@@ -111,19 +111,41 @@ func row(records ...record) diffLine {
 	return diffLine{item: item.NewItem("x"), records: records}
 }
 
+// ctxLine is a context line n of a.go.
+func ctxLine(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+
+// unifiedAndSbs returns lines 1 to 20 of a.go in unified, and side by side with a
+// decoration row before every line.
+func unifiedAndSbs() (unified, sbs []diffLine) {
+	for n := 1; n <= 20; n++ {
+		unified = append(unified, row(ctxLine(n)))
+		sbs = append(sbs, row(), row(ctxLine(n), ctxLine(n)))
+	}
+	return unified, sbs
+}
+
+// showing returns a model of the given height that shows lines as a.go in unified.
+func showing(t *testing.T, height int, lines []diffLine) Model {
+	m := newTestModel(t)
+	m.SetSize(80, height)
+	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: lines}
+	m.cache[cacheKey("a.go", false)] = m.file
+	m.show(lines)
+	return m
+}
+
 func TestFindRecord(t *testing.T) {
-	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
 	a := func(n int) record { return record{Kind: 'a', NewLine: n, File: "a.go"} }
 	d := func(n, o int) record { return record{Kind: 'd', NewLine: n, OldLine: o, File: "a.go"} }
 	// Side-by-side: a modification is one row with d and a.
 	lines := []diffLine{
 		row(record{Kind: 'f', File: "a.go"}),
 		row(record{Kind: 'h', NewLine: 1, File: "a.go"}),
-		row(c(1), c(1)),
+		row(ctxLine(1), ctxLine(1)),
 		row(d(2, 2), a(2)),
 		row(a(3)),
 		row(),
-		row(c(4), c(4)),
+		row(ctxLine(4), ctxLine(4)),
 	}
 	tests := []struct {
 		name string
@@ -134,7 +156,7 @@ func TestFindRecord(t *testing.T) {
 		{"added on the right", a(3), 4},
 		{"hunk", record{Kind: 'h', NewLine: 1, File: "a.go"}, 1},
 		{"file", record{Kind: 'f', File: "a.go"}, 0},
-		{"past the end", c(9), -1},
+		{"past the end", ctxLine(9), -1},
 		{"other file", record{Kind: 'c', NewLine: 1, File: "b.go"}, -1},
 	}
 	for _, tt := range tests {
@@ -147,14 +169,13 @@ func TestFindRecord(t *testing.T) {
 func TestSetSideBySide_KeepsPosition(t *testing.T) {
 	m := newTestModel(t)
 	m.SetSize(80, 4)
-	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
 	var unified, sbs []diffLine
 	for n := 1; n <= 20; n++ {
-		unified = append(unified, row(c(n)))
+		unified = append(unified, row(ctxLine(n)))
 		if n == 7 {
-			unified = append(unified, row(c(n))) // line 7 wraps in unified only
+			unified = append(unified, row(ctxLine(n))) // line 7 wraps in unified only
 		}
-		sbs = append(sbs, row(), row(c(n), c(n))) // a decoration row before every line
+		sbs = append(sbs, row(), row(ctxLine(n), ctxLine(n))) // a decoration row before every line
 	}
 	files := []*gitdiff.File{{}}
 	m.file = &cachedNode{path: "a.go", files: files}
@@ -170,11 +191,10 @@ func TestSetSideBySide_KeepsPosition(t *testing.T) {
 }
 
 func TestSetSideBySide_KeepsRecordlessTopRow(t *testing.T) {
-	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
 	// A preamble, then line 1 wrapped over two rows.
-	lines := []diffLine{row(), row(), row(c(1)), row(c(1))}
+	lines := []diffLine{row(), row(), row(ctxLine(1)), row(ctxLine(1))}
 	for n := 2; n <= 20; n++ {
-		lines = append(lines, row(c(n)))
+		lines = append(lines, row(ctxLine(n)))
 	}
 	for _, top := range []int{0, 3} {
 		m := newTestModel(t)
@@ -193,18 +213,9 @@ func TestSetSideBySide_KeepsRecordlessTopRow(t *testing.T) {
 }
 
 func TestSetSideBySide_UserMoveDuringRender(t *testing.T) {
-	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
-	var unified, sbs []diffLine
-	for n := 1; n <= 20; n++ {
-		unified = append(unified, row(c(n)))
-		sbs = append(sbs, row(), row(c(n), c(n))) // a decoration row before every line
-	}
+	unified, sbs := unifiedAndSbs()
 	for _, key := range []string{"g", "G", "j"} {
-		m := newTestModel(t)
-		m.SetSize(80, 6)
-		m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: unified}
-		m.cache[cacheKey("a.go", false)] = m.file
-		m.show(unified)
+		m := showing(t, 6, unified)
 		m.ScrollDown(10)
 
 		m.SetSideBySide(true) // renders async: the anchor is pending
@@ -225,17 +236,8 @@ func TestSetSideBySide_UserMoveDuringRender(t *testing.T) {
 }
 
 func TestSetSideBySide_WheelWithoutMoveKeepsAnchor(t *testing.T) {
-	m := newTestModel(t)
-	m.SetSize(80, 4)
-	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
-	var unified, sbs []diffLine
-	for n := 1; n <= 20; n++ {
-		unified = append(unified, row(c(n)))
-		sbs = append(sbs, row(), row(c(n), c(n))) // a decoration row before every line
-	}
-	m.file = &cachedNode{path: "a.go", files: []*gitdiff.File{{}}, diff: unified}
-	m.cache[cacheKey("a.go", false)] = m.file
-	m.show(unified)
+	unified, sbs := unifiedAndSbs()
+	m := showing(t, 4, unified)
 	m.ScrollBottom()
 	want, _ := firstRecord(unified, m.fvp.GetItemMetrics().FirstVisibleItemIdx)
 
