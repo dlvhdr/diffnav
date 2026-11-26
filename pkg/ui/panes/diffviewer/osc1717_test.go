@@ -229,6 +229,20 @@ func TestSetSideBySide_WheelWithoutMoveKeepsAnchor(t *testing.T) {
 	}
 }
 
+func TestSetSideBySide_WheelDuringRender(t *testing.T) {
+	unified, sbs := unifiedAndSbs()
+	m := showing(t, 6, unified)
+	m.ScrollDown(5)
+
+	m.SetSideBySide(true) // renders async: the anchor is pending
+	m.ScrollDown(3)       // the wheel moves the old render
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+
+	if got, _ := firstRecord(sbs, m.fvp.GetItemMetrics().FirstVisibleItemIdx); got != ctxLine(9) {
+		t.Fatalf("expected line 9 at the top, got line %d", got.NewLine)
+	}
+}
+
 func TestSwitchToUncachedNode_HasNoRecord(t *testing.T) {
 	a := []diffLine{row(record{Kind: 'c', NewLine: 40, File: "a.go"})}
 	b := &gitdiff.File{OldName: "b.go", NewName: "b.go"}
