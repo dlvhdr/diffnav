@@ -132,6 +132,12 @@ func showing(t *testing.T, height int, lines []diffLine) Model {
 	return m
 }
 
+// rendered delivers the pending side-by-side render of a.go.
+func rendered(m Model, lines []diffLine) Model {
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: lines})
+	return m
+}
+
 func TestFindRecord(t *testing.T) {
 	a := func(n int) record { return record{Kind: 'a', NewLine: n, File: "a.go"} }
 	d := func(n, o int) record { return record{Kind: 'd', NewLine: n, OldLine: o, File: "a.go"} }
@@ -201,7 +207,7 @@ func TestSetSideBySide_UserMoveDuringRender(t *testing.T) {
 
 		m.SetSideBySide(true) // renders async: the anchor is pending
 		m, _ = m.Update(tea.KeyPressMsg{Code: rune(key[0]), Text: key})
-		m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+		m = rendered(m, sbs)
 		metrics := m.fvp.GetItemMetrics()
 		got, _ := firstRecord(sbs, metrics.FirstVisibleItemIdx)
 		switch {
@@ -223,7 +229,7 @@ func TestSetSideBySide_WheelWithoutMoveKeepsAnchor(t *testing.T) {
 
 	m.SetSideBySide(true)
 	m.ScrollDown(3) // the wheel at the bottom doesn't move
-	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+	m = rendered(m, sbs)
 	if got, _ := firstRecord(sbs, m.fvp.GetItemMetrics().FirstVisibleItemIdx); got != want {
 		t.Fatalf("expected line %d at the top, got line %d", want.NewLine, got.NewLine)
 	}
@@ -236,7 +242,7 @@ func TestSetSideBySide_WheelDuringRender(t *testing.T) {
 
 	m.SetSideBySide(true) // renders async: the anchor is pending
 	m.ScrollDown(3)       // the wheel moves the old render
-	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+	m = rendered(m, sbs)
 
 	if got, _ := firstRecord(sbs, m.fvp.GetItemMetrics().FirstVisibleItemIdx); got != ctxLine(9) {
 		t.Fatalf("expected line 9 at the top, got line %d", got.NewLine)
@@ -271,7 +277,7 @@ func TestSetSideBySide_EdgeKeyAtTheEdge(t *testing.T) {
 
 		m.SetSideBySide(true)
 		m, _ = m.Update(tea.KeyPressMsg{Code: rune(key[0]), Text: key}) // already there
-		m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+		m = rendered(m, sbs)
 		metrics := m.fvp.GetItemMetrics()
 		if key == "g" && metrics.FirstVisibleItemIdx != 0 {
 			t.Errorf("g: expected the top, got row %d", metrics.FirstVisibleItemIdx)
@@ -290,7 +296,7 @@ func TestSetSideBySide_ResizeDuringRenderKeepsAnchor(t *testing.T) {
 	m.SetSideBySide(true)
 	m, _ = m.Update(tea.KeyPressMsg{Code: 'G', Text: "G"})
 	m.SetSize(81, 6) // a resize before the render lands
-	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+	m = rendered(m, sbs)
 	if got := m.fvp.GetItemMetrics().LastVisibleItemIdx; got != len(sbs)-1 {
 		t.Fatalf("expected the bottom, got row %d", got)
 	}
