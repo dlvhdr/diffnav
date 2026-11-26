@@ -49,19 +49,19 @@ func parseRecords(row string) (string, []record) {
 	var records []record
 	var b strings.Builder
 	for {
-		start := strings.Index(row, osc1717Prefix)
-		if start < 0 {
+		before, after, ok := strings.Cut(row, osc1717Prefix)
+		if !ok {
 			break
 		}
-		end := strings.Index(row[start:], osc1717Term)
-		if end < 0 {
-			break
+		body, rest, ok := strings.Cut(after, osc1717Term)
+		if !ok {
+			break // unterminated: kept as text
 		}
-		b.WriteString(row[:start])
-		if r, ok := parseRecord(row[start+len(osc1717Prefix) : start+end]); ok {
+		b.WriteString(before)
+		if r, ok := parseRecord(body); ok {
 			records = append(records, r)
 		}
-		row = row[start+end+len(osc1717Term):]
+		row = rest
 	}
 	b.WriteString(row)
 	return b.String(), records
@@ -76,19 +76,24 @@ func parseRecord(body string) (record, bool) {
 	}
 	newLine, _ := strconv.Atoi(fields[2])
 	oldLine, _ := strconv.Atoi(fields[3])
-	file := fields[4]
-	// Git quotes unusual names with octal escapes (\303\244 for ä), and delta copies them,
-	// with the quotes for a renamed file.
-	if strings.Contains(file, `\`) {
-		quoted := file
-		if len(file) < 2 || file[0] != '"' || file[len(file)-1] != '"' {
-			quoted = `"` + file + `"`
-		}
-		if name, err := strconv.Unquote(quoted); err == nil {
-			file = name
-		}
+	r := record{Kind: fields[1][0], NewLine: newLine, OldLine: oldLine, File: unquote(fields[4])}
+	return r, true
+}
+
+// unquote undoes git's quoting of unusual file names (\303\244 for ä), which delta copies,
+// with the quotes for a renamed file and without them otherwise. Invalid escapes stay as is.
+func unquote(file string) string {
+	if !strings.Contains(file, `\`) {
+		return file
 	}
-	return record{Kind: fields[1][0], NewLine: newLine, OldLine: oldLine, File: file}, true
+	quoted := file
+	if len(file) < 2 || !strings.HasPrefix(file, `"`) || !strings.HasSuffix(file, `"`) {
+		quoted = `"` + file + `"`
+	}
+	if name, err := strconv.Unquote(quoted); err == nil {
+		return name
+	}
+	return file
 }
 
 // firstRecord returns the first record at or below row.
