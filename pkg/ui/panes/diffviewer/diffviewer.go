@@ -262,11 +262,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			mv = moveBottom
 		}
 	}
-	row := m.currentRow()
-	fvp, fvpCmd := m.fvp.Update(msg)
+	var fvpCmd tea.Cmd
+	m.tracked(mv, func() { m.fvp, fvpCmd = m.fvp.Update(msg) })
 	cmds = append(cmds, fvpCmd)
-	m.fvp = fvp
-	m.followMove(row, mv)
 
 	return m, tea.Batch(cmds...)
 }
@@ -334,9 +332,11 @@ func (m *Model) currentRow() int {
 	return m.fvp.GetItemMetrics().FirstVisibleItemIdx
 }
 
-// followMove keeps a pending render from undoing a move the user made from row:
+// tracked runs moveView, a move the user made, so that a pending render doesn't undo it:
 // a jump to the top or bottom stays there, other moves keep the line they land on.
-func (m *Model) followMove(row int, mv move) {
+func (m *Model) tracked(mv move, moveView func()) {
+	row := m.currentRow()
+	moveView()
 	if m.anchor == nil || m.currentRow() == row {
 		return
 	}
@@ -569,30 +569,22 @@ func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 
 // ScrollUp scrolls the viewport up by the given number of lines.
 func (m *Model) ScrollUp(lines int) {
-	row := m.currentRow()
-	m.fvp.ScrollUp(lines)
-	m.followMove(row, moveBy)
+	m.tracked(moveBy, func() { m.fvp.ScrollUp(lines) })
 }
 
 // ScrollDown scrolls the viewport down by the given number of lines.
 func (m *Model) ScrollDown(lines int) {
-	row := m.currentRow()
-	m.fvp.ScrollDown(lines)
-	m.followMove(row, moveBy)
+	m.tracked(moveBy, func() { m.fvp.ScrollDown(lines) })
 }
 
 // ScrollBottom scrolls the viewport to the bottom.
 func (m *Model) ScrollBottom() {
-	row := m.currentRow()
-	m.fvp.GoToBottom()
-	m.followMove(row, moveBottom)
+	m.tracked(moveBottom, m.fvp.GoToBottom)
 }
 
 // ScrollTop scrolls the viewport to its top.
 func (m *Model) ScrollTop() {
-	row := m.currentRow()
-	m.fvp.GoToTop()
-	m.followMove(row, moveTop)
+	m.tracked(moveTop, m.fvp.GoToTop)
 }
 
 // ScrollLeft moves the viewport to the left by the given number of columns.
