@@ -308,7 +308,11 @@ func (m *Model) UpdateTheme() tea.Cmd {
 // keepPosition remembers the diff line at the top of the view (or the selected one) and
 // the view's offset from its first row, so the next render scrolls back to it (anchorRow).
 func (m *Model) keepPosition() {
-	// Without a record, a pending anchor is kept.
+	// A pending anchor still holds: the view can't have moved since without a reanchor,
+	// and a resize may already have clamped it.
+	if m.anchor != nil {
+		return
+	}
 	if rec, ok := m.currentRecord(); ok {
 		m.anchor = &scrollAnchor{rec: rec, offset: m.currentRow() - findRecord(m.shown, rec)}
 	}

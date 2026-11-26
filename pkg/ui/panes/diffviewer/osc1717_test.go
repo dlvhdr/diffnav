@@ -287,3 +287,17 @@ func TestSetSideBySide_EdgeKeyAtTheEdge(t *testing.T) {
 		}
 	}
 }
+
+func TestSetSideBySide_ResizeDuringRenderKeepsAnchor(t *testing.T) {
+	unified, sbs := unifiedAndSbs()
+	m := showing(t, 6, unified)
+	m.ScrollDown(10)
+
+	m.SetSideBySide(true)
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'G', Text: "G"})
+	m.SetSize(81, 6) // a resize before the render lands
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+	if got := m.fvp.GetItemMetrics().LastVisibleItemIdx; got != len(sbs)-1 {
+		t.Fatalf("expected the bottom, got row %d", got)
+	}
+}
