@@ -7,6 +7,11 @@ import (
 	"github.com/muesli/reflow/truncate"
 )
 
+var ansiResetReplacer = strings.NewReplacer(
+	"\x1b[0m", "",
+	"\x1b[m", "",
+)
+
 // TruncateString is a convenient wrapper around truncate.TruncateString.
 func TruncateString(s string, max int) string {
 	if runewidth.StringWidth(s) <= max {
@@ -19,6 +24,5 @@ func TruncateString(s string, max int) string {
 }
 
 func RemoveReset(s string) string {
-	// Remove ANSI reset codes
-	return strings.ReplaceAll(s, "\x1b[m", "")
+	return ansiResetReplacer.Replace(s)
 }
