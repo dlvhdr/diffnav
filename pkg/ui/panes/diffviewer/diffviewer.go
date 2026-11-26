@@ -335,11 +335,14 @@ func (m *Model) currentRow() int {
 // reanchor keeps a pending render from undoing a move the user made from row: a jump to
 // the top or bottom (edge) stays there, other moves keep the line they land on.
 func (m *Model) reanchor(row int, edge anchorEdge) {
-	if m.anchor == nil || m.currentRow() == row {
+	if m.anchor == nil {
 		return
 	}
 	if edge != edgeNone {
 		m.anchor = &scrollAnchor{edge: edge}
+		return
+	}
+	if m.currentRow() == row {
 		return
 	}
 	m.anchor = nil

@@ -266,3 +266,24 @@ func TestSwitchToUncachedNode_HasNoRecord(t *testing.T) {
 		}
 	}
 }
+
+func TestSetSideBySide_EdgeKeyAtTheEdge(t *testing.T) {
+	unified, sbs := unifiedAndSbs()
+	for _, key := range []string{"g", "G"} {
+		m := showing(t, 4, unified)
+		if key == "G" {
+			m.fvp.GoToBottom()
+		}
+
+		m.SetSideBySide(true)
+		m, _ = m.Update(tea.KeyPressMsg{Code: rune(key[0]), Text: key}) // already there
+		m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", true), node: m.file, lines: sbs})
+		metrics := m.fvp.GetItemMetrics()
+		if key == "g" && metrics.FirstVisibleItemIdx != 0 {
+			t.Errorf("g: expected the top, got row %d", metrics.FirstVisibleItemIdx)
+		}
+		if key == "G" && metrics.LastVisibleItemIdx != len(sbs)-1 {
+			t.Errorf("G: expected the bottom, got row %d", metrics.LastVisibleItemIdx)
+		}
+	}
+}
