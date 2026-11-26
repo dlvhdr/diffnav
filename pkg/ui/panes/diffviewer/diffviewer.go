@@ -42,7 +42,8 @@ func cacheKey(path string, sideBySide bool) string {
 }
 
 type diffLine struct {
-	item item.Item
+	item    item.Item
+	records []record
 }
 
 func (o diffLine) GetItem() item.Item {
@@ -95,7 +96,28 @@ type Model struct {
 	useUserDeltaTheme bool
 	preamble          string
 	sb                common.Scrollbar
+	// shown are the lines on screen: the last render while a new one is pending.
+	shown []diffLine
+	// anchor is where to scroll back to once the re-rendered diff is shown.
+	anchor *scrollAnchor
 }
+
+// scrollAnchor is where to scroll back to after a re-render: the top or bottom of the
+// diff, or a diff line and the view's offset from its first row.
+type scrollAnchor struct {
+	edge   anchorEdge
+	rec    record
+	offset int
+}
+
+// anchorEdge is the edge of the diff an anchor sticks to, if any.
+type anchorEdge int
+
+const (
+	edgeNone anchorEdge = iota
+	edgeTop
+	edgeBottom
+)
 
 // SetPreamble stores the preamble text (e.g. commit metadata from git show).
 func (m *Model) SetPreamble(preamble string) {
@@ -228,13 +250,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		node.diff = msg.lines
 		if node == m.file || node == m.dir {
-			m.fvp.SetObjects(msg.lines)
+			m.setLines(msg.lines)
 		}
 	}
 
+	edge := edgeNone
+	if k, ok := msg.(tea.KeyPressMsg); ok && !m.fvp.FilterFocused() {
+		if key.Matches(k, ViewportKeyMap.Top) {
+			edge = edgeTop
+		} else if key.Matches(k, ViewportKeyMap.Bottom) {
+			edge = edgeBottom
+		}
+	}
+	row := m.currentRow()
 	fvp, fvpCmd := m.fvp.Update(msg)
 	cmds = append(cmds, fvpCmd)
 	m.fvp = fvp
+	m.reanchor(row, edge)
 
 	return m, tea.Batch(cmds...)
 }
@@ -257,6 +289,8 @@ func (m Model) View() string {
 }
 
 func (m *Model) SetSize(width, height int) tea.Cmd {
+	// Before resizing: the viewport clamps its top row to the new size.
+	m.keepPosition()
 	m.Width = width
 	m.Height = height
 	m.fvp.SetWidth(m.contentWidth())
@@ -266,8 +300,109 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 }
 
 func (m *Model) UpdateTheme() tea.Cmd {
+	m.keepPosition()
 	m.ClearCache()
 	return m.diff()
+}
+
+// keepPosition remembers the diff line at the top of the view (or the selected one) and
+// the view's offset from its first row, so the next render scrolls back to it (anchorRow).
+func (m *Model) keepPosition() {
+	// A pending anchor still holds: the view can't have moved since without a reanchor,
+	// and a resize may already have clamped it.
+	if m.anchor != nil {
+		return
+	}
+	if rec, ok := m.currentRecord(); ok {
+		m.anchor = &scrollAnchor{rec: rec, offset: m.currentRow() - findRecord(m.shown, rec)}
+	}
+}
+
+// currentRecord returns the first record at or below the current row of the lines on
+// screen, so it is right while a new render is pending too.
+func (m *Model) currentRecord() (record, bool) {
+	row := m.currentRow()
+	if row < 0 || m.fvp.GetMatchingItemsOnly() {
+		return record{}, false
+	}
+	return firstRecord(m.shown, row)
+}
+
+// currentRow is the selected row, or the top visible one without a selection.
+func (m *Model) currentRow() int {
+	if m.SelectionEnabled() {
+		return m.fvp.GetSelectedItemIdx()
+	}
+	return m.fvp.GetItemMetrics().FirstVisibleItemIdx
+}
+
+// reanchor keeps a pending render from undoing a move the user made from row: a jump to
+// the top or bottom (edge) stays there, other moves keep the line they land on.
+func (m *Model) reanchor(row int, edge anchorEdge) {
+	if m.anchor == nil {
+		return
+	}
+	if edge != edgeNone {
+		m.anchor = &scrollAnchor{edge: edge}
+		return
+	}
+	if m.currentRow() == row {
+		return
+	}
+	m.anchor = nil
+	m.keepPosition()
+}
+
+// setLines shows lines and scrolls to the pending anchor, if any.
+func (m *Model) setLines(lines []diffLine) {
+	m.shown = lines
+	m.fvp.SetObjects(lines)
+	if m.anchor == nil {
+		return
+	}
+	a := *m.anchor
+	m.anchor = nil
+	switch a.edge {
+	case edgeTop:
+		m.fvp.GoToTop()
+		return
+	case edgeBottom:
+		m.fvp.GoToBottom()
+		return
+	}
+	if m.fvp.GetMatchingItemsOnly() {
+		return
+	}
+	row, ok := anchorRow(lines, a.rec, a.offset)
+	if !ok {
+		return
+	}
+	if m.SelectionEnabled() {
+		m.fvp.SetSelectedItemIdx(row)
+		return
+	}
+	m.fvp.GoToTop()
+	m.fvp.ScrollDown(row)
+}
+
+// anchorRow returns the row offset rows from rec's first row, or false when rec is gone.
+// Rows above it (offset < 0) have no record, like blank or decoration rows. Rows below it
+// are its wrapped rows, so it stops at the line's last row.
+func anchorRow(lines []diffLine, rec record, offset int) (int, bool) {
+	row := findRecord(lines, rec)
+	if row < 0 {
+		return 0, false
+	}
+	if offset < 0 {
+		return max(row+offset, 0), true
+	}
+	for range offset {
+		if row+1 == len(lines) || !lines[row+1].shows(rec) {
+			break
+		}
+		row++
+	}
+	return row, true
 }
 
 func (m Model) contentWidth() int {
@@ -281,7 +416,7 @@ func (m *Model) diff() tea.Cmd {
 		key := cacheKey(m.file.path, sideBySide)
 		if cached, ok := m.cache[key]; ok && len(cached.diff) != 0 {
 			m.file = cached
-			m.fvp.SetObjects(cached.diff)
+			m.setLines(cached.diff)
 			return nil
 		}
 		node := &cachedNode{
@@ -297,7 +432,7 @@ func (m *Model) diff() tea.Cmd {
 		key := cacheKey(m.dir.path, m.sideBySide)
 		if cached, ok := m.cache[key]; ok && len(cached.diff) != 0 {
 			m.dir = cached
-			m.fvp.SetObjects(cached.diff)
+			m.setLines(cached.diff)
 			return nil
 		}
 		node := &cachedNode{
@@ -363,6 +498,8 @@ func (m Model) dirHeaderView() string {
 
 func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	m.dir = nil
+	// The rows on screen are another node's until this one is shown.
+	m.anchor, m.shown = nil, nil
 
 	fname := filenode.GetFileName(file)
 	sideBySide := m.sideBySide && !file.IsNew && !file.IsDelete
@@ -370,7 +507,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	if cached, ok := m.cache[key]; ok {
 		m.file = cached
 		m.updateHeader()
-		m.fvp.SetObjects(cached.diff)
+		m.setLines(cached.diff)
 		return m, nil
 	}
 
@@ -391,12 +528,13 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
 	m.file = nil
+	m.anchor, m.shown = nil, nil
 
 	key := cacheKey(dirPath, m.sideBySide)
 	if cached, ok := m.cache[key]; ok {
 		m.dir = cached
 		m.updateHeader()
-		m.fvp.SetObjects(cached.diff)
+		m.setLines(cached.diff)
 		return m, nil
 	}
 
@@ -428,17 +566,22 @@ func (m *Model) updateHeader() {
 // SetSideBySide updates the diff view mode and re-renders.
 func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	m.sideBySide = sideBySide
+	m.keepPosition()
 	return m.diff()
 }
 
 // ScrollUp scrolls the viewport up by the given number of lines.
 func (m *Model) ScrollUp(lines int) {
+	row := m.currentRow()
 	m.fvp.ScrollUp(lines)
+	m.reanchor(row, edgeNone)
 }
 
 // ScrollDown scrolls the viewport down by the given number of lines.
 func (m *Model) ScrollDown(lines int) {
+	row := m.currentRow()
 	m.fvp.ScrollDown(lines)
+	m.reanchor(row, edgeNone)
 }
 
 // ScrollBottom scrolls the viewport to the bottom.
@@ -488,7 +631,7 @@ func (m *Model) diffFile(node *cachedNode, width int) tea.Cmd {
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{cacheKey: key, node: node, lines: stringToDiffLines(string(out))}
+		return diffContentMsg{cacheKey: key, node: node, lines: parseDeltaOutput(string(out))}
 	}
 }
 
@@ -522,11 +665,11 @@ func (m *Model) diffDir(dir *cachedNode, width int, sideBySide bool, preamble st
 			return common.ErrMsg{Err: err}
 		}
 
-		text := string(out)
+		lines := parseDeltaOutput(string(out))
 		if preamble != "" {
-			text = m.renderPreamble(preamble) + "\n" + text
+			lines = append(stringToDiffLines(m.renderPreamble(preamble)), lines...)
 		}
-		return diffContentMsg{cacheKey: key, node: dir, lines: stringToDiffLines(text)}
+		return diffContentMsg{cacheKey: key, node: dir, lines: lines}
 	}
 }
 
@@ -623,10 +766,11 @@ type deltaOpts struct {
 	UseUserDeltaTheme bool
 }
 
-// makeDeltaEnv sets side-by-side like `git -c delta.side-by-side=...` would.
-// The --side-by-side flag would override the user's line-number format and can't turn it off.
+// makeDeltaEnv asks for OSC 1717 line metadata and, with the user's theme, sets side-by-side
+// like `git -c delta.side-by-side=...` would. The --side-by-side flag would override the
+// user's line-number format and can't turn it off.
 func makeDeltaEnv(opts deltaOpts) []string {
-	env := os.Environ()
+	env := append(os.Environ(), "OSC1717=V1")
 	if !opts.UseUserDeltaTheme {
 		return env
 	}
