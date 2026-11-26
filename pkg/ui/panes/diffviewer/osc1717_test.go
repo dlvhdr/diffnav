@@ -221,17 +221,17 @@ func TestSetSideBySide_UserMoveDuringRender(t *testing.T) {
 	}
 }
 
-func TestSetSideBySide_WheelWithoutMoveKeepsAnchor(t *testing.T) {
+func TestSetSideBySide_WheelAtTheBottomKeepsG(t *testing.T) {
 	unified, sbs := unifiedAndSbs()
 	m := showing(t, 4, unified)
-	m.fvp.GoToBottom()
-	want, _ := firstRecord(unified, m.fvp.GetItemMetrics().FirstVisibleItemIdx)
+	m.ScrollDown(5)
 
-	m.SetSideBySide(true)
-	m.ScrollDown(3) // the wheel at the bottom doesn't move
+	m.SetSideBySide(true) // renders async: the anchor is pending
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'G', Text: "G"})
+	m.ScrollDown(3) // already at the bottom: doesn't move
 	m = rendered(m, sbs)
-	if got, _ := firstRecord(sbs, m.fvp.GetItemMetrics().FirstVisibleItemIdx); got != want {
-		t.Fatalf("expected line %d at the top, got line %d", want.NewLine, got.NewLine)
+	if got := m.fvp.GetItemMetrics().LastVisibleItemIdx; got != len(sbs)-1 {
+		t.Fatalf("expected the bottom, got last row %d", got)
 	}
 }
 
