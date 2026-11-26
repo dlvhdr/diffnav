@@ -1,6 +1,7 @@
 package diffviewer
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -87,7 +88,7 @@ func unquote(file string) string {
 		return file
 	}
 	quoted := file
-	if len(file) < 2 || !strings.HasPrefix(file, `"`) || !strings.HasSuffix(file, `"`) {
+	if !strings.HasPrefix(file, `"`) {
 		quoted = `"` + file + `"`
 	}
 	if name, err := strconv.Unquote(quoted); err == nil {
@@ -108,26 +109,20 @@ func firstRecord(lines []diffLine, row int) (record, bool) {
 
 // findRecord returns the first row showing the same diff line as want, or -1.
 func findRecord(lines []diffLine, want record) int {
-	for i, l := range lines {
-		if l.shows(want) {
-			return i
-		}
-	}
-	return -1
+	return slices.IndexFunc(lines, func(l diffLine) bool { return l.shows(want) })
 }
 
 // shows reports whether the row shows the same diff line as want.
 func (o diffLine) shows(want record) bool {
-	for _, r := range o.records {
-		if r.File == want.File && sameLine(r, want) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(o.records, func(r record) bool { return sameLine(r, want) })
 }
 
-// sameLine compares records of the same file: d by old line, c/a and h by new line.
+// sameLine reports whether r is the same diff line as want: in the same file, d by old line,
+// c and a by new line, f and h by kind and new line.
 func sameLine(r, want record) bool {
+	if r.File != want.File {
+		return false
+	}
 	switch want.Kind {
 	case 'd':
 		return r.Kind == 'd' && r.OldLine == want.OldLine
